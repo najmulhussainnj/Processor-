@@ -87,6 +87,7 @@ package TbSoc;
 			soc.boot_sequence('b1);	
 		endrule
 
+	`ifdef Debug
 		rule drive_constants;
 		`ifndef Openocd
 			soc.tdi_i(0);
@@ -94,6 +95,7 @@ package TbSoc;
 			soc.bs_chain_i(0);
 		`endif
 		endrule
+	`endif
 
 		`ifdef AXIEXP
 			mkConnection(soc.axiexp1_out,axiexpslave.from_slave);

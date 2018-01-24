@@ -709,7 +709,7 @@ endfunction
 		`endif
 		Bit#(`Reg_width) lv_csr_mip = csr_mip;
 		lv_csr_mip[11]=lv_csr_mip[11]|pack(rg_nmi);
-		Bit#(15) pending_interrupts = (truncate(csr_mip)|pending_debug_interrupt) & truncate(csr_mie) ;
+		Bit#(15) pending_interrupts = (truncate(csr_mip)`ifdef Debug |pending_debug_interrupt `endif ) & truncate(csr_mie) ;
         `ifdef verbose $display("Pending_interrupts in the beginning csr_mip : %b pending_interrupt: %b", csr_mip, pending_interrupts); `endif
         // machine mode
 		let pending_machine_interrupts = pending_interrupts & ~truncate(csr_mideleg);
@@ -729,7 +729,7 @@ endfunction
 		if (pending_interrupts != 0) begin
 			ret = tagged Interrupt unpack(zeroExtend(pack(countZerosLSB(pending_interrupts))));
 		end
-		`ifdef verbose $display("Debug interrupts: %h pending_interrupt: %h csr_mie: %h rg_mie: %b ret: ",pending_debug_interrupt,pending_interrupts,csr_mie,rg_mie,fshow(ret)); `endif
+		`ifdef verbose $display("Debug interrupts: %h pending_interrupt: %h csr_mie: %h rg_mie: %b ret: ",`ifdef Debug pending_debug_interrupt `else 0 `endif ,pending_interrupts,csr_mie,rg_mie,fshow(ret)); `endif
 		return ret;
 	endactionvalue;
 
@@ -837,8 +837,10 @@ endfunction
 									$fwrite(dump, rg_prv," 0x%16h",pc1, " (0x%8h", instruction,")" ); 
 									$fwrite(dump," x%d",destination," 0x%16h",destination_value,"\n"); 
 								`endif
-								if(resetmode[0])
-									resetmode[0]<=False;
+								`ifdef Debug 
+									if(resetmode[0])
+										resetmode[0]<=False;
+								`endif
 							end
     		      	end
 					`endif
@@ -850,11 +852,13 @@ endfunction
 						end
 					`endif
 				endcase
-				if(stopcount==0 && !debugmode_active[0]) begin
-					csr_minstret[0]<=csr_minstret[0]+1;
-				end
+				`ifdef Debug 
+					if(stopcount==0 && !debugmode_active[0]) begin
+						csr_minstret[0]<=csr_minstret[0]+1;
+					end
+				`endif
 				for(Integer i=0;i<=(`MHPMCOUNTEND-`MHPMCOUNTSTART);i=i+1)
-					if((csr_mhpmevent[i]&perfmonitor_incr)!=0 && stopcount==0)
+					if((csr_mhpmevent[i]&perfmonitor_incr)!=0 `ifdef Debug && stopcount==0 `endif )
 						csr_mhpmcounter[i][1]<=csr_mhpmcounter[i][1]+1;
 				`ifdef verbose 
 				for(Integer i=0;i<=(`MHPMCOUNTEND-`MHPMCOUNTSTART);i=i+1)begin
@@ -884,7 +888,7 @@ endfunction
 		end
 		else if(wbdata matches tagged RESULT .res)begin
 			for(Integer i=0;i<=(`MHPMCOUNTEND-`MHPMCOUNTSTART);i=i+1)
-				if((csr_mhpmevent[i]&perfmonitor_incr)!=0 && stopcount==0)
+				if((csr_mhpmevent[i]&perfmonitor_incr)!=0 `ifdef Debug && stopcount==0 `endif )
 					csr_mhpmcounter[i][1]<=csr_mhpmcounter[i][1]+1;
 				`ifdef verbose 
 				for(Integer i=0;i<=(`MHPMCOUNTEND-`MHPMCOUNTSTART);i=i+1)begin
@@ -896,9 +900,11 @@ endfunction
 				$fwrite(dump, rg_prv," 0x%16h",pc1, " (0x%8h", instruction,")" ); 
 			`endif
 			commit=True;
-			if(stopcount==0 && !debugmode_active[0])begin
-				csr_minstret[0]<=csr_minstret[0]+1;
-			end
+			`ifdef Debug 
+				if(stopcount==0 && !debugmode_active[0])begin
+					csr_minstret[0]<=csr_minstret[0]+1;
+				end
+			`endif
 			flush=False;
 			destination_value=res.aluresult;
 			let newfflags=res.fflags;
@@ -936,9 +942,6 @@ endfunction
 			else if(ex==Illegal_inst)
 				badaddr=0;
 		end
-
-
-
 		`ifdef verbose $display($time,"\tTrap Type: ",fshow(exception)," debugcause: %d",lv_debugcause," BaddAddr: %h",badaddr);  `endif
 		`ifdef Debug
 		if(exception matches tagged Interrupt .in &&& in==DebugResume)begin
@@ -1020,10 +1023,12 @@ endfunction
 			end
 			`endif
 
-		`ifdef Debug end `endif
+		`ifdef Debug 
+			end
 			else begin
 				flush=False;
 			end
+		`endif
 		return tuple2(jump_address,flush);
 	endmethod
 	method Bit#(3) roundingmode if(!rg_initialize[1] `ifdef simulate && !wr_endsimulation `endif );

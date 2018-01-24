@@ -58,8 +58,12 @@ package Soc;
 		`ifdef CLINT
 			import clint::*;
 		`endif
-		import DebugModule::*;
-		import jtagdtm::*;
+		`ifdef Debug
+			import jtagdtm::*;
+			import DebugModule::*;
+		`else
+			import core::*;
+		`endif
 	/*========================= */
 	interface Ifc_Soc;
 		(*always_ready,always_enabled*)
@@ -152,7 +156,8 @@ package Soc;
 	(*synthesize*)
 	module mkSoc #(Bit#(`VADDR) reset_vector, Clock clk0, Clock clk90, Clock clk180, Clock clk270, Clock tck, Reset trst)(Ifc_Soc);
 
-			Ifc_jtagdtm tap <-mkjtagdtm(clocked_by tck, reset_by trst);
+         `ifdef Debug 
+				Ifc_jtagdtm tap <-mkjtagdtm(clocked_by tck, reset_by trst);
             Wire#(Bit#(TLog#(`INTERRUPT_PINS))) interrupt_id <- mkWire();
             rule drive_tmp_scan_outs;
                 tap.scan_out_1_i(1'b0);
@@ -161,8 +166,10 @@ package Soc;
                 tap.scan_out_4_i(1'b0);
                 tap.scan_out_5_i(1'b0);
             endrule
-            
-			Ifc_DebugModule core<-mkDebugModule(reset_vector);
+				Ifc_DebugModule core<-mkDebugModule(reset_vector);
+			`else
+				Ifc_core_AXI4 core <-mkcore_AXI4(reset_vector);
+			`endif
 			`ifdef BOOTROM
 				BootRom_IFC bootrom <-mkBootRom;
 			`endif
@@ -227,7 +234,9 @@ package Soc;
 
 
 		// Connect fabric to memory slaves
-			mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Debug_slave_num))],core.debug_slave);
+			`ifdef Debug
+				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Debug_slave_num))],core.debug_slave);
+			`endif
 			`ifdef SDRAM	
 				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Sdram_slave_num))],	sdram.axi4_slave_sdram); // 
 	   		mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Sdram_cfg_slave_num))],	sdram.axi4_slave_cntrl_reg); // 
