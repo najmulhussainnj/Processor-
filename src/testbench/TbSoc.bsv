@@ -16,18 +16,17 @@ package TbSoc;
 	import Clocks::*;
 	import Connectable::*;
 	import TriState::*;
-    //`define micron
     `ifdef SDRAM	
 			import bsvmksdram_model_wrapper::*;
 			import sdr_top::*;
 		`endif
    	`ifdef QSPI0 
 			import qspi::*;
-           `ifdef micron
-			    import bsvmkMicronFlashWrapper::*;
-           `else
-                import bsvmkCypressFlashWrapper::*;
-           `endif
+         `ifdef micron
+				import bsvmkMicronFlashWrapper::*;
+			`else
+				import bsvmkCypressFlashWrapper::*;
+         `endif
 		`endif
 		`ifdef I2C0
 			import I2C_top			 :: *;

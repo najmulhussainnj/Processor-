@@ -537,9 +537,7 @@ typedef  TAdd#(Qspi0_slave_num		,`ifdef QSPI1 		1 `else 0 `endif )		Qspi1_slave_
 typedef  TAdd#(Qspi1_slave_num		,`ifdef I2C0 		1 `else 0 `endif )		I2c0_slave_num   ;
 typedef  TAdd#(I2c0_slave_num			,`ifdef I2C1 		1 `else 0 `endif )		I2c1_slave_num   ;
 typedef  TAdd#(I2c1_slave_num			,`ifdef PLIC 		1 `else 0 `endif )		GPIO_slave_num   ;
-typedef  TAdd#(GPIO_slave_num			,`ifdef HYPER 		1 `else 0 `endif )		Hyperflash_mem_slave_num;
-typedef  TAdd#(Hyperflash_mem_slave_num,`ifdef HYPER 	1 `else 0 `endif )		Hyperflash_reg_slave_num;
-typedef  TAdd#(Hyperflash_reg_slave_num,`ifdef AXIEXP	1 `else 0 `endif )		AxiExp1_slave_num;
+typedef  TAdd#(GPIO_slave_num			,`ifdef AXIEXP	1 `else 0 `endif )		AxiExp1_slave_num;
 typedef  TAdd#(AxiExp1_slave_num		,`ifdef TCMemory	1 `else 0 `endif )		TCM_slave_num;
 typedef  TAdd#(TCM_slave_num			,`ifdef DMA			1 `else 0 `endif )		Dma_slave_num;
 typedef  TAdd#(Dma_slave_num			,`ifdef CLINT		1 `else 0 `endif )		CLINT_slave_num;

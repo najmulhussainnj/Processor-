@@ -1,0 +1,4 @@
+`define  Req_Info_sz 10
+`define  Req_Addr_sz 64
+`define  Req_Data_sz 64
+`define Burst_length_bits 8

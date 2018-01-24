@@ -425,8 +425,6 @@
 	`define QSPI0CfgEnd  'h000118FF // 13 32-bit registers
 	`define QSPI1CfgBase	'h00011900
 	`define QSPI1CfgEnd  'h000119FF // 13 32-bit registers
-	`define HyperCfgBase	'h00011A00
-	`define HyperCfgEnd	'h00011AFF // 15 32-bit registers
 	`define TCMBase		'h00020000 // 
 	`define TCMEnd			'h00060000 // 128KB
 	`define ClintBase		'h02000000
@@ -439,8 +437,6 @@
 	`define QSPI1MemEnd  'hAFFFFFFF // 256 MB
 	`define PLICBase		'h0c000000
 	`define PLICEnd		'h10000000
-	`define HyperMemBase	'hB0000000
-	`define HyperMemEnd	'hBFFFFFFF // 256MB
 	`define AxiExp1Base	'hC0000000
 	`define AxiExp1End	'hFFFFFFFF
 /*=================================================== */

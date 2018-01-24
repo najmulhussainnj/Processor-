@@ -24,9 +24,6 @@ package Soc;
 		`ifdef AXIEXP
 			import axiexpansion	::*;
 		`endif
-		`ifdef HYPER
-			import hyperflash_bsv_wrapper ::*;
-		`endif
 		`ifdef QSPI0 
 			import qspi				 :: *; 
 		`endif
@@ -201,9 +198,6 @@ package Soc;
 			`ifdef I2C1
 				I2C_IFC					i2c1				<- mkI2CController();
 			`endif
-			`ifdef HYPER			
-				Ifc_hyperflash			hyperflash		<- mkhyperflash(clk0,clk90,clk180,clk270);
-			`endif
 			`ifdef TCMemory
 				Ifc_TCM					tcm				<- mkTCM;	
 			`endif
@@ -268,10 +262,6 @@ package Soc;
 			`ifdef I2C1
    			mkConnection (fabric.v_to_slaves [fromInteger(valueOf(I2c1_slave_num))],		i2c1.slave_i2c_axi); // 
 			`endif
-			`ifdef HYPER
-   			mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Hyperflash_mem_slave_num))],	hyperflash.axi4_slave_m); // 
-   			mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Hyperflash_reg_slave_num))],	hyperflash.axi4_slave_r); //
-			`endif
 			`ifdef DMA
    			mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Dma_slave_num))],	dma.cfg); //DMA slave
 			`endif
@@ -291,7 +281,6 @@ package Soc;
 			//generate an interrupt (like TCM), drive a constant 1 on the corresponding interrupt line.
 				rule rl_connect_interrupt_to_DMA;
 					Bit#(12) lv_interrupt_to_DMA= {'d-1, 
-															`ifdef HYPER pack(hyperflash.ifc_control_reg.oIENOn) `else 1'b1 `endif ,
 															`ifdef I2C1 i2c1.isint `else 1'b1 `endif , 
 															`ifdef I2C0 i2c0.isint `else 1'b1 `endif , 
 															`ifdef QSPI1 qspi1.interrupts[5] `else 1'b1 `endif ,
@@ -412,17 +401,6 @@ package Soc;
                         endrule
                     end
                 
-                    rule rl_connect_hyperflash_to_plic;
-                    `ifdef HYPER
-                       if(hyperflash.ifc_control_reg.oIENOn()) begin
-                            ff_gateway_queue[26].enq(1);
-						    plic.ifc_external_irq[26].irq_frm_gateway(True);
-                        end
-                    `else
-                        ff_gateway_queue[26].enq(0);
-                    `endif
-                    endrule
-        
                     rule rl_connect_uart_to_plic;
                     `ifdef UART0
                         if(uart0.irq==1'b1) begin
@@ -566,9 +544,6 @@ package Soc;
 			method Vector#(`IONum,Bit#(1))   gpio_PUQ=gpio.gpio_PUQ;
 			method Vector#(`IONum,Bit#(1))   gpio_PWRUPZHL=gpio.gpio_PWRUPZHL;
 			method Vector#(`IONum,Bit#(1))   gpio_PWRUP_PULL_EN=gpio.gpio_PWRUP_PULL_EN;
-		`endif
-		`ifdef HYPER
-	      interface ifc_flash=hyperflash.ifc_flash;
 		`endif
 		`ifdef AXIEXP
 			interface axiexp1_out=axiexp1.slave_out;

@@ -87,9 +87,6 @@ endif
 ifeq ($(I2C1),enable)
   define_macros += -D I2C1=True
 endif
-ifeq ($(HYPER),enable)
-  define_macros += -D HYPER=True
-endif
 ifeq ($(DMA),enable)
   define_macros += -D DMA=True
 endif
@@ -111,8 +108,11 @@ endif
 ifeq ($(SYNTH),FPGA)
   define_macros += -D fpga=True
 endif
+ifeq ($(FLASHMODEL),micron)
+  define_macros += -D micron=True
+endif
 
-PERIPHERALS:=src/peripherals/bootrom:src/peripherals/clint:src/peripherals/plic:./src/peripherals/uart/:./src/peripherals/tcm/:./src/peripherals/jtagdtm
+PERIPHERALS:=src/peripherals/bootrom:src/peripherals/clint:src/peripherals/plic:./src/peripherals/uart/:./src/peripherals/tcm/:./src/peripherals/jtagdtm:./src/peripherals/gpio:./src/peripherals/qspi:./src/peripherals/i2c/:./src/peripherals/sdram:./src/peripherals/axiexp:./src/peripherals/dma
 UNCORE:=./src/uncore:./src/uncore/axi4:./src/uncore/debug
 CORE:=./src/core/fpu:./src/core/
 TESTBENCH:=./src/testbench/
