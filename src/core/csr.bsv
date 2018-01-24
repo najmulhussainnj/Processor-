@@ -12,7 +12,6 @@ package csr;
 	import GetPut            ::*;
 	import ConcatReg ::*;
 	import Vector::*;
-	import RTC::*;
 
 	interface Ifc_csr;
 		method Bit#(3) roundingmode;

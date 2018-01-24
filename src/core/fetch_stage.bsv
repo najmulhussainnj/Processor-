@@ -159,4 +159,4 @@ package fetch_stage;
 		endmethod
 		/*================================================================================================= */
 	endmodule:mkfetch
-endpackage:fetch_new
+endpackage:fetch_stage

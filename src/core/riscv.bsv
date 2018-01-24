@@ -36,7 +36,7 @@ import fetch_stage::*;
 import decode_opfetch::*;
 import execute_stage::*;
 import memory_stage::*;
-import csr_new::*;
+import csr::*;
 `include "defined_parameters.bsv"
 import defined_types::*;
 /*========================= */

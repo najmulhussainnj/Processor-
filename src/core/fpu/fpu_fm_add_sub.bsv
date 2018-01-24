@@ -147,7 +147,9 @@ module mkfpu_fm_add_sub(Ifc_fpu_fm_add_sub#(fpinp,fpman,fpexp))
              Log#(TAdd#(TAdd#(TMul#(fpman, 3), 4), 1), TLog#(TAdd#(1, fmaman))),
              Add#(p__, TLog#(TAdd#(TAdd#(TMul#(fpman, 3), 4), 1)), TAdd#(fpexp, 2)),
 						 Add#(s__, TAdd#(1, TAdd#(f__, fpexp)), fmaman),
-						 Add#(t__, TAdd#(f__, fpexp), impfpman2)
+						 Add#(t__, TAdd#(f__, fpexp), impfpman2),
+						 Add#(q__, TAdd#(fpexp, f__), impfpman2),
+						 Add#(r__, TAdd#(1, TAdd#(fpexp, f__)), fmaman)
              );
 
 

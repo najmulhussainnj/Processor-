@@ -8,7 +8,7 @@ package imem;
 	/*==================================== */
 	/* ======== project imports ========= */
 	import TxRx	::*;
-	import icache_asic_tapeout2	::*;
+	import icache	::*;
 	import defined_types::*;
 	import MemoryMap::*;
 	`ifdef bpu

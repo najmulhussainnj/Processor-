@@ -18,7 +18,7 @@ package DebugModule;
 	`include "defines.bsv"
 	`include "defined_parameters.bsv"
 	import defined_types::*;
-	import core_AXI4			:: *;
+	import core			:: *;
 	/*========================= */
 
 	function Reg#(t) readOnlyReg(t r);

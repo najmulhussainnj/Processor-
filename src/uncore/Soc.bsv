@@ -53,7 +53,7 @@ package Soc;
 			import I2C_top			 :: *;
 		`endif
 		`ifdef TCMemory
-			import TCM_asic::*;
+			import TCM::*;
 		`endif
 		`ifdef CLINT
 			import clint::*;

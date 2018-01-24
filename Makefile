@@ -6,7 +6,7 @@ include soc_config.inc
 
 TOP_MODULE:=mkTbSoc
 TOP_FILE:=TbSoc.bsv
-TOP_DIR:=UNCORE_src
+TOP_DIR:=./src/testbench/
 WORKING_DIR := $(shell pwd)
 
 ifneq (,$(findstring RV64,$(ISA)))
@@ -112,113 +112,14 @@ ifeq ($(SYNTH),FPGA)
   define_macros += -D fpga=True
 endif
 
-AAPG_DIR:=$(WORKING_DIR)/verification/AAPG
-TORTURE_TESTS_DIR:=$(WORKING_DIR)/verification/riscv-torture
-RISCV_TESTS_DIR:=$(WORKING_DIR)/verification/riscv-tests
+PERIPHERALS:=src/peripherals/bootrom:src/peripherals/clint:src/peripherals/plic:./src/peripherals/uart/:./src/peripherals/tcm/:./src/peripherals/jtagdtm
+UNCORE:=./src/uncore:./src/uncore/axi4:./src/uncore/debug
+CORE:=./src/core/fpu:./src/core/
+TESTBENCH:=./src/testbench/
+LIB:=./src/lib/
 
-PERIPHERALS:=src/peripherals/bootrom:src/peripherals/clint:src/peripherals/plic
-
-UNCORE:=./BSV_src/UNCORE_src
-FPU:=./BSV_src/FPU_src/SerialFPU
-BUS:=./BSV_src/AXI4
-DEBUG:=./BSV_src/Debug
-TAPEOUT=./BSV_src/tapeout_variants/
-FPGA=./BSV_src/fpga_variants/
-#DEBUG:=./BSV_src/BRF
-CPU:=./BSV_src/CPU_src
-BOOT_DIR:=./bin/
-WRAPPERS:=./BSV_src/wrappers
-
-
-INCDIR:= .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:$(CPU):$(UNCORE):$(FPU):$(BUS):$(DEBUG):$(PERIPHERALS):$(TAPEOUT):$(WRAPPERS):$(FPGA)
-AAPG_RUNS:=20
-TORTURE_RUNS:=100
-CSMITH_RUNS:=100
+BSVINCDIR:= .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:$(CORE):$(UNCORE):$(PERIPHERALS):$(TESTBENCH):$(LIB)
 default: compile_bluesim link_bluesim generate_boot_files
-AAPG_bsim: check-blue compile_bluesim link_bluesim generate_boot_files 	
-	@echo "Running Torture Tests now...."
-	@cd verification/AAPG; ./make.py clean
-	@cd verification/AAPG; ./make.py
-
-AAPG_ncverilog: link_ncverilog generate_boot_files
-	@echo "Running Torture Tests now...."
-	@cd verification/AAPG; ./make.py clean
-	@cd verification/AAPG; ./make.py
-
-AAPG_iverilog: link_iverilog generate_boot_files
-	@echo "Running Torture Tests now...."
-	@cd verification/AAPG; ./make.py clean
-	@cd verification/AAPG; ./make.py
-
-AAPG_msim: link_msim generate_boot_files
-	@echo "Running Torture Tests now...."
-	@cd verification/AAPG; ./make.py clean
-	@cd verification/AAPG; ./make.py
-
-csmith_bsim: compile_bluesim link_bluesim generate_boot_files
-	@echo "Running CSMITH on BLUESIM....."
-	@cd verification/csmith_run; make clean;
-	@cd verification/csmith_run; make RUNS=$(CSMITH_RUNS) FLOAT=$(FLOAT); 
-  
-csmith_ncverilog: link_ncverilog generate_boot_files
-	@echo "Running CSMITH on NCVERILOG....."
-	@cd verification/csmith_run; make clean;
-	@cd verification/csmith_run; make RUNS=$(CSMITH_RUNS) FLOAT=$(FLOAT);
-  
-csmith_msim: link_msim generate_boot_files
-	@echo "Running CSMITH on MODELSIM....."
-	@cd verification/csmith_run; make clean;
-	@cd verification/csmith_run; make RUNS=$(CSMITH_RUNS) FLOAT=$(FLOAT);
-
-csmith_iverilog: link_iverilog generate_boot_files
-	@echo "Running CSMITH on IVERILOG....."
-	@cd verification/csmith_run; make clean;
-	@cd verification/csmith_run; make RUNS=$(CSMITH_RUNS) FLOAT=$(FLOAT);
-
-torture_bsim: compile_bluesim link_bluesim generate_boot_files 
-	@echo "Running RISC-V TORTURE on bluesim....."
-	$(MAKE) -C verification/riscv-torture -f $(TORTURE_TESTS_DIR)/Makefile clean
-	$(MAKE) -C verification/riscv-torture -f $(TORTURE_TESTS_DIR)/Makefile RUNS=$(TORTURE_RUNS) gen
-
-torture_ncverilog: link_ncverilog generate_boot_files
-	@echo "Running RISC-V TORTURE on NCVERILOG....."
-	@cd verification/riscv-torture; make clean;
-	@cd verification/riscv-torture; make RUNS=$(TORTURE_RUNS);
-
-torture_msim: link_msim generate_boot_files
-	@echo "Running RISC-V TORTURE on MODELSIM....."
-	@cd verification/riscv-torture; make clean;
-	@cd verification/riscv-torture; make RUNS=$(TORTURE_RUNS);
-
-torture_iverilog: link_iverilog generate_boot_files
-	@echo "Running RISC-V TORTURE on IVERILOG....."
-	@cd verification/riscv-torture; make clean;
-	@cd verification/riscv-torture; make RUNS=$(TORTURE_RUNS);
-
-riscv_tests_bsim: compile_bluesim link_bluesim generate_boot_files
-	@echo "Running riscv-tests on bluesim "
-	$(MAKE) -C verification/riscv-tests -f $(RISCV_TESTS_DIR)/Makefile simulate_clean
-	$(MAKE) -C verification/riscv-tests -f $(RISCV_TESTS_DIR)/Makefile diff
-
-regression_bsim: compile_bluesim link_bluesim generate_boot_files
-	@echo "Running $(AAPG_RUNS) tests on AAPG on bsim" 
-	@sed -i '/numberOfTests/c\numberOfTests=$(AAPG_RUNS)' $(AAPG_DIR)/config.py
-	@cd $(AAPG_DIR); ./make.py clean
-	@cd $(AAPG_DIR); ./make.py
-	@echo "Running riscv-tests ....."
-	$(MAKE) -C verification/riscv-tests -f $(RISCV_TESTS_DIR)/Makefile simulate_clean
-	$(MAKE) -C verification/riscv-tests -f $(RISCV_TESTS_DIR)/Makefile diff
-	@echo "Running RISC-V TORTURE on bluesim....."
-	$(MAKE) -C verification/riscv-torture -f $(TORTURE_TESTS_DIR)/Makefile clean
-	$(MAKE) -C verification/riscv-torture -f $(TORTURE_TESTS_DIR)/Makefile RUNS=$(TORTURE_RUNS)
-	@echo "Running CSMITH on BLUESIM....."
-	@cd verification/csmith_run; make clean;
-	@cd verification/csmith_run; make RUNS=$(CSMITH_RUNS) FLOAT=$(FLOAT);
-
-riscv_tests_ncverilog: generate_verilog link_ncverilog generate_boot_files
-	@echo "Running riscv-tests ....."
-	$(MAKE) -C verification/riscv-tests -f $(RISCV_TESTS_DIR)/Makefile simulate_clean
-	$(MAKE) -C verification/riscv-tests -f $(RISCV_TESTS_DIR)/Makefile diff
 
 set_variables:
 ifneq (,$(findstring RV64,$(ISA)))
@@ -256,21 +157,48 @@ check-blue:
 check-py:
 	@if ! [ -a /usr/bin/python3 ] ; then echo "Python3 is required in /usr/bin to run AAPG" ; exit 1; fi;
 
-run_benchmarks: generate_boot_files
-	$(MAKE) -C benchmarks -f Makefile shakti basedir=$(WORKING_DIR) 
+###### Setting the variables for bluespec compile #$############################
+BSVCOMPILEOPTS:= -check-assert -suppress-warnings G0020:T0054 -keep-fires -opt-undetermined-vals -remove-false-rules -remove-empty-rules
+BSVLINKOPTS:=-parallel-sim-link 8 -keep-fires
+VERILOGDIR:=./verilog/
+BSVBUILDDIR:=./bsv_build/
+BSVLOG:= bsv_compile.log
+BSVOUTDIR:=./bin
+################################################################################
+
+########## BSIM COMLILE, LINK AND SIMULATE TARGETS #################################
+.PHONY: check-restore
+check-restore:
+	@if [ "$(define_macros)" != "$(old_define_macros)" ];	then	make clean_bsim ;	fi;
+
 .PHONY:  compile_bluesim
-compile_bluesim: check-restore check-blue set_variables 
+compile_bluesim: check-restore check-blue
 	@echo "Compiling $(TOP_MODULE) in Bluesim..."
-	@mkdir -p BSV_src/build_bsim; 
+	@mkdir -p $(BSVBUILDDIR) 
 	@echo "old_define_macros = $(define_macros)" > old_vars
-	bsc -u -sim -check-assert -simdir BSV_src/build_bsim -bdir BSV_src/build_bsim -info-dir BSV_src/build_bsim $(define_macros) -suppress-warnings G0020:T0054 -keep-fires -opt-undetermined-vals -remove-false-rules -remove-empty-rules -p $(INCDIR) -g $(TOP_MODULE) BSV_src/$(TOP_DIR)/$(TOP_FILE) 
+	bsc -u -sim -simdir $(BSVBUILDDIR) -bdir $(BSVBUILDDIR) -info-dir $(BSVBUILDDIR) $(define_macros) $(BSVCOMPILEOPTS) -p $(BSVINCDIR) -g $(TOP_MODULE) $(TOP_DIR)/$(TOP_FILE) | tee $(BSVLOG)
 	@echo "Compilation finished"
+
+.PHONY: link_bluesim
+link_bluesim:check-blue
+	@echo "Linking $(TOP_MODULE) in Bluesim..."
+	@mkdir -p $(BSVOUTDIR)
+	bsc -e $(TOP_MODULE) -sim -o $(BSVOUTDIR)/out -simdir $(BSVOUTDIR) -p $(INCDIR) -bdir $(BSVOUTDIR) $(BSVLINKOPTS)./BSV_src/UNCORE_src/RBB_Shakti.c;
+	@echo Linking finished
+
+.PHONY: simulate
+simulate:
+	@echo Simulation...
+	@exec ./$(BSVOUTDIR)/out
+	@echo Simulation finished
+########################################################################################
+
 
 .PHONY: generate_verilog 
 generate_verilog: check-restore check-blue set_variables generate_boot_files
 	@echo Compiling mkTbSoc in Verilog for simulations ...
-	@mkdir -p BSV_src/build_bsim; 
-	@mkdir -p verilog; 
+	@mkdir -p $(BSVBUILDDIR); 
+	@mkdir -p $(VERILOGDIR); 
 	@echo "old_define_macros = $(define_macros)" > old_vars
 	bsc -u -verilog -elab -vdir verilog -bdir BSV_src/build_bsim -info-dir BSV_src/build_bsim $(define_macros) -D verilog=True -keep-fires -suppress-warnings G0020  -opt-undetermined-vals -verilog-filter ${BLUESPECDIR}/bin/basicinout -remove-empty-rules -remove-false-rules -remove-starved-rules -p $(INCDIR) -g $(TOP_MODULE) BSV_src/$(TOP_DIR)/$(TOP_FILE)
 	@cp -f ${BLUESPECDIR}/Verilog/SizedFIFO.v ./verilog/
@@ -309,13 +237,6 @@ generate_verilog: check-restore check-blue set_variables generate_boot_files
 #	@cp Ip_fix/bscan/*.v ./verilog/
 #	@cp Ip_fix/gpio*.v ./verilog/
 	@echo Compilation finished
-
-.PHONY: link_bluesim
-link_bluesim:check-blue
-	@echo "Linking mkTbSoc in Bluesim..."
-	@mkdir -p bin
-	bsc -e $(TOP_MODULE) -sim -o bin/out -parallel-sim-link 8 -simdir BSV_src/build_bsim -D simulate=True -p $(INCDIR) -bdir BSV_src/build_bsim -keep-fires ./BSV_src/UNCORE_src/RBB_Shakti.c;
-	@echo Linking finished
 
 .PHONY: link_ncverilog
 link_ncverilog: set_variables 
@@ -356,12 +277,6 @@ link_iverilog: set_variables
 	@iverilog -v -o bin/out -Wall -y ./verilog/ -DTOP=mkTbSoc ./verilog/main.v ./verilog/mkTbSoc.v
 	@echo Linking finished
 
-.PHONY: simulate
-simulate:
-	@echo Simulation...
-	@exec ./bin/out
-	@echo Simulation finished
-
 .PHONY: clean_bsim
 clean_bsim:
 	rm -rf BSV_src/build_bsim 
@@ -383,6 +298,3 @@ restore: clean_verilog
 	rm -f include cds.lib hdl.var *.log
 	rm -rf bin/*
 
-.PHONY: check-restore
-check-restore:
-	if [ "$(define_macros)" != "$(old_define_macros)" ];	then	make clean_bsim ;	fi;
