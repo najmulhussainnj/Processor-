@@ -1,0 +1,11 @@
+# ------------------------------------------------------------------------------------
+# CONFIG_SIM 0
+# CONFIG_FSDB      0
+# CONFIG_TRACE     1
+# CONFIG_LOG       1
+# CONFIG_COVERAGE  0
+# ------------------------------------------------------------------------------------
+
+run_cf      shakti-tests/directed/interrupts      p
+run_mf      shakti-tests/directed/interrupts      p
+run_pass    shakti-tests/directed/interrupts      p

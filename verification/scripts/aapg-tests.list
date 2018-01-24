@@ -1,0 +1,161 @@
+test_0      shakti-tests/random/riscv-torture/generated_tests/virtual    pv
+test_1      shakti-tests/random/riscv-torture/generated_tests/virtual    pv
+test_2      shakti-tests/random/riscv-torture/generated_tests/virtual    pv
+test_3      shakti-tests/random/riscv-torture/generated_tests/virtual    pv
+test_4      shakti-tests/random/riscv-torture/generated_tests/virtual    pv
+test_5      shakti-tests/random/riscv-torture/generated_tests/virtual    pv
+test_6      shakti-tests/random/riscv-torture/generated_tests/virtual    pv
+test_7      shakti-tests/random/riscv-torture/generated_tests/virtual    pv
+test_8      shakti-tests/random/riscv-torture/generated_tests/virtual    pv
+test_9      shakti-tests/random/riscv-torture/generated_tests/virtual    pv
+
+## ------------------------------------------------------------------------------------
+## rv64mi tests						
+## ------------------------------------------------------------------------------------
+#csr           riscv-tests/isa/rv64mi        p       						
+#mcsr          riscv-tests/isa/rv64mi			  p			
+#ma_fetch      riscv-tests/isa/rv64mi			  p			
+#ma_addr       riscv-tests/isa/rv64mi			  p			
+#scall         riscv-tests/isa/rv64mi			  p			
+##sbreak        riscv-tests/isa/rv64mi			  p			
+##breakpoint    riscv-tests/isa/rv64mi			  p			
+##illegal       riscv-tests/isa/rv64mi			  p			
+#
+## ------------------------------------------------------------------------------------
+## rv64si tests						
+## ------------------------------------------------------------------------------------
+#csr           riscv-tests/isa/rv64si			  p			
+#dirty         riscv-tests/isa/rv64si			  p			
+#ma_fetch      riscv-tests/isa/rv64si			  p			
+#scall         riscv-tests/isa/rv64si			  p			
+##wfi           riscv-tests/isa/rv64si			  p			
+##sbreak        riscv-tests/isa/rv64si			  p			
+						
+# ------------------------------------------------------------------------------------
+# rv64ua tests						
+# ------------------------------------------------------------------------------------
+#amoadd_d      riscv-tests/isa/rv64ua    	  pv								
+#amoand_d	    riscv-tests/isa/rv64ua			  pv					
+#amomax_d	    riscv-tests/isa/rv64ua			  pv					
+#amomaxu_d	    riscv-tests/isa/rv64ua			  pv					
+#amomin_d	    riscv-tests/isa/rv64ua			  pv					
+#amominu_d	    riscv-tests/isa/rv64ua			  pv					
+#amoor_d		    riscv-tests/isa/rv64ua			  pv				
+#amoxor_d	    riscv-tests/isa/rv64ua			  pv					
+#amoswap_d     riscv-tests/isa/rv64ua			  pv						
+#amoadd_w	    riscv-tests/isa/rv64ua			  pv					
+#amoand_w	    riscv-tests/isa/rv64ua			  pv					
+#amomax_w	    riscv-tests/isa/rv64ua			  pv					
+#amomaxu_w	    riscv-tests/isa/rv64ua			  pv					
+#amomin_w	    riscv-tests/isa/rv64ua			  pv					
+#amominu_w	    riscv-tests/isa/rv64ua			  pv					
+#amoor_w		    riscv-tests/isa/rv64ua			  pv				
+#amoxor_w	    riscv-tests/isa/rv64ua			  pv					
+#amoswap_w     riscv-tests/isa/rv64ua			  pv						
+#lrsc 			    riscv-tests/isa/rv64ua			  pv			
+#				
+## ------------------------------------------------------------------------------------
+## rv64uc tests
+## ------------------------------------------------------------------------------------
+## rvc         riscv-tests/isa/rv64uc        pv
+#
+## ------------------------------------------------------------------------------------
+## rv64ud tests
+## ------------------------------------------------------------------------------------
+#fadd          riscv-tests/isa/rv64ud         pv  						
+#fdiv				  riscv-tests/isa/rv64ud         pv		
+#fclass			  riscv-tests/isa/rv64ud         pv			
+#fcmp				  riscv-tests/isa/rv64ud         pv		
+#fcvt				  riscv-tests/isa/rv64ud         pv		
+#fcvt_w			  riscv-tests/isa/rv64ud         pv			
+#fmadd				  riscv-tests/isa/rv64ud         pv		
+#ldst				  riscv-tests/isa/rv64ud         pv		
+#move				  riscv-tests/isa/rv64ud         pv		
+#structural	  riscv-tests/isa/rv64ud         pv					
+#recoding		  riscv-tests/isa/rv64ud         pv				
+#
+## ------------------------------------------------------------------------------------
+## rv64uf tests
+## ------------------------------------------------------------------------------------
+#fadd          riscv-tests/isa/rv64uf         pv  						
+#fdiv				  riscv-tests/isa/rv64uf         pv		
+#fclass			  riscv-tests/isa/rv64uf         pv			
+#fcmp				  riscv-tests/isa/rv64uf         pv		
+#fcvt				  riscv-tests/isa/rv64uf         pv		
+#fcvt_w			  riscv-tests/isa/rv64uf         pv			
+#fmadd				  riscv-tests/isa/rv64uf         pv		
+#ldst				  riscv-tests/isa/rv64uf         pv		
+#move				  riscv-tests/isa/rv64uf         pv		
+#recoding		  riscv-tests/isa/rv64uf         pv				
+#
+## ------------------------------------------------------------------------------------
+## rv64ui tests
+## ------------------------------------------------------------------------------------
+#add 	        riscv-tests/isa/rv64ui         pv  											
+#addi				  riscv-tests/isa/rv64ui         pv									
+#addiw				  riscv-tests/isa/rv64ui         pv									
+#addw 				  riscv-tests/isa/rv64ui         pv									
+#and					  riscv-tests/isa/rv64ui         pv								
+#andi 				  riscv-tests/isa/rv64ui         pv									
+#auipc 			  riscv-tests/isa/rv64ui         pv										
+#beq					  riscv-tests/isa/rv64ui         pv								
+#bge					  riscv-tests/isa/rv64ui         pv								
+#bgeu				  riscv-tests/isa/rv64ui         pv									
+#blt					  riscv-tests/isa/rv64ui         pv								
+#bltu				  riscv-tests/isa/rv64ui         pv									
+#bne 				  riscv-tests/isa/rv64ui         pv									
+#simple 			  riscv-tests/isa/rv64ui         pv										
+#fence_i 		  riscv-tests/isa/rv64ui         pv											
+#jal           riscv-tests/isa/rv64ui         pv
+#jalr 		      riscv-tests/isa/rv64ui         pv											
+#lb					  riscv-tests/isa/rv64ui         pv								
+#lbu					  riscv-tests/isa/rv64ui         pv								
+#lh					  riscv-tests/isa/rv64ui         pv								
+#lhu					  riscv-tests/isa/rv64ui         pv								
+#lw					  riscv-tests/isa/rv64ui         pv								
+#lwu					  riscv-tests/isa/rv64ui         pv								
+#ld 					  riscv-tests/isa/rv64ui         pv								
+#lui 				  riscv-tests/isa/rv64ui         pv									
+#or					  riscv-tests/isa/rv64ui         pv								
+#ori 				  riscv-tests/isa/rv64ui         pv									
+#sb					  riscv-tests/isa/rv64ui         pv								
+#sh					  riscv-tests/isa/rv64ui         pv								
+#sw					  riscv-tests/isa/rv64ui         pv								
+#sd 					  riscv-tests/isa/rv64ui         pv								
+#sll					  riscv-tests/isa/rv64ui         pv								
+#slli				  riscv-tests/isa/rv64ui         pv									
+#slliw				  riscv-tests/isa/rv64ui         pv									
+#sllw 				  riscv-tests/isa/rv64ui         pv									
+#slt					  riscv-tests/isa/rv64ui         pv								
+#slti				  riscv-tests/isa/rv64ui         pv									
+#sltiu				  riscv-tests/isa/rv64ui         pv									
+#sltu 				  riscv-tests/isa/rv64ui         pv									
+#sra					  riscv-tests/isa/rv64ui         pv								
+#srai				  riscv-tests/isa/rv64ui         pv									
+#sraiw				  riscv-tests/isa/rv64ui         pv									
+#sraw 				  riscv-tests/isa/rv64ui         pv									
+#srl					  riscv-tests/isa/rv64ui         pv								
+#srli				  riscv-tests/isa/rv64ui         pv									
+#srliw				  riscv-tests/isa/rv64ui         pv									
+#srlw 				  riscv-tests/isa/rv64ui         pv									
+#sub					  riscv-tests/isa/rv64ui         pv
+#subw 				  riscv-tests/isa/rv64ui         pv	
+#xor					  riscv-tests/isa/rv64ui         pv
+#xori 				  riscv-tests/isa/rv64ui         pv	
+#
+## ------------------------------------------------------------------------------------
+## rv64um tests
+## ------------------------------------------------------------------------------------
+#div           riscv-tests/isa/rv64um         pv	
+#divu          riscv-tests/isa/rv64um         pv	
+#divuw         riscv-tests/isa/rv64um         pv	
+#divw          riscv-tests/isa/rv64um         pv	
+#mul           riscv-tests/isa/rv64um         pv	
+#mulh          riscv-tests/isa/rv64um         pv	
+#mulhsu        riscv-tests/isa/rv64um         pv	
+#mulhu         riscv-tests/isa/rv64um         pv	
+#mulw          riscv-tests/isa/rv64um         pv	
+#rem           riscv-tests/isa/rv64um         pv	
+#remu          riscv-tests/isa/rv64um         pv	
+#remuw         riscv-tests/isa/rv64um         pv	
+#remw          riscv-tests/isa/rv64um         pv	
