@@ -176,14 +176,14 @@ compile_bluesim: check-restore check-blue
 	@echo "Compiling $(TOP_MODULE) in Bluesim..."
 	@mkdir -p $(BSVBUILDDIR) 
 	@echo "old_define_macros = $(define_macros)" > old_vars
-	bsc -u -sim -simdir $(BSVBUILDDIR) -bdir $(BSVBUILDDIR) -info-dir $(BSVBUILDDIR) $(define_macros) $(BSVCOMPILEOPTS) -p $(BSVINCDIR) -g $(TOP_MODULE) $(TOP_DIR)/$(TOP_FILE) | tee $(BSVLOG)
+	bsc -u -sim -simdir $(BSVBUILDDIR) -bdir $(BSVBUILDDIR) -info-dir $(BSVBUILDDIR) $(define_macros) $(BSVCOMPILEOPTS) -p $(BSVINCDIR) -g $(TOP_MODULE) $(TOP_DIR)/$(TOP_FILE) 2>&1 | tee $(BSVLOG)
 	@echo "Compilation finished"
 
 .PHONY: link_bluesim
 link_bluesim:check-blue
 	@echo "Linking $(TOP_MODULE) in Bluesim..."
 	@mkdir -p $(BSVOUTDIR)
-	bsc -e $(TOP_MODULE) -sim -o $(BSVOUTDIR)/out -simdir $(BSVBUILDDIR) -p $(BSVINCDIR) -bdir $(BSVBUILDDIR) $(BSVLINKOPTS) ./src/uncore/debug/RBB_Shakti.c;
+	bsc -e $(TOP_MODULE) -sim -o $(BSVOUTDIR)/out -simdir $(BSVBUILDDIR) -p $(BSVINCDIR) -bdir $(BSVBUILDDIR) $(BSVLINKOPTS) ./src/uncore/debug/RBB_Shakti.c 2>&1 | tee bsv_link.log
 	@echo Linking finished
 
 .PHONY: simulate
