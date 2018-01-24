@@ -183,7 +183,7 @@ compile_bluesim: check-restore check-blue
 link_bluesim:check-blue
 	@echo "Linking $(TOP_MODULE) in Bluesim..."
 	@mkdir -p $(BSVOUTDIR)
-	bsc -e $(TOP_MODULE) -sim -o $(BSVOUTDIR)/out -simdir $(BSVOUTDIR) -p $(INCDIR) -bdir $(BSVOUTDIR) $(BSVLINKOPTS)./BSV_src/UNCORE_src/RBB_Shakti.c;
+	bsc -e $(TOP_MODULE) -sim -o $(BSVOUTDIR)/out -simdir $(BSVBUILDDIR) -p $(BSVINCDIR) -bdir $(BSVBUILDDIR) $(BSVLINKOPTS) ./src/uncore/debug/RBB_Shakti.c;
 	@echo Linking finished
 
 .PHONY: simulate
@@ -279,9 +279,9 @@ link_iverilog: set_variables
 
 .PHONY: clean_bsim
 clean_bsim:
-	rm -rf BSV_src/build_bsim 
-	rm -rf bin/out
-	rm -rf bin/out.so
+	rm -rf $(BSVBUILDDIR) bsv_compile.log app_log
+	rm -rf $(BSVOUTDIR)/out
+	rm -rf $(BSVOUTDIR)/out.so
 
 clean_verilog: clean_bsim 
 	rm -f verilog/*.v
