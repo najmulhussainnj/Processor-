@@ -113,7 +113,7 @@ if ($generate) {
       systemCmd("cp $config $shaktiHome/verification/tools/AAPG/config.py");
       chdir("$shaktiHome/verification/tools/AAPG");
       $config = `basename $config .py`; chomp($config);
-      systemCmd("nohup ./make.py gen_only $config &");
+      systemCmd("nohup ./regress.py gen_only $config &");
     }
   }
   chdir("$shaktiHome/verification/scripts");
