@@ -217,16 +217,8 @@ clean:
 	rm -rf $(BSVBUILDDIR) *.log $(BSVOUTDIR)
 
 clean_verilog: clean 
-	rm -f verilog/*.v
+	rm -rf verilog/
 
 
 restore: clean_verilog
-	echo 'old_define_macros=""' > old_vars
-	cd verification/csmith_run; make clean
-	cd verification/riscv-torture; make clean
-	cd verification/riscv-tests; make simulate_clean
-	cd verification/AAPG; ./make.py clean
-	cd benchmarks; make clean
-	rm -f include cds.lib hdl.var *.log
-	rm -rf bin/*
 
