@@ -153,12 +153,12 @@ if ($generate) {
   open TESTLIST, "$shaktiHome/verification/scripts/riscv-tests.list" or die "[$scriptLog.pl] ERROR opening file $!\n";
   my @listFile = <TESTLIST>;
   close TESTLIST;
-  my @genTests = `find  $shaktiHome/verification/tests/random/ -name "*.S"`;
+  my @genTests = `find  $shaktiHome/verification/tests/random/riscv-torture -name "*.S"`;
   chomp(@genTests);
   foreach my $test (@genTests) {
     my $file = `basename $test .S`; chomp($file);
     my $suite = `dirname $test`; chomp($suite);
-    $suite = substr($suite, index($suite, "tests/"));
+    $suite = substr($suite, index($suite, "random/"));
     push @listFile, "$file\t\t\t\t$suite\t\t\t\tp\n";
   }
   open TESTLIST, ">$shaktiHome/verification/scripts/tests.list" or die "[$scriptLog.pl] ERROR opening file $!\n";
