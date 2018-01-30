@@ -153,8 +153,8 @@ typedef enum {
 }Instruction_type deriving(Bits, Eq,FShow); // the type of the decoded instruction.
 
 // to distuingish between integer and floating point RF
-typedef enum {IntegerRF, FloatingRF} Register_type deriving(Bits,Eq,FShow);
-typedef enum {IntegerRF, FloatingRF, Immediate, PC} Operand_type deriving(Bits,Eq,FShow);
+typedef enum {IntegerRF `ifdef spfpu ,FloatingRF `endif } Register_type deriving(Bits,Eq,FShow);
+typedef enum {IntegerRF `ifdef spfpu ,FloatingRF `endif , Immediate, PC} Operand_type deriving(Bits,Eq,FShow);
 
 
 typedef union tagged{
