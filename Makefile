@@ -175,41 +175,37 @@ generate_verilog: check-restore check-blue
 
 .PHONY: link_ncverilog
 link_ncverilog: 
-	@echo "Linking mkTbSoc using ncverilog..."
+	@echo "Linking $(TOP_MODULE) using ncverilog..."
 	@rm -rf work include bin/work
 	@mkdir -p bin 
 	@mkdir work
-	@ln -f -s ./verilog/cds.lib cds.lib
-	@ln -f -s ./verilog/hdl.var hdl.var
-	@ln -f -s ./verilog/*.vmf ./bin/
-	@ln -s ./verilog/include include
-	@ncvlog -sv -cdslib ./cds.lib -hdlvar ./hdl.var -MESSAGES -NOCOPYRIGHT -LINEDEBUG +define+INTC_NO_PWR_PINS+INTC_FUNCTIONAL+INTC_MEM_FAST_SIM +define+TOP=mkTbSoc ./verilog/N25Qxxx.v
-	@ncvlog -sv -cdslib ./cds.lib -hdlvar ./hdl.var -MESSAGES -NOCOPYRIGHT -LINEDEBUG +define+INTC_NO_PWR_PINS+INTC_FUNCTIONAL+INTC_MEM_FAST_SIM +define+TOP=mkTbSoc ./verilog/main.v -y ./verilog/ 
-	@ncelab  -cdslib ./cds.lib -hdlvar ./hdl.var -mess -NOWARN CUDEFB work.main -access +r -timescale 1ns/1ps
-	@echo 'ncsim -cdslib ./cds.lib -hdlvar ./hdl.var work.main #> /dev/null' > bin/out
-	@cp cds.lib hdl.var bin/
-	@mv work bin/
-	@chmod +x bin/out
+	@echo "define work ./work" > cds.lib
+	@echo "define WORK work" > hdl.var
+	@ncvlog -sv -cdslib ./cds.lib -hdlvar ./hdl.var -MESSAGES -NOCOPYRIGHT -LINEDEBUG +define+TOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v -y ./$(VERILOGDIR)/ -y ${BLUESPECDIR}/Verilog/
+	@ncelab  -cdslib ./cds.lib -mess -NOWARN CUDEFB work.main -access +r -timescale 1ns/1ps
+	@echo 'ncsim -cdslib ./cds.lib work.main #> /dev/null' > $(BSVOUTDIR)/out
+	@mv work cds.lib hdl.var $(BSVOUTDIR)/
+	@chmod +x $(BSVOUTDIR)/out
 	@echo Linking finished
 
 .PHONY: link_msim
 link_msim: 
-	@echo "Linking mkTbSoc using modelsim..."
+	@echo "Linking $(TOP_MODULE) using modelsim..."
 	@rm -rf work* bin/*
 	@mkdir -p bin 
 	vlib work
-	vlog -work work +libext+.v+.vqm -y ./verilog +define+TOP=mkTbSoc ./verilog/main.v ./verilog/mkTbSoc.v  > compile_log
-	mv compile_log ./bin/
-	mv work ./bin/
-	echo 'vsim -quiet -novopt -lib work -do "run -all; quit" -c main' > bin/out
-	@chmod +x bin/out
+	vlog -work work +libext+.v+.vqm -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog +define+TOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v ./$(VERILOGDIR)/$(TOP_MODULE).v  > compile_log
+	mv compile_log ./$(BSVOUTDIR)
+	mv work ./$(BSVOUTDIR)
+	echo 'vsim -quiet -novopt -lib work -do "run -all; quit" -c main' > $(BSVOUTDIR)/out
+	@chmod +x $(BSVOUTDIR)/out
 	@echo Linking finished
 
 .PHONY: link_iverilog
 link_iverilog: 
-	@echo "Linking mkTbSoc using iverilog..."
+	@echo "Linking $(TOP_MODULE) using iverilog..."
 	@mkdir -p bin 
-	@iverilog -v -o bin/out -Wall -y ./verilog/ -DTOP=mkTbSoc ./verilog/main.v ./verilog/mkTbSoc.v
+	@iverilog -v -o bin/out -Wall -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog/ -DTOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v .$(VERILOGDIR)/$(TOP_MODULE).v
 	@echo Linking finished
 
 .PHONY: clean
