@@ -20,6 +20,7 @@ doPrint("Regression run ------------\n");
 # Parse options
 GetOptions(
           qw(submit)   => \my $submit_tests,
+          qw(compile) => \my $src_compile,
           qw(generate)   => \my $generate_tests,
           qw(list=s)   => \my $test_list,
           qw(suite=s)  => \my $test_suite,
@@ -36,6 +37,7 @@ my $testCount;
 my $generate;
 my $testList;
 my $filter;
+my $compile;
 
 # test submission if not given, we simply report
 if ($submit_tests) {
@@ -44,6 +46,14 @@ if ($submit_tests) {
 else {
   $submit = 0;
 }
+
+if ($src_compile) {
+  $compile = 1;
+}
+else {
+  $compile = 0;
+}
+
 if (!$test_list) {
   $testList = "$shaktiHome/verification/scripts/tests.list";
 }
@@ -128,10 +138,15 @@ if ($generate) {
   }
   $MaxCount = $MaxCount * $testCount;
   if ($testSuite =~ /^all$/) {
-    sleep(5);
+    my $timeout = 0;
     while ($count != $MaxCount) {
+      sleep(5);
       $count = `find $shaktiHome/verification/tests/random/ -name "*.S" | wc -l`;
       chomp($count);
+      $timeout++;
+      if ($timeout == 30) {
+        last;
+      }
     }
   }
   doPrint("test count = $count\n");
@@ -150,7 +165,26 @@ if ($generate) {
   print TESTLIST @listFile;
   close TESTLIST;
 }
+####### src compilation
+if ($compile) {
+  if ($simulator == 0) {
+    chdir($shaktiHome);
+    doDebugPrint("cd $shaktiHome\n");
+    systemCmd("make restore");
+    systemCmd("make compile_bluesim");
+    systemCmd("make link_bluesim");
+  }
+  elsif ($simulator == 1) {
+    chdir($shaktiHome);
+    doDebugPrint("cd $shaktiHome\n");
+    systemCmd("make restore");
+    systemCmd("make generate_verilog ");
+    systemCmd("make compile_ncverilog");
+    systemCmd("make link_ncverilog");
+  }
+}
 
+#######
 # Process tests.list -----------
 open TESTLIST, "$testList" or die "[$scriptLog.pl] ERROR opening file $!\n";
 my @listFile = <TESTLIST>;
@@ -181,11 +215,9 @@ if ($submit) {
     my $tSuite = $line[1];
     my $pv = $line[2];
     unless (-e $workdir or mkdir -p $workdir/$tSuite) {
-      die "ERROR: Unable to create workdir!\n";
+      die "ERROR: Unable to create workdir, check SHAKTI_HOME is set!\n";
     }
-    #system("nohup perl $shaktiHome/verification/scripts/makeTest.pl --test=$test --suite=$tSuite --type=$pv&");
-    #system("perl $shaktiHome/verification/scripts/makeTest.pl --test=$test --suite=$tSuite --type=$pv --sim=$simulator");
-    system("nohup perl $shaktiHome/verification/scripts/makeTest.pl --test=$test --suite=$tSuite --type=$pv --sim=$simulator &");
+    system("nohup perl -I $shaktiHome/verification/scripts $shaktiHome/verification/scripts/makeTest.pl --test=$test --suite=$tSuite --type=$pv --sim=$simulator &");
     print "$test\t\t\t$tSuite\t\t\t$pv\t\t\tRunning\n";
   }
 }

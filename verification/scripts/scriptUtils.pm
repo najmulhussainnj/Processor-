@@ -145,6 +145,11 @@ sub systemKillCmd {
 #------------------------------------------------------------
 sub doClean {
   doPrint("Cleaning...\n");
+  systemCmd("rm -rf $shaktiHome/verification/workdir/*");
+  systemCmd("rm -rf $shaktiHome/verification/scripts/nohup.out");
+  systemCmd("rm -rf $shaktiHome/verification/tools/AAPG/nohup.out");
+  systemCmd("rm -rf $shaktiHome/verification/tools/AAPG/__pycache__");
+  systemCmd("rm -rf $shaktiHome/verification/tests/random/*/generated_tests/*");
 }
 
 #-----------------------------------------------------------

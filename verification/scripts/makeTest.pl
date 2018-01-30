@@ -152,13 +152,13 @@ systemCmd("spike -c --isa=RV64IMAFD $testName.elf");
 if ($simulator =~ /^bluespec$/) {
   systemCmd("ln -s $shaktiHome/bin/out.so    out.so");
 }
-#if ($test_suite =~ /riscv-torture/) {
-#  systemFileCmd("cut -c1-8 $shaktiHome/config_string64.hex","boot.MSB");
-#  systemFileCmd("cut -c9-16 $shaktiHome/config_string64.hex","boot.LSB");
-#}
 systemCmd("ln -s $shaktiHome/bin/out       out");
-systemCmd("ln -s $shaktiHome/boot.MSB    boot.MSB");
-systemCmd("ln -s $shaktiHome/boot.LSB    boot.LSB");
+if (!(-e "$shaktiHome/bin/boot.MSB")) {
+  systemFileCmd("cut -c1-8 $shaktiHome/verification/dts/boot.hex","$shaktiHome/bin/boot.MSB");
+  systemFileCmd("cut -c9-16 $shaktiHome/verification/dts/boot.hex","$shaktiHome/bin/boot.LSB");
+}
+systemCmd("ln -s $shaktiHome/bin/boot.MSB    boot.MSB");
+systemCmd("ln -s $shaktiHome/bin/boot.LSB    boot.LSB");
 #systemCmd("ln -s $shaktiHome/bin/boot.3l   boot.3l");
 #systemCmd("ln -s $shaktiHome/bin/boot.2l   boot.2l");
 #systemCmd("ln -s $shaktiHome/bin/boot.1l   boot.1l");
