@@ -149,7 +149,7 @@ typedef struct{
 } Output_for_operand_fetch deriving (Bits,Eq); // output from the register file to the decode stage
 
 typedef enum {
-	ALU,MUL,DIV,MEMORY,BRANCH,JAL,JALR,DFLOATING,FLOATING,FENCE,FENCEI,SYSTEM_INSTR,NOP
+	ALU,MUL,DIV,MEMORY,BRANCH,JAL,JALR `ifdef spfpu ,DFLOATING,FLOATING `endif ,FENCE,FENCEI,SYSTEM_INSTR,NOP
 }Instruction_type deriving(Bits, Eq,FShow); // the type of the decoded instruction.
 
 // to distuingish between integer and floating point RF

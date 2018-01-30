@@ -88,7 +88,7 @@ module mkdmem(Ifc_dmem);
 		rule send_cache_index(rg_dtlb_metadata[1] matches tagged Valid .t);
 			let {z,epoch} = t;
 			let x <- dtlb.send_vaddress_for_cache_index;
-				dcache.virtual_address(x, z.mem_type, z.memory_data, z.transfer_size, z.atomic_op, unpack(z.signextend),epoch);
+				dcache.virtual_address(x, z.mem_type, z.memory_data, z.transfer_size, `ifdef atomic z.atomic_op, `endif unpack(z.signextend),epoch);
 		endrule
 
 		rule ptw_to_dcache(rg_pte_pointer[1] matches tagged Valid .ptw_request);
@@ -97,7 +97,7 @@ module mkdmem(Ifc_dmem);
 			Bit#(`VADDR) addr = truncate(ptw_request.address);
 			Access_type page_access_type = Load;
 			Bit#(TMul#(`DCACHE_WORD_SIZE,8)) data = 0;
-			dcache.virtual_address(addr,Load, data, 'd3, 5'b00100, True,epochs[1]);
+			dcache.virtual_address(addr,Load, data, 'd3 `ifdef atomic , 5'b00100 `endif , True,epochs[1]);
 			dcache.physical_address(truncate(addr), tagged None);
 			rg_pte_pointer[1] <= tagged Invalid;
 		endrule
@@ -114,9 +114,9 @@ module mkdmem(Ifc_dmem);
 				let {req,epoch}=request;
 					`ifdef MMU 
 					rg_dtlb_metadata[0] <= tagged Valid (tuple2(req,epoch));
-					dtlb.get_vaddr(DTLB_access{vaddr : req.address, ld_st_atomic : req.mem_type},req.atomic_op); 
+					dtlb.get_vaddr(DTLB_access{vaddr : req.address, ld_st_atomic : req.mem_type} `ifdef atomic ,req.atomic_op `endif ); 
 				`endif
-				dcache.virtual_address(truncate(req.address),req.mem_type, req.memory_data, req.transfer_size, req.atomic_op, unpack(req.signextend),epoch);
+				dcache.virtual_address(truncate(req.address),req.mem_type, req.memory_data, req.transfer_size, `ifdef atomic  req.atomic_op, `endif unpack(req.signextend),epoch);
 				`ifdef verbose $display($time,"\tDMEM: Taking request from CPU: ",fshow(request)); `endif
 				request_taken<=True;
 		endmethod

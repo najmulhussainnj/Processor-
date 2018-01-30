@@ -45,9 +45,12 @@ function Decoded_data fn_decode(Bit#(32) instruction, Trap_type exception, Bit#(
    Bool word32 =False; 
  
    Access_type mem_access=Load; 
-   if(opcode[3]=='b1 && opcode[1]=='b1) 
-      mem_access=Atomic; 
-   else if(opcode[3]=='b1 && opcode[1]==0) 
+	`ifdef atomic
+	   if(opcode[3]=='b1 && opcode[1]=='b1) 
+		   mem_access=Atomic; 
+		else 
+	`endif
+	if(opcode[3]=='b1 && opcode[1]==0) 
       mem_access=Store; 
  
    Operand_type rs1type=IntegerRF; 
@@ -136,13 +139,15 @@ function Decoded_data fn_decode(Bit#(32) instruction, Trap_type exception, Bit#(
    if(exception matches tagged None)begin 
       if( `ifdef spfpu (inst_type==FLOATING && misa[5]==0) `ifdef dpfpu || (inst_type==DFLOATING && misa[3]==0)  `endif || `endif
           (inst_type==MUL && misa[12]==0)    || (inst_type==DIV && misa[12]==0) 
-            || (inst_type==MEMORY && mem_access==Atomic && misa[0]==0) ) 
+            `ifdef atomic || (inst_type==MEMORY && mem_access==Atomic && misa[0]==0) `endif ) 
          ex=tagged Exception Illegal_inst; 
 	`ifdef simulate
 		if(inst_type==JAL && immediate_value==0)
 			ex=tagged Exception Endsimulation;
 	`endif
 		if(instruction[1:0]!='b11)
+			ex=tagged Exception Illegal_inst;
+		if(inst_type==NOP)
 			ex=tagged Exception Illegal_inst;
    end 
 	else 

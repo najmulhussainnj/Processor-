@@ -23,7 +23,7 @@ import ConfigReg::*;
 `define TLB_entries	16	
 
 interface Ifc_TLB#(numeric type data_width, numeric type vaddr, numeric type paddr, numeric type page_size, numeric type asid_width);
-	method Action get_vaddr(DTLB_access#(data_width) addr, Bit#(5) atomic);
+	method Action get_vaddr(DTLB_access#(data_width) addr `ifdef atomic , Bit#(5) atomic `endif );
 	method ActionValue#(From_TLB#(data_width)) send_ppn;
 	method ActionValue#(Bit#(vaddr)) send_vaddress_for_cache_index;
 	method Action translation_protection_frm_csr(bit tlb_disable, Chmod per_bits, Bit#(TAdd#(4,asid_width)) asid); //TODO parameterise this
@@ -134,7 +134,7 @@ provisos( Add#(vpn, page_size, vaddr),
 					`ifdef verbose_torture $display($time, "\t dTLB: page fault 2"); `endif
 				end
 			end
-			if(tpl_1(ff_access.first())==Load|| (tpl_1(ff_access.first)==Atomic && tpl_2(ff_access.first)[3:0]=='b0101)) begin
+			if(tpl_1(ff_access.first())==Load `ifdef atomic || (tpl_1(ff_access.first)==Atomic && tpl_2(ff_access.first)[3:0]=='b0101) `endif ) begin
 				if(rg_chmod[1].mxr==1) begin
 					if(perm_bits.x==0 || perm_bits.r==0) begin
 						page_fault=True;
@@ -185,11 +185,11 @@ provisos( Add#(vpn, page_size, vaddr),
 		rg_frm_ptw[1] <= False;
 	endrule
 
-	method Action get_vaddr(DTLB_access#(data_width) addr, Bit#(5) atomic);
+	method Action get_vaddr(DTLB_access#(data_width) addr `ifdef atomic , Bit#(5) atomic `endif );
 		`ifdef verbose_torture $display($time, "\t dTLB: Initiated translation through dTLB and disable is %b", rg_tlb_disable); `endif
 		ff_vpn.enq(addr.vaddr[v_vaddr-1: v_page_offset]);
 		ff_page_offset.enq(addr.vaddr[v_page_offset-1:0]);
-		ff_access.enq(tuple2(addr.ld_st_atomic,atomic));
+		ff_access.enq(tuple2(addr.ld_st_atomic, `ifdef atomic atomic `else 0 `endif ));
 	endmethod
 
 	method ActionValue#(From_TLB#(data_width)) send_ppn if(rg_hit[1] || rg_tlb_disable 
@@ -219,7 +219,7 @@ provisos( Add#(vpn, page_size, vaddr),
 		end
 		else if(rg_page_fault[1]) begin
 			`ifdef verbose_torture $display($time, "\t DTLB Page Fault"); `endif
-			if(tpl_1(ff_access.first())== Load || (tpl_1(ff_access.first)==Atomic && tpl_2(ff_access.first)[3:0]=='b0101)) 
+			if(tpl_1(ff_access.first())== Load `ifdef atomic || (tpl_1(ff_access.first)==Atomic && tpl_2(ff_access.first)[3:0]=='b0101) `endif ) 
 				e = tagged Exception Load_pagefault;	
 			else 
 				e = tagged Exception Store_pagefault;	
@@ -255,7 +255,7 @@ provisos( Add#(vpn, page_size, vaddr),
 		
 	interface to_PTW = interface Get
 		method ActionValue#(Request_PPN_PTW#(vaddr,page_size)) get if(rg_handling_PTW[1] && !rg_page_fault[1]); 
-			return Request_PPN_PTW{ vpn : ff_vpn.first(), page_type : (tpl_1(ff_access.first())==Load|| (tpl_1(ff_access.first)==Atomic && tpl_2(ff_access.first)[3:0]=='b0101))?Load:Store};
+			return Request_PPN_PTW{ vpn : ff_vpn.first(), page_type : (tpl_1(ff_access.first())==Load `ifdef atomic || (tpl_1(ff_access.first)==Atomic && tpl_2(ff_access.first)[3:0]=='b0101) `endif )?Load:Store};
 		endmethod
 	endinterface;
 
@@ -351,7 +351,7 @@ provisos( Add#(vpn, page_size, vaddr),
 endmodule
 
 interface Ifc_dTLB;
-	method Action get_vaddr(DTLB_access#(`ADDR) addr, Bit#(5) atomic);
+	method Action get_vaddr(DTLB_access#(`ADDR) addr `ifdef atomic , Bit#(5) atomic `endif );
 	method ActionValue#(From_TLB#(`ADDR)) send_ppn;
 	method ActionValue#(Bit#(`VADDR)) send_vaddress_for_cache_index;
 	method Action translation_protection_frm_csr(bit tlb_disable, Chmod per_bits, Bit#(TAdd#(4,`ASID)) asid);
@@ -369,8 +369,8 @@ module mkdTLB(Ifc_dTLB);
 
 Ifc_TLB#(`ADDR,`VADDR,`PADDR,`OFFSET,`ASID) dtlb <- mkTLB();
 
-	method Action get_vaddr(DTLB_access#(`ADDR) addr, Bit#(5) atomic);
-		dtlb.get_vaddr(addr,atomic);
+	method Action get_vaddr(DTLB_access#(`ADDR) addr `ifdef atomic , Bit#(5) atomic `endif );
+		dtlb.get_vaddr(addr `ifdef atomic ,atomic `endif );
 	endmethod
 	method ActionValue#(From_TLB#(`ADDR)) send_ppn = dtlb.send_ppn;
 	method ActionValue#(Bit#(`VADDR)) send_vaddress_for_cache_index = dtlb.send_vaddress_for_cache_index;
