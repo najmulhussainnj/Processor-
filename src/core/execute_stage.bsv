@@ -26,11 +26,7 @@ package execute_stage;
 	import defined_types::*;
 	`ifdef muldiv
 	`ifdef RV64
-		`ifdef synopsys
-			import synopsys_mul::*;
-		`else
-			import muldiv::*;
-		`endif
+		import muldiv::*;
 	`endif
 	`endif
 	`ifdef spfpu
@@ -97,12 +93,7 @@ package execute_stage;
 		TX#(IE_IMEM_type) tx <-mkTX;							// send to the memory stage;
 	   `ifdef muldiv 
 			`ifdef sequential
-				`ifdef synopsys
-					Ifc_synopsys_mul dwmul <-mksynopsys_mul;
-					Reg#(Bool) mul_operation <-mkReg(False);
-				`else
-					Ifc_muldiv muldiv <-mkmuldiv;
-				`endif
+				Ifc_muldiv muldiv <-mkmuldiv;
 			`endif
 			`ifdef parallel
 				Reg#(Maybe#(Bit#(`Reg_width))) rg_mul_output<-mkReg(tagged Invalid);
@@ -178,13 +169,8 @@ package execute_stage;
 							`ifdef verbose $display($time,"\tEXECUTION: Division Operation Op1: %h Op2: %h ",rs1,rs2); `endif
 						end
 						`ifdef sequential
-							`ifdef synopsys
-								dwmul.inputs(rs1,rs2, data.funct3,data.word32, ~data.funct3[2]);
-								mul_operation<=True;
-							`else
-								muldiv.input_operands(rs1,rs2,data.funct3[1:0],pack(data.word32),is_mul);
-								prf.update_rd(prf_index,pid);
-							`endif
+							muldiv.input_operands(rs1,rs2,data.funct3[1:0],pack(data.word32),is_mul);
+							prf.update_rd(prf_index,pid);
 							multicylce_output[1]<=True;
 						`endif
 						`ifdef parallel
@@ -262,59 +248,30 @@ package execute_stage;
 
 		`ifdef muldiv
 			`ifdef sequential
-				`ifdef synopsys
-					rule read_outputs_from_muldiv(rx.u.notEmpty && tx.u.notFull && multicylce_output[1]  `ifdef synopsys && mul_operation `endif );
-						let res<-dwmul.product;
-						rx.u.deq;
-						let decodedata=rx.u.first;
-						let pc=decodedata.program_counter;
-						let dest=decodedata.destination;
-						let rdtype=decodedata.rdtype;
-						let exception=decodedata.exception;
-						`ifdef simulate let instr=decodedata.instruction; `endif
-      			   Execution_output result1= tagged RESULT(Arithout{aluresult:truncate(res),fflags:0});
-						if({eEpoch,wEpoch}!=rx.u.first.epochs)begin
-							`ifdef verbose $display($time,"Epochs do not match"); `endif
-						end
-						else begin
-							tx.u.enq(IE_IMEM_type{execresult:result1,debugcause:rx.u.first.debugcause, 
-										program_counter:pc,	exception:exception,	
-										destination:dest,		rd_type:rdtype , index:rg_prf_index,pid:rg_pid, perfmonitors:rx.u.first.perfmonitors,epochs:rx.u.first.epochs
-										`ifdef simulate , instruction:instr `endif  });
-							if(dest!=0)
-								wr_forward_from_EXE <= tagged Valid tuple3(truncate(res),rg_prf_index,rg_pid);
-						end
-						multicylce_output[1]<=False;
-						`ifdef synopsys
-							mul_operation<=False;
-						`endif
-					endrule
-					`else
-					rule read_outputs_from_muldiv(rx.u.notEmpty && tx.u.notFull && multicylce_output[1] );
-						`ifdef verbose $display($time,"\tEXECUTION: Multiplier sending output to Memory stage"); `endif
-						let res<-muldiv.muldiv_result;
-						rx.u.deq;
-						let decodedata=rx.u.first;
-						let pc=decodedata.program_counter;
-						let dest=decodedata.destination;
-						let rdtype=decodedata.rdtype;
-						let exception=decodedata.exception;
-						`ifdef simulate let instr=decodedata.instruction; `endif
-      			   Execution_output result1= tagged RESULT(Arithout{aluresult:res,fflags:0});
-						if({eEpoch,wEpoch}!=rx.u.first.epochs)begin
-							`ifdef verbose $display($time,"Epochs do not match"); `endif
-						end
-						else begin
-							tx.u.enq(IE_IMEM_type{execresult:result1,debugcause:rx.u.first.debugcause, 
-									program_counter:pc,	exception:exception,	
-									destination:dest,		rd_type:rdtype , index:rg_prf_index,pid:rg_pid, perfmonitors:rx.u.first.perfmonitors,epochs:rx.u.first.epochs
-									`ifdef simulate , instruction:instr `endif  });
-							if(dest!=0)
-								wr_forward_from_EXE <= tagged Valid tuple3(res,rg_prf_index,rg_pid);
-						end
-						multicylce_output[1]<=False;
-					endrule
-				`endif
+				rule read_outputs_from_muldiv(rx.u.notEmpty && tx.u.notFull && multicylce_output[1] );
+					`ifdef verbose $display($time,"\tEXECUTION: Multiplier sending output to Memory stage"); `endif
+					let res<-muldiv.muldiv_result;
+					rx.u.deq;
+					let decodedata=rx.u.first;
+					let pc=decodedata.program_counter;
+					let dest=decodedata.destination;
+					let rdtype=decodedata.rdtype;
+					let exception=decodedata.exception;
+					`ifdef simulate let instr=decodedata.instruction; `endif
+      		   Execution_output result1= tagged RESULT(Arithout{aluresult:res,fflags:0});
+					if({eEpoch,wEpoch}!=rx.u.first.epochs)begin
+						`ifdef verbose $display($time,"Epochs do not match"); `endif
+					end
+					else begin
+						tx.u.enq(IE_IMEM_type{execresult:result1,debugcause:rx.u.first.debugcause, 
+								program_counter:pc,	exception:exception,	
+								destination:dest,		rd_type:rdtype , index:rg_prf_index,pid:rg_pid, perfmonitors:rx.u.first.perfmonitors,epochs:rx.u.first.epochs
+								`ifdef simulate , instruction:instr `endif  });
+						if(dest!=0)
+							wr_forward_from_EXE <= tagged Valid tuple3(res,rg_prf_index,rg_pid);
+					end
+					multicylce_output[1]<=False;
+				endrule
 			`endif
 			`ifdef parallel
 				rule read_outputs_from_muldiv(rx.u.notEmpty &&& tx.u.notFull &&& multicylce_output[1] &&& rg_mul_output matches tagged Valid .x);
@@ -344,7 +301,7 @@ package execute_stage;
 		`endif
 
 	`ifdef spfpu
-		rule read_output_from_fpu(rx.u.notEmpty && tx.u.notFull && multicylce_output[1] `ifdef synopsys && !mul_operation `endif );
+		rule read_output_from_fpu(rx.u.notEmpty && tx.u.notFull && multicylce_output[1] );
 			let res<-fpu.get_result;
 			rx.u.deq;
 			let decodedata=rx.u.first;
