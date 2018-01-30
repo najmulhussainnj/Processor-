@@ -203,8 +203,8 @@ package icache;
 						if(lbhit ) 
 							data_value = data_value_lb;
 						`ifdef verbose $display($time,"\tICACHE: Hit for address : %h data: %h offset: %h line: %d hit: %b lbhit: %b, polling_required: %b",rg_vaddress,data_value,byteoffset,linenum,hit,lbhit, polling_required); `endif
-						rg_prefetchpc<=tagged Invalid;
 						`ifdef prefetch
+							rg_prefetchpc<=tagged Invalid;
 							if(!prefetchmode)begin
 								wr_response_to_cpu<=tagged Valid (tuple3(data_value,tagged None,perf_monitor));
 								rg_perf_monitor<=0;
@@ -245,20 +245,24 @@ package icache;
 							perf_monitor[`ICACHE_LINEREPLACE]=1; // cache line replacement increment.
 							replaceblock=truncate(random_line.value);
 							random_line.next;
-							if(prefetchmode)begin
-								`ifdef verbose $display($time,"\tICACHE: Prefetch Miss of address: %h Replacing line: %d valid: %b",rg_vaddress,random_line.value[1:0],valid_values); `endif
-								perf_monitor[`ICACHE_PREFETCHMISS]=1;
-							end
+							`ifdef prefetch
+								if(prefetchmode)begin
+									`ifdef verbose $display($time,"\tICACHE: Prefetch Miss of address: %h Replacing line: %d valid: %b",rg_vaddress,random_line.value[1:0],valid_values); `endif
+									perf_monitor[`ICACHE_PREFETCHMISS]=1;
+								end
+							`endif
 							`ifdef verbose else
 								$display($time,"\tICACHE: Miss of address: %h Replacing line: %d valid: %b",rg_vaddress,random_line.value[1:0],valid_values); `endif
 						end
 						else begin // find the line which is not valid and fill it
 							let x=countZerosLSB(valid_values)-1;
 							replaceblock=pack(truncate(x));
-							if(prefetchmode)begin
-								`ifdef verbose $display($time,"\tICACHE: Prefetch Miss of address: %h Filling line: %d",rg_vaddress,x); `endif
-								perf_monitor[`ICACHE_PREFETCHMISS]=1;
-							end
+							`ifdef prefetch
+								if(prefetchmode)begin
+									`ifdef verbose $display($time,"\tICACHE: Prefetch Miss of address: %h Filling line: %d",rg_vaddress,x); `endif
+									perf_monitor[`ICACHE_PREFETCHMISS]=1;
+								end
+							`endif
 							`ifdef verbose else
 							$display($time,"\tICACHE: Miss of address: %h Filling line: %d",rg_vaddress,x); `endif
 						end
@@ -276,7 +280,15 @@ package icache;
 					end
 				end
 				else begin
-					if(!prefetchmode)begin
+					`ifdef prefetch
+						if(prefetchmode)begin
+							`ifdef verbose $display($time,"\tICACHE: Do not prefetch in IO space"); `endif
+							rg_state[0]<=Idle;
+							prefetchmode<=False;
+						end
+						else `endif
+					begin
+
 						`ifdef MMU
 							ff_request_to_memory.enq(To_Memory {address:truncate(rg_paddress),burst_length:1,ld_st:Load, transfer_size:2});
 						`else
@@ -285,21 +297,18 @@ package icache;
 						rg_state[0]<=IOReadResp;
 						`ifdef verbose $display($time,"\tICACHE: Sending Address for IO ACCESS: %h",rg_paddress); `endif
 					end
-					else begin
-						`ifdef verbose $display($time,"\tICACHE: Do not prefetch in IO space"); `endif
-						rg_state[0]<=Idle;
-						prefetchmode<=False;
-					end
 				end
 			end
 			else begin
-				if(!prefetchmode)begin
-					wr_response_to_cpu<=tagged Valid tuple3(0,rg_tlb_exception[0],perf_monitor);
-					`ifdef verbose $display($time,"\tICACHE: TLB Exception "); `endif
-				end
-				else begin
+			`ifdef prefetch
+				if(prefetchmode)begin
 					`ifdef verbose $display($time,"\tICACHE: do not respond if Prefetch generated a exception"); `endif
 					prefetchmode<=False;
+				end
+				else `endif
+				begin
+					wr_response_to_cpu<=tagged Valid tuple3(0,rg_tlb_exception[0],perf_monitor);
+					`ifdef verbose $display($time,"\tICACHE: TLB Exception "); `endif
 				end
 				rg_state[0]<=Idle;
 				`ifdef MMU rg_trnslte_done[0] <= False; `endif
