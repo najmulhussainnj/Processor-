@@ -50,7 +50,7 @@ package prf;
 		method ActionValue#(RFType#(`Reg_width)) read_rs1 (Bit#(5) addr, Operand_type rs1type, Bit#(`Reg_width) data);
 			if(rs1type==IntegerRF && addr==0)
 				return tagged Present 0;
-			else if(rs1type==IntegerRF || rs1type==FloatingRF) begin
+			else if(rs1type==IntegerRF `ifdef spfpu || rs1type==FloatingRF `endif ) begin
 				let array_rd=readVReg(rd_rf); // convert the reg-vector to bit#(5)-vector
 				let index=findElem(tuple2(addr,rs1type),array_rd); // find the index of match
 				if(index matches tagged Valid .idx)begin // if match exists
@@ -66,7 +66,7 @@ package prf;
 		method ActionValue#(RFType#(`Reg_width)) read_rs2 (Bit#(5) addr, Operand_type rs2type, Bit#(`Reg_width) data);
 			if(rs2type==IntegerRF && addr==0)
 				return tagged Present 0;
-			else if(rs2type==IntegerRF || rs2type==FloatingRF) begin
+			else if(rs2type==IntegerRF `ifdef spfpu || rs2type==FloatingRF `endif ) begin
 				let array_rd=readVReg(rd_rf); // convert the reg-vector to bit#(5)-vector
 				let index=findElem(tuple2(addr,rs2type),array_rd); // find the index of match
 				if(index matches tagged Valid .idx)begin // if match exists
@@ -82,7 +82,7 @@ package prf;
 		method ActionValue#(RFType#(`Reg_width)) read_rs3 (Bit#(5) addr, Operand_type rs3type, Bit#(`Reg_width) data);
 			if(rs3type==IntegerRF && addr==0)
 				return tagged Present 0;
-			else if(rs3type==IntegerRF || rs3type==FloatingRF) begin
+			else if(rs3type==IntegerRF `ifdef spfpu || rs3type==FloatingRF `endif ) begin
 				let array_rd=readVReg(rd_rf); // convert the reg-vector to bit#(5)-vector
 				let index=findElem(tuple2(addr,rs3type),array_rd); // find the index of match
 				if(index matches tagged Valid .idx)begin // if match exists

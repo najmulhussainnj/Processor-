@@ -31,7 +31,7 @@ package dcache_asic;
 	import Assert::*;
 	/*========================= */
 	interface Ifc_dcache;
-		method Action virtual_address(Bit#(`VADDR) vaddress, Access_type load_store, Bit#(TMul#(`DCACHE_WORD_SIZE,8)) writedata, Bit#(3) transfer_size, Bit#(5) atomic_op, Bool signextend, Bit#(1) insnepoch);
+		method Action virtual_address(Bit#(`VADDR) vaddress, Access_type load_store, Bit#(TMul#(`DCACHE_WORD_SIZE,8)) writedata, Bit#(3) transfer_size, `ifdef atomic Bit#(5) atomic_op, `endif Bool signextend, Bit#(1) insnepoch);
 		method Maybe#(Tuple4#(Bit#(`Reg_width), Trap_type,Bit#(`PERFMONITORS),Bit#(1))) response_to_core;
 		method ActionValue#(To_Memory#(`PADDR)) read_request_to_memory;
 		method ActionValue#(To_Memory_Write) write_request_to_memory;
@@ -64,6 +64,7 @@ package dcache_asic;
 		let word_bits=valueOf(TLog#(`DCACHE_BLOCK_SIZE));	// number of bits to select a word within a block. = 4
 		let set_bits=valueOf(TLog#(`DCACHE_SETS));			// number of bits to select a set from the cache. = 
 		Reg#(Maybe#(Tuple2#(Bit#(1),Bit#(`PADDR)))) rg_lr_paddress<-mkReg(tagged Invalid);
+		`ifdef atomic
 		function ActionValue#(Tuple3#(Maybe#(Bit#(1)),Bool, Bit#(TMul#(`DCACHE_WORD_SIZE,8)))) atomic_operation(Bit#(TMul#(`DCACHE_WORD_SIZE,8)) loaded_value, Bit#(TMul#(`DCACHE_WORD_SIZE,8)) rs2, Bit#(5) atomic_op, Bit#(`PADDR) addr);
 		return (
 		actionvalue 
@@ -120,6 +121,7 @@ package dcache_asic;
 			return tuple3(sc_done,store_result,atomic_result);
 			endactionvalue );
 		endfunction
+		`endif
 		function Bit#(TMul#(TMul#(8,`DCACHE_WORD_SIZE),`DCACHE_BLOCK_SIZE)) update_line (Bit#(TMul#(`DCACHE_BLOCK_SIZE,`DCACHE_WORD_SIZE)) we, Bit#(TMul#(TMul#(8,`DCACHE_WORD_SIZE),`DCACHE_BLOCK_SIZE)) data, Bit#(TMul#(TMul#(8,`DCACHE_WORD_SIZE),`DCACHE_BLOCK_SIZE)) data_reg);
          Bit#(TMul#(TMul#(8,`DCACHE_WORD_SIZE),`DCACHE_BLOCK_SIZE)) mask=0;
          for(Integer i=0;i<32;i=i+1)begin
@@ -159,7 +161,7 @@ package dcache_asic;
 		Reg#(Bit#(`PADDR)) rg_paddress <-mkReg(0);
 		Reg#(Bit#(`PADDR)) rg_poll_address <-mkReg(0);
 		Reg#(Bit#(3))		rg_transfer_size <-mkReg(0);
-		Reg#(Bit#(5))		rg_atomic_op <-mkReg(0);
+		`ifdef atomic Reg#(Bit#(5))		rg_atomic_op <-mkReg(0); `endif
 		Reg#(Access_type) rg_access_type <-mkReg(Load);
 		Reg#(Bit#(TMul#(`DCACHE_WORD_SIZE,`DCACHE_BLOCK_SIZE))) rg_writeenable<-mkReg(0);
 		Reg#(Bool) rg_signextend<-mkReg(False);
@@ -507,13 +509,14 @@ package dcache_asic;
 				data_word=rg_transfer_size==0?zeroExtend(data_word[7:0]):rg_transfer_size==1?zeroExtend(data_word[15:0]):rg_transfer_size==2?zeroExtend(data_word[31:0]):data_word;
 			else
 				data_word=rg_transfer_size==0?signExtend(data_word[7:0]):rg_transfer_size==1?signExtend(data_word[15:0]):rg_transfer_size==2?signExtend(data_word[31:0]):data_word;
-			let {success,storeResult,atomicdata} <- atomic_operation(data_word,rg_writedata,rg_atomic_op,rg_paddress);
-			if(rg_access_type==Load)
-				storeResult=False;
-			
-			if(success matches tagged Valid .sc)
-				data_word = zeroExtend(sc);
-			Bit#(`Reg_width) final_word =(rg_access_type==Atomic)?atomicdata:(rg_access_type==Store)?rg_writedata:data_word;
+			`ifdef atomic 
+				let {success,storeResult,atomicdata} <- atomic_operation(data_word,rg_writedata,rg_atomic_op,rg_paddress); 
+				if(rg_access_type==Load)
+					storeResult=False;
+				if(success matches tagged Valid .sc)
+					data_word = zeroExtend(sc);
+			`endif
+			Bit#(`Reg_width) final_word = `ifdef atomic (rg_access_type==Atomic)?atomicdata: `endif (rg_access_type==Store)?rg_writedata:data_word;
 			`ifdef verbose $display($time,"\tDCACHE: hbhit: %b hbdataline: %h",hb_hit,hbdataline); `endif
 			`ifdef verbose $display($time,"\tDCACHE: lb_hit: %b lbdataline: %h",lb_hit,lbdataline); `endif
 			`ifdef verbose $display($time,"\tDCACHE: tag_hit: %b hit  : %b srdataline: %h",tag_hit,hit , sram_dataline); `endif
@@ -548,28 +551,28 @@ package dcache_asic;
 					wbEpoch[0]<=~wbEpoch[0];
 				/*=======================================*/
 				
-				if(rg_access_type==Store || storeResult)
+				if(rg_access_type==Store `ifdef atomic || storeResult `endif )
 					rg_global_dirty<=True;
 				/*=============== updated hit buffer on a write =========*/
-				if(hb_hit && (rg_access_type==Store || storeResult))begin
+				if(hb_hit && (rg_access_type==Store `ifdef atomic || storeResult `endif ))begin
 					`ifdef verbose $display($time,"\tDCACHE: HB Hit. Writing Tag: %h Data: %h Way: %h",hb_tag,final_word,hb_way); `endif
 					hb_data.write_portA(rg_writeenable,duplicate(final_word)); 
 				end
 				/*============================================*/
 				/*=============== updated line buffer on a write =========*/
-				if(lb_hit && !stall_on_lb && (rg_access_type==Store || storeResult))begin
+				if(lb_hit && !stall_on_lb && (rg_access_type==Store `ifdef atomic || storeResult `endif ))begin
 					`ifdef verbose $display($time,"\tDCACHE: LB Hit. Writing Tag: %h Data: %h Way: %h setindex: %d",lb_tag,final_word,lb_way,lb_setindex); `endif
 					lb_data.write_portA(rg_writeenable,duplicate(final_word)); 
 					lb_dirty<=1;
 				end
-				if(hit && (rg_access_type==Store || storeResult) && !hb_hit)begin
+				if(hit && (rg_access_type==Store `ifdef atomic || storeResult `endif ) && !hb_hit)begin
 					`ifdef verbose $display($time,"\tDCACHE: Hit in SRAMS and writing new value :%h to HB",update_line(rg_writeenable,duplicate(final_word),dataline)); `endif
 					hb_tag<=cpu_tag;
 					hb_setindex<=setindex;
 					hb_data.write_portA('1,update_line(rg_writeenable,duplicate(final_word),dataline));
 					hb_way<=tag_hit;
 				end
-				if(hit && (rg_access_type==Store || storeResult) && !hb_hit)
+				if(hit && (rg_access_type==Store `ifdef atomic || storeResult `endif ) && !hb_hit)
 					hb_valid<=True;
 				else if(hb_valid && !hb_hit)
 					hb_valid<=False;
@@ -634,6 +637,7 @@ package dcache_asic;
 				data_value=rg_transfer_size==0?signExtend(data_value[7:0]):rg_transfer_size==1?signExtend(data_value[15:0]):rg_transfer_size==2?signExtend(data_value[31:0]):data_value;
 			wr_response_to_cpu<=tagged Valid (tuple4(data_value,ff_read_response_from_memory.first.bus_error==1?tagged Exception Load_access_fault:tagged None,rg_perf_monitor,rg_insn_epoch));
 			wbEpoch[0]<=ff_read_response_from_memory.first.bus_error==1?~wbEpoch[0]:wbEpoch[0];
+			`ifdef atomic
 			if(rg_access_type==Atomic)begin
 				let {success,storeResult,atomicdata} <- atomic_operation(data_value,rg_writedata,rg_atomic_op,rg_paddress);
 				`ifdef MMU
@@ -643,7 +647,9 @@ package dcache_asic;
 				`endif
 				rg_state[0]<=IOWriteResp;
 			end
-			else begin
+			else
+			`endif
+			begin
 				rg_state[0]<=Idle;
 			end
 			rg_perf_monitor<=0;
@@ -658,7 +664,7 @@ package dcache_asic;
 			rg_perf_monitor<=0;
 			rg_state[0]<=Idle;
 		endrule
-		method Action virtual_address(Bit#(`VADDR) vaddress, Access_type load_store, Bit#(TMul#(`DCACHE_WORD_SIZE,8)) writedata, Bit#(3) transfer_size, Bit#(5) atomic_op, Bool signextend, Bit#(1) insnepoch) if(rg_state[1]==Idle);
+		method Action virtual_address(Bit#(`VADDR) vaddress, Access_type load_store, Bit#(TMul#(`DCACHE_WORD_SIZE,8)) writedata, Bit#(3) transfer_size, `ifdef atomic Bit#(5) atomic_op, `endif Bool signextend, Bit#(1) insnepoch) if(rg_state[1]==Idle);
 			if((transfer_size=='b01 && vaddress[0]!='b0) || (transfer_size=='b10 && vaddress[1:0]!=0) || (transfer_size=='b11 && vaddress[2:0]!=0))
 				misaligned_addr<=True;
 			else
@@ -675,7 +681,7 @@ package dcache_asic;
 			Bool proceed=True;
 			rg_vaddress<=vaddress;
 			rg_transfer_size<=transfer_size;
-			rg_atomic_op<=atomic_op;
+			`ifdef atomic rg_atomic_op<=atomic_op; `endif
 			rg_writedata<=transfer_size==0?duplicate(writedata[7:0]):transfer_size==1?duplicate(writedata[15:0]):transfer_size==2?duplicate(writedata[31:0]):writedata;
 			rg_writeenable<=we;
 			rg_signextend<=signextend;

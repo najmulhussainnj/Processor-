@@ -108,10 +108,12 @@ package memory_stage;
 					if(exception matches tagged Exception .exc)begin
 						result1 = tagged RESULT Arithout{aluresult:meminfo.address,fflags:0};
 					end
+					`ifdef spfpu
 					else if(meminfo.transfer_size==2 && rx.u.first.rd_type==FloatingRF)begin
 						result1 = tagged RESULT Arithout{aluresult:{'1,data[31:0]},fflags:0};
 						fwd_data={'1,data[31:0]};
 					end
+					`endif
 					else begin
 						result1 = tagged RESULT Arithout{aluresult:data,fflags:0};
 						fwd_data=data;
@@ -124,7 +126,7 @@ package memory_stage;
 										program_counter:pc,	destination:dest, epochs:{rx.u.first.epochs[1],epochs},
 										rd_type:rdtype,		exception:exception, perfmonitors:rx.u.first.perfmonitors
 										`ifdef simulate , instruction:instr `endif });
-						if(meminfo.mem_type!=Store &&& ((rdtype==IntegerRF && dest!=0) || rdtype==FloatingRF) &&& exception matches tagged None)
+						if(meminfo.mem_type!=Store &&& ((rdtype==IntegerRF && dest!=0) `ifdef spfpu || rdtype==FloatingRF `endif ) &&& exception matches tagged None)
 							wr_forward_from_MEM <= tagged Valid tuple3(fwd_data,	rx.u.first.index, rx.u.first.pid);
 					end
 					else begin

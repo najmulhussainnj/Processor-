@@ -932,13 +932,15 @@ endfunction
 	 	  		end
 			`ifdef simulate
 				Bit#(64) dat=signExtend(res.aluresult);
-				if(rd_type==FloatingRF)
-				 	`ifdef dpfpu
-				 		$fwrite(dump," f%d",destination," 0x%16h",dat); 
-					`else
-						$fwrite(dump," f%d",destination," 0x%16h",{32'hffffffff,dat[31:0]}); 
-					`endif
-				else
+				`ifdef spfpu
+					if(rd_type==FloatingRF)
+					 	`ifdef dpfpu
+					 		$fwrite(dump," f%d",destination," 0x%16h",dat); 
+						`else
+							$fwrite(dump," f%d",destination," 0x%16h",{32'hffffffff,dat[31:0]}); 
+						`endif
+					else
+				`endif
 					$fwrite(dump," x%d",destination," 0x%16h",dat); 
 				$fwrite(dump,"\n");
 			`endif

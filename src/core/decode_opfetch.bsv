@@ -104,7 +104,7 @@ package decode_opfetch;
 					rx.u.deq();	
 				end
 				else begin
-					Bool choose_rs3=(x.inst_type==DFLOATING || x.inst_type==FLOATING) && (rx.u.first.instruction[6:4]=='b100);
+					Bool choose_rs3=`ifdef spfpu ( `ifdef dpfpu x.inst_type==DFLOATING || `endif x.inst_type==FLOATING) && (rx.u.first.instruction[6:4]=='b100) `else False `endif ;
 					let operands<- registerfile._inputs_from_decode_stage(x.rs1,x.rs1type,x.rs2,x.rs2type,pc,x.immediate_value  `ifdef spfpu ,choose_rs3, x.rs3 `endif );
 					if(dnwfi)begin
 						Bool e = isNone(exception);
@@ -131,7 +131,7 @@ package decode_opfetch;
 							epochs:rx.u.first.epochs,
 							rs1_type:x.rs1type,
 							rs2_type:(x.inst_type==MEMORY && (x.mem_access!=Load))?Immediate:x.rs2type,
-							rs3_type:(x.inst_type==MEMORY && (x.mem_access!=Load))?x.rs2type:choose_rs3?FloatingRF:Immediate,
+							rs3_type:(x.inst_type==MEMORY && (x.mem_access!=Load))?x.rs2type:`ifdef spfpu choose_rs3?FloatingRF: `endif Immediate,
 							rs1addr:x.rs1,
 							rs2addr:x.rs2,
 							rs3addr:(x.inst_type==MEMORY && (x.mem_access!=Load))?x.rs2:choose_rs3?x.rs3:0

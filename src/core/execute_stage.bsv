@@ -78,10 +78,6 @@ package execute_stage;
 			`ifdef sequential
 				(*mutually_exclusive="read_output_from_fpu, read_outputs_from_muldiv"*)
 			`endif
-		`else
-			`ifdef sequential
-				(*mutually_exclusive="read_outputs_from_muldiv"*)
-			`endif
 		`endif
 	`endif
 	(*synthesize*)

@@ -45,9 +45,12 @@ function Decoded_data fn_decode(Bit#(32) instruction, Trap_type exception, Bit#(
    Bool word32 =False; 
  
    Access_type mem_access=Load; 
-   if(opcode[3]=='b1 && opcode[1]=='b1) 
-      mem_access=Atomic; 
-   else if(opcode[3]=='b1 && opcode[1]==0) 
+	`ifdef atomic
+	   if(opcode[3]=='b1 && opcode[1]=='b1) 
+		   mem_access=Atomic; 
+		else 
+	`endif
+	if(opcode[3]=='b1 && opcode[1]==0) 
       mem_access=Store; 
  
    Operand_type rs1type=IntegerRF; 
@@ -63,7 +66,7 @@ function Decoded_data fn_decode(Bit#(32) instruction, Trap_type exception, Bit#(
       immediate_value=signExtend({instruction[31:21],1'b0}); 
    else if (opcode==`BRANCH_op) // Branch instructions 
       immediate_value=signExtend({instruction[31],instruction[7],instruction[30:25],instruction[11:8],1'b0}); 
-   else if (opcode==`STORE_op || opcode==`FSTORE_op) // Store operations 
+   else if (opcode==`STORE_op `ifdef spfpu || opcode==`FSTORE_op `endif ) // Store operations 
       immediate_value=signExtend({instruction[31:25],instruction[11:7]}); 
    else if(opcode==`CSR_op) 
       immediate_value[16:12]=instruction[19:15]; 
@@ -81,29 +84,35 @@ function Decoded_data fn_decode(Bit#(32) instruction, Trap_type exception, Bit#(
  
    if(opcode==`JAL_op || opcode==`AUIPC_op) 
       rs1type=PC; 
-   else if(opcode[4:2]=='b100 || (opcode[4:2]=='b101 &&               // (F(N)MADD or F(N)SUB)  
-      (funct7[6:3]!='b1101 && funct7[6:3]!='b1111)))                  // some of the conversion operations 
-      rs1type=FloatingRF; 
+`ifdef spfpu
+	   else if(opcode[4:2]=='b100 || (opcode[4:2]=='b101 &&               // (F(N)MADD or F(N)SUB)  
+		   (funct7[6:3]!='b1101 && funct7[6:3]!='b1111)))                  // some of the conversion operations 
+			rs1type=FloatingRF; 
+`endif
  
    if(opcode==`JAL_op || opcode==`JALR_op || opcode==`LUI_op|| opcode[4:2]=='b001 // JAL or JALR or (AUIPC or IMM Arith) 
       || opcode[4:1]==0)                                                // (F)Load or  
       rs2type=Immediate; 
+`ifdef spfpu
    else if((opcode[4:2]=='b101 && funct7[5]!='b1) || opcode==`FSTORE_op || opcode[4:2]=='b100)                  // All convert + FSQRToperations do not need rs2 
-      rs2type=FloatingRF; 
+	   rs2type=FloatingRF; 
  
    if(opcode==`FLOAD_op || (opcode[4:2]=='b101 &&  
          funct7[6:3]!='b1010 && funct7[6:3]!='b1100 && funct7[6:3]!='b1110 ) || opcode[4:2]=='b100) 
       rdtype=FloatingRF; 
+`endif
     
    if(opcode==`IMM_ARITHW_op || opcode==`MULDIVW_op || opcode==`ARITHW_op || (opcode[4:3]=='b10 && funct7[0]==0) 
          || (opcode[4:1]=='b0101 && funct3[0]==0)) 
       word32=True; 
     
    Instruction_type inst_type=NOP; 
+	`ifdef spfpu
    if(opcode[4:3]=='b10)begin 
       inst_type=funct7[0]==0?FLOATING:DFLOATING; 
    end 
-   else if(opcode[4:3]=='b11)begin 
+   else `endif
+	if(opcode[4:3]=='b11)begin 
       case (opcode[2:0]) 
          'b011:inst_type=JAL; 
          'b001:inst_type=JALR; 
@@ -128,15 +137,17 @@ function Decoded_data fn_decode(Bit#(32) instruction, Trap_type exception, Bit#(
     
    Trap_type ex=tagged None; 
    if(exception matches tagged None)begin 
-      if( (inst_type==FLOATING && misa[5]==0) || (inst_type==DFLOATING && misa[3]==0) 
-            || (inst_type==MUL && misa[12]==0)    || (inst_type==DIV && misa[12]==0) 
-            || (inst_type==MEMORY && mem_access==Atomic && misa[0]==0) ) 
+      if( `ifdef spfpu (inst_type==FLOATING && misa[5]==0) `ifdef dpfpu || (inst_type==DFLOATING && misa[3]==0)  `endif || `endif
+          (inst_type==MUL && misa[12]==0)    || (inst_type==DIV && misa[12]==0) 
+            `ifdef atomic || (inst_type==MEMORY && mem_access==Atomic && misa[0]==0) `endif ) 
          ex=tagged Exception Illegal_inst; 
 	`ifdef simulate
 		if(inst_type==JAL && immediate_value==0)
 			ex=tagged Exception Endsimulation;
 	`endif
 		if(instruction[1:0]!='b11)
+			ex=tagged Exception Illegal_inst;
+		if(inst_type==NOP)
 			ex=tagged Exception Illegal_inst;
    end 
 	else 
@@ -155,8 +166,8 @@ function Decoded_data fn_decode(Bit#(32) instruction, Trap_type exception, Bit#(
 			else
 				fn={1'b1,funct3};
 		end
-		else if(opcode==`JAL_op || opcode==`JALR_op || opcode==`LOAD_op || opcode==`FLOAD_op
-				|| opcode==`STORE_op || opcode==`FSTORE_op || opcode==`AUIPC_op || opcode==`LUI_op)
+		else if(opcode==`JAL_op || opcode==`JALR_op || opcode==`LOAD_op `ifdef spfpu || opcode==`FLOAD_op `endif
+				|| opcode==`STORE_op `ifdef spfpu || opcode==`FSTORE_op `endif || opcode==`AUIPC_op || opcode==`LUI_op)
 			fn=0;
 		else if(opcode==`IMM_ARITHW_op || opcode==`IMM_ARITH_op)begin
 			fn=case(funct3)
@@ -179,10 +190,14 @@ function Decoded_data fn_decode(Bit#(32) instruction, Trap_type exception, Bit#(
 			fn=opcode[3:0];
 	if(inst_type==BRANCH)
 		perfmonitors[`COND_BRANCH]=1;
-	if(inst_type==FLOATING)
-		perfmonitors[`SPFPU_INST]=1;
+	`ifdef spfpu
+		if(inst_type==FLOATING)
+			perfmonitors[`SPFPU_INST]=1;
+	`endif
+	`ifdef dpfpu
 	if(inst_type==DFLOATING)
 		perfmonitors[`DPFPU_INST]=1;
+	`endif
 	if(inst_type==JAL || inst_type==JALR)
 		perfmonitors[`UNCOND_JUMPS]=1;
 	if(inst_type==MEMORY)

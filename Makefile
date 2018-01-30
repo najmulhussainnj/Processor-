@@ -217,4 +217,4 @@ clean_verilog: clean
 
 
 restore: clean_verilog
-
+	@cd verification/tests/directed/benchmarks/; make clean
