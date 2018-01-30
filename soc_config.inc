@@ -17,7 +17,6 @@ PLIC=disable
 BOOTROM=enable
 I2C0=disable
 I2C1=disable
-HYPER=disable
 DMA=disable
 AXIEXP=disable
 TCM=disable
