@@ -37,8 +37,8 @@ The soc_config.inc file is used to configure the specs of the core and the Soc t
 * MMU: This controls whether virtualization is supported or not by the core. Currently it is mandatory to keep this option active i.e. "enable". Work to make this optional is under progress.
 * BPU: This controls whether core has a branch predictor or not. Currently it is mandatory to keep the predictor "enabled".
 * MUL: This controls the type of integer multiplier that will be used to implement the "M" extension of the ISA. Valid values are :
-  * sequential: This will imlpement an 8-cycle sequential multiplier with early-out mechanism.
-  * parallel  : This will implement a single-cycle combo multiplier.
+     * sequential: This will imlpement an 8-cycle sequential multiplier with early-out mechanism.
+     * parallel  : This will implement a single-cycle combo multiplier.
 * PERF: This controls whether performance counters are available in the core or not.
 * VERBOSE: This controls whether the $display statements need to be printed or not.
 * PREFETCH: This controls whether instruction prefetch is enabled or not. 
@@ -55,8 +55,8 @@ The soc_config.inc file is used to configure the specs of the core and the Soc t
 * TCM: Enabling this instantiates a 128KB BRAM based tightly-coupled memory.
 * CLINT: Enables the core-level interrupt.
 * SYNTH: This option controls where the core is being generated for simulation or synthesis. Valid values are:
-  * SIM: This will generate a core which will have some simulate-only features like file-io, etc.
-  * FPGA: This will generate a core which will ignore the simulate-only features.
+     * SIM: This will generate a core which will have some simulate-only features like file-io, etc.
+     * FPGA: This will generate a core which will ignore the simulate-only features.
 * FLASHMODEL: This will instantiate either a cypress or a micron based FLASH BFM in the test-bench to be connected to the qspi. Valid values are "cypress" and "micron"
 
 ### Compiling the Core/SoC ###
