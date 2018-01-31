@@ -208,6 +208,11 @@ link_iverilog:
 	@iverilog -v -o bin/out -Wall -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog/ -DTOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v .$(VERILOGDIR)/$(TOP_MODULE).v
 	@echo Linking finished
 
+.PHONY: generate_boot_files
+generate_boot_files:
+	@cut -c1-8 verification/dts/boot.hex > bin/boot.MSB
+	@cut -c9-16 verification/dts/boot.hex > bin/boot.LSB
+
 .PHONY: clean
 clean:
 	rm -rf $(BSVBUILDDIR) *.log $(BSVOUTDIR)
