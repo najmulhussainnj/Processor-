@@ -24,6 +24,11 @@ except:
 	testType='test'
 
 try:
+  debug=sys.argv[3]
+except:
+  debug='debug'
+
+try:
   subprocess.check_output('which riscv{0}-unknown-elf-gcc'.format(bitwidth),shell=True,stderr=None)
 except Exception as e:
   print(e)
@@ -117,15 +122,15 @@ try:
       count=count+1
   elif makeType=='gen_only':
     subprocess.call('mkdir -p $SHAKTI_HOME/verification/tests/random/aapg/generated_tests/{0}'.format(testType),shell=True)
-    print ('[make.py] Generating AAPG tests in directory: $SHAKTI_HOME/verification/tests/random/aapg/generated_tests/{0}'.format(testType))
+    #print ('[regress.py] Generating AAPG tests in directory: $SHAKTI_HOME/verification/tests/random/aapg/generated_tests/{0}'.format(testType))
     for seed in seeds:
-      print ('\nGenerating Test Case - '+str(count))
+      #print ('\nGenerating Test Case - '+str(count))
       aapg.random.seed(seed.strip())
       stdoutseed=subprocess.getoutput("date +%d%m%Y%s")
       filename = testType + '_' + stdoutseed + '_test' + str(count) + '.S'
       aapg.aapgMain(filename)
       subprocess.call('mv ./{0} $SHAKTI_HOME/verification/tests/random/aapg/generated_tests/{1}'.format(filename,testType),shell=True)
-      print ('[make.py] {0}'.format(filename))
+      print ('[regress.py] {0}'.format(filename))
       if(count==numberOfTests):
         break
       count=count+1
