@@ -181,8 +181,8 @@ link_ncverilog:
 	@mkdir work
 	@echo "define work ./work" > cds.lib
 	@echo "define WORK work" > hdl.var
-	@ncvlog -sv -cdslib ./cds.lib -hdlvar ./hdl.var -MESSAGES -NOCOPYRIGHT -LINEDEBUG +define+TOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v -y ./$(VERILOGDIR)/ -y ${BLUESPECDIR}/Verilog/
-	@ncelab  -cdslib ./cds.lib -mess -NOWARN CUDEFB work.main -access +r -timescale 1ns/1ps
+	@ncvlog -sv -cdslib ./cds.lib -hdlvar ./hdl.var -MESSAGES -NOCOPYRIGHT -LINEDEBUG +define+TOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v -y ./$(VERILOGDIR)/ -y ${BLUESPECDIR}/Verilog/ -y ./src/bfm
+	@ncelab  -cdslib ./cds.lib -mess -NOWARN CUDEFB work.main -access +r -timescale 1ns/1ps -nospecify
 	@echo 'ncsim -cdslib ./cds.lib work.main #> /dev/null' > $(BSVOUTDIR)/out
 	@mv work cds.lib hdl.var $(BSVOUTDIR)/
 	@chmod +x $(BSVOUTDIR)/out
@@ -194,7 +194,7 @@ link_msim:
 	@rm -rf work* bin/*
 	@mkdir -p bin 
 	vlib work
-	vlog -work work +libext+.v+.vqm -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog +define+TOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v ./$(VERILOGDIR)/$(TOP_MODULE).v  > compile_log
+	vlog -work work +libext+.v+.vqm -y ./src/bfm -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog +define+TOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v ./$(VERILOGDIR)/$(TOP_MODULE).v  > compile_log
 	mv compile_log ./$(BSVOUTDIR)
 	mv work ./$(BSVOUTDIR)
 	echo 'vsim -quiet -novopt -lib work -do "run -all; quit" -c main' > $(BSVOUTDIR)/out
@@ -205,7 +205,7 @@ link_msim:
 link_iverilog: 
 	@echo "Linking $(TOP_MODULE) using iverilog..."
 	@mkdir -p bin 
-	@iverilog -v -o bin/out -Wall -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog/ -DTOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v .$(VERILOGDIR)/$(TOP_MODULE).v
+	@iverilog -v -o bin/out -Wall -y ./src/bfm -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog/ -DTOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v .$(VERILOGDIR)/$(TOP_MODULE).v
 	@echo Linking finished
 
 .PHONY: generate_boot_files
