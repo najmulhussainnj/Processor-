@@ -422,7 +422,7 @@ module mkUart16550(Uart16550_AXI4_Ifc);
         let newdl = fromMaybe(?, dl_update);
         dl <= newdl;
         dlc <= newdl-1;
-        $display("%05t: dl set to %1d", $time, newdl);
+        `ifdef verbose $display("%05t: dl set to %1d", $time, newdl); `endif
       end
     else
       dlc <= (dlc==0 ? dl : dlc) - 1;
@@ -473,7 +473,7 @@ module mkUart16550(Uart16550_AXI4_Ifc);
   
     Bool dlab = lcr.uart_LC_DL == 1'b1; // divisor latch enable
     let req <- pop_o (s_xactor.o_rd_addr);
-    $display("RD_ADDR %h", req.araddr);
+    `ifdef verbose $display("RD_ADDR %h", req.araddr); `endif
     UART_ADDR_T addr = unpack(req.araddr[5:3]);
     Bool rtn_valid=True;
     Bit#(8) rtn = 0;
@@ -503,7 +503,7 @@ module mkUart16550(Uart16550_AXI4_Ifc);
       ii = UART_II_MS;
     else
       ii = UART_II_NO_INT;
-        $display("addr_READ: %d",addr);
+        `ifdef verbose $display("addr_READ: %d",addr) ; `endif
     case(addr)
         UART_ADDR_DATA  : if(dlab) // divisor latch enabled
 					        rtn = dl1r;
@@ -538,7 +538,7 @@ module mkUart16550(Uart16550_AXI4_Ifc);
         let resq  =  AXI4_Rd_Data {rresp : AXI4_OKAY, rdata : rtn_valid? zeroExtend(rtn) : '1, rlast: True ,ruser: 0, rid: req.arid};
         s_xactor.i_rd_data.enq(resq);
        // $display ("DATA----------- %b", rtn);
-       $display("%05t: --------------------------READ--------------------------------------------",$time);
+       `ifdef verbose $display("%05t: --------------------------READ--------------------------------------------",$time); `endif
   endrule
 
   rule handle_axi4_write(s_xactor.o_wr_addr.notEmpty && s_xactor.o_wr_data.notEmpty);
@@ -570,14 +570,14 @@ module mkUart16550(Uart16550_AXI4_Ifc);
       ii = UART_II_NO_INT;
     
     let wr_addr <- pop_o(s_xactor.o_wr_addr);
-    $display("WR_ADDR %h", wr_addr.awaddr);
+   `ifdef verbose  $display("WR_ADDR %h", wr_addr.awaddr); `endif
     let wr_data <- pop_o(s_xactor.o_wr_data);
-    $display("WR_DATA %h", wr_data.wdata);
+   `ifdef verbose  $display("WR_DATA %h", wr_data.wdata); `endif
     UART_ADDR_T addr = unpack(wr_addr.awaddr[5:3]);
     Bit#(8) d = truncate(pack(wr_data.wdata));
     Bit#(8) rtn=0;
     Bool rtn_valid=True;
-    $display("addr_WRITE: %d",addr);
+    `ifdef verbose $display("addr_WRITE: %d",addr); `endif
     case(addr)
             UART_ADDR_DATA: if(dlab) // divisor latch enabled
 					  begin
@@ -607,13 +607,13 @@ module mkUart16550(Uart16550_AXI4_Ifc);
             UART_ADDR_MODEM_CTRL    : mcr <= unpack(truncate(pack(wr_data.wdata)));
             UART_ADDR_LINE_STATUS   : begin /* no write */ end
             UART_ADDR_MODEM_STATUS  : begin /* no write */ end
-            UART_ADDR_SCRATCH       :  begin scratch <= d; $display("scratch : %h",d); end
+            UART_ADDR_SCRATCH       :  begin scratch <= d; `ifdef verbose $display("scratch : %h",d); `endif end 
     endcase
         let resp = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: 0, bid: wr_addr.awid};
         s_xactor.i_wr_resp.enq(resp);
      //   $display ("DATA WRITE----------- %b", wr_data.wdata);
      //   $display ("DATA Adress----------- %d", addr);
-       $display("%05t: ----------------------------WRITE------------------------------------------",$time);
+      `ifdef verbose  $display("%05t: ----------------------------WRITE------------------------------------------",$time); `endif
   endrule
   /*
   rule trans ;
@@ -678,7 +678,7 @@ module mkUART_transmitter(UART_transmitter_ifc);
     $write("%05t: UART TX state change ", $time);
     $write(fshow(last_tstate));
     $write(" -> ");
-    $display(fshow(tstate));
+    `ifdef verbose $display(fshow(tstate)); `endif
     
     last_tstate <= tstate;
   endrule
@@ -850,7 +850,7 @@ module mkUART_receiver(UART_receiver_ifc);
      $write("%05t: UART RX state change ", $time);
     $write(fshow(last_rstate));
     $write(" -> ");
-    $display(fshow(rstate));
+    `ifdef verbose $display(fshow(rstate)); `endif
     
     last_rstate <= rstate;
   endrule
@@ -997,7 +997,7 @@ module mkUART_receiver(UART_receiver_ifc);
 	rstate <= SRX_push;
       end
     rcounter <= rcounter-1;
-    	$display("%05t:              rx bit = %d", $time, rx_stable);
+    	`ifdef verbose $display("%05t:              rx bit = %d", $time, rx_stable); `endif
   endrule
   
   rule push(enable && (rstate==SRX_push));
