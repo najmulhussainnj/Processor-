@@ -13,6 +13,10 @@ import time
 import os
 asmFile = 0
 
+try:
+  debug=sys.argv[3]
+except:
+  debug='debug'
 
 def initialCode():
 	asmFile.write('''
@@ -106,7 +110,8 @@ def random_ASM_generator():
 		extn_prob=random.uniform(0,100)
 		typ_prob=random.uniform(0,100)
 		if cv.instructionNumber in progressRange:
-			sys.stdout.write('\rRunning AAPG {0}%'.format(progressRange.index(cv.instructionNumber)+1))
+			if debug!='nodebug':
+				sys.stdout.write('\rRunning AAPG {0}%'.format(progressRange.index(cv.instructionNumber)+1))
 			sys.stdout.flush()
 		if extn_prob<percentBaseInstr:
 			if typ_prob<perIntegerComputation:
@@ -209,8 +214,8 @@ tohost: .word 0
 fromhost: .word 0
 ''')
 	asmFile.close()
-	print( '\nNumber of loops =' , cv.numberOfLoops, '   Elapsed time =', time.time()-start_time)
-
+	if debug!='nodebug':
+		print( '\nNumber of loops =' , cv.numberOfLoops, '   Elapsed time =', time.time()-start_time)
 
 if __name__ == '__main__':
 	if len(sys.argv)<3:
