@@ -1,8 +1,8 @@
-Benchmarks for C-32
+Benchmarks for C-CLASS
 ========================================================
 
 These tests are borrowed from the riscv-tests suite from Berkeley (https://github.com/riscv/riscv-tests/tree/master/benchmarks).
-However, some modifications are done the syscalls.c file. Since C-Class uses a UART to commuincate
+However, some modifications are done to the syscalls.c file. Since C-Class uses a UART to commuincate
 with the host pc, the putchar function (which initially called the spike based fesvr) has been modified
 to send characters directly via the UART. Simlar changes to other functions to read
 and print special registers have been made.
@@ -10,7 +10,7 @@ and print special registers have been made.
 Requirements
 ------------------------------------------------------
 
-This projects assumes you have installd the latest version of riscv64-unknown-elf-\* tool chain with RV64IMAFD support.
+This projects assumes you have installed the latest version of riscv64-unknown-elf-\* tool chain with RV64IMAFD support.
 Please refer to the riscv-gnu-toolchain repo (https://github.com/riscv/riscv-gnu-toolchain) for further details on installation
 
 
@@ -21,6 +21,9 @@ How to use makefile
 
 2. make spike
     * This will compile all the benchmarks with syscalls.c defined for spike. The executables (\*.riscv files) can be run on spike using "spike --isa=rv32g benchmark.riscv" command.
+
+3. make regress
+    * This will compile and run all the benchmarks on c-class executable available in the c-class/bin folder. The output of the all the benchmarks is captured in the file regression.log
 
 The above commands will create the outputfiles folder containing the following files for each benchmark:
 
