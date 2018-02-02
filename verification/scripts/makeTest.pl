@@ -26,7 +26,7 @@ GetOptions(
 );
 
 if (!$no_debug) {
-  testRunConfig::setConfigAll();
+  testRunConfig::setEnvConfig();
   
 }
 else {
@@ -129,6 +129,9 @@ if (-e "$testDir") {
 }
 systemCmd("mkdir -p $testDir");
 chdir($testDir);
+# Creating log for each test in the directory itself
+closeLog();
+openLog("$testDir/$testName.log");
 #chdir("$workdir/$test_suite/$testName");
 # Compiling the test
 if ($testType =~ /^v$/) {
@@ -197,4 +200,5 @@ doDebugPrint("---------------------------------------------\n");
 doPrint("testDir: $testDir\n");
 doPrint("$result\n");
 doDebugPrint("---------------------------------------------\n");
-systemCmd("mv $workdir/$scriptLog.log $testDir");
+closeLOG();
+appendLOG("$workdir/$scriptLog.log");

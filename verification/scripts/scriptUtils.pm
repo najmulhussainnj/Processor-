@@ -8,7 +8,7 @@ use warnings;
 use Exporter qw(import);
 our @EXPORT = qw(systemCmd systemFileCmd systemKillCmd 
                  doClean doPrint doDebugPrint printHelp
-                 checkSetup
+                 checkSetup openLog closeLog appendLog
                  $scriptLog $shaktiHome $workdir
                  );
 
@@ -31,10 +31,22 @@ sub checkSetup {
   unless (-e $workdir or mkdir $workdir) {
     die "ERROR: Unable to create workdir!\n";
   }
-  open LOG, ">$workdir/$scriptLog.log" or die "[$scriptLog.pl] ERROR opening file $!\n";
-
+  appendLog("$workdir/$scriptLog.log");
 }
 
+sub openLog {
+  my @file = @_;
+  open LOG, ">$file[0]" or die "[$scriptLog.pl] ERROR opening file $!\n";
+}
+
+sub appendLog {
+  my @file = @_;
+  open LOG, ">>$file[0]" or die "[$scriptLog.pl] ERROR opening file $!\n";
+}
+
+sub closeLog {
+  close LOG;
+}
 #-----------------------------------------------------------
 # systemCmd
 # Runs and displays the command line, exits on error

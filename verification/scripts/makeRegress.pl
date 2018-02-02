@@ -9,6 +9,7 @@ use strict;
 use Getopt::Long;
 use testRunConfig; 
 use scriptUtils;
+use List::Util;
 
 checkSetup();
 setEnvConfig();
@@ -19,15 +20,16 @@ doPrint("Regression run ------------\n");
 
 # Parse options
 GetOptions(
-          qw(submit)   => \my $submit_tests,
-          qw(compile) => \my $src_compile,
-          qw(generate)   => \my $generate_tests,
-          qw(list=s)   => \my $test_list,
-          qw(suite=s)  => \my $test_suite,
-          qw(filter=s)  => \my $test_filter,
-          qw(test_count=s)    => \my $test_count,
-          qw(help)     => \my $help,
-          qw(clean)    => \my $clean
+          qw(submit)        => \my $submit_tests,
+          qw(compile)       => \my $src_compile,
+          qw(generate)      => \my $generate_tests,
+          qw(final)         => \my $final_report,
+          qw(list=s)        => \my $test_list,
+          qw(suite=s)       => \my $test_suite,
+          qw(filter=s)      => \my $test_filter,
+          qw(test_count=s)  => \my $test_count,
+          qw(help)          => \my $help,
+          qw(clean)         => \my $clean
 );
 
 my $submit;
@@ -38,6 +40,7 @@ my $generate;
 my $testList;
 my $filter;
 my $compile;
+my $finalReport;
 
 # test submission if not given, we simply report
 if ($submit_tests) {
@@ -45,6 +48,13 @@ if ($submit_tests) {
 }
 else {
   $submit = 0;
+}
+
+if ($final_report) {
+  $finalReport = 1;
+}
+else {
+  $finalReport = 0;
 }
 
 if ($src_compile) {
@@ -123,7 +133,7 @@ if ($generate) {
       systemCmd("cp $config $shaktiHome/verification/tools/AAPG/config.py");
       chdir("$shaktiHome/verification/tools/AAPG");
       $config = `basename $config .py`; chomp($config);
-      systemCmd("nohup ./regress.py gen_only $config &");
+      systemCmd("nohup ./regress.py gen_only $config nodebug&");
     }
   }
   chdir("$shaktiHome/verification/scripts");
@@ -221,6 +231,84 @@ if ($submit) {
     print "$test\t\t\t$tSuite\t\t\t$pv\t\t\tRunning\n";
   }
 }
+elsif ($finalReport) { # waits till all the test results are there/timesout
+  my %testResults = ();
+  my @regress_report = ();
+  my $timeout = 0; 
+  my $status = 0;
+  my $passCount = 0;
+
+  foreach my $line (@testList) {
+    $testResults{$line} = "NOT_RUN";
+  }
+  while (keys %testResults) {
+    foreach my $line (keys %testResults) {
+      my @line = split(" ", $line);
+      my $test = $line[0];
+      my $tSuite = $line[1];
+      my $pv = $line[2];
+      my $pass = "$workdir/$tSuite/$pv/$test/PASSED";
+      my $fail = "$workdir/$tSuite/$pv/$test/FAILED";
+      my $compile_fail = "$workdir/$tSuite/$pv/$test/COMPILE_FAIL";
+      my $model_fail = "$workdir/$tSuite/$pv/$test/MODEL_FAIL";
+      my $rtl_fail = "$workdir/$tSuite/$pv/$test/RTL_FAIL";
+      my $result;
+      my $delete=0;
+
+      if (-e $compile_fail) {
+        $result = sprintf("%30s %20s %5s    COMPILE_FAIL\n", $tSuite, $test, $pv);
+        $delete = 1;
+        $status = 0;
+      }
+      elsif (-e $model_fail) {
+        $result = sprintf("%30s %20s %5s    MODEL_FAIL\n", $tSuite, $test, $pv);
+        $delete = 1;
+      }
+      elsif (-e $rtl_fail) {
+        $result = sprintf("%30s %20s %5s    RTL_FAIL\n", $tSuite, $test, $pv);
+        $delete = 1;
+      }
+      elsif (-e $fail) {
+        $result = sprintf("%30s %20s %5s    FAILED\n", $tSuite, $test, $pv);
+        $delete = 1;
+      }
+      elsif (-e $pass) {
+        $result = sprintf("%30s %20s %5s    PASSED\n", $tSuite, $test, $pv);
+        $delete = 1;
+        $passCount++;
+      }
+      else {
+        $result = sprintf("%30s %20s %5s    NOT_RUN\n", $tSuite, $test, $pv);
+        $delete = 0;
+      }
+      if ($delete) {
+        push @regress_report, $result;
+        delete $testResults{$line};
+      }
+    } # end of foreach
+    sleep(5);
+    $timeout++;
+    if ($timeout == 30) {
+      last;
+    }
+  } # end of while
+  if (keys %testResults) {
+    $status = 0;
+    print @regress_report;
+    # TODO:print NOT_RUN tests
+  }
+  else {
+    print @regress_report;
+    if ($passCount == @testList) {
+      $status = 1;
+      `touch $workdir/REGRESS_PASS`;
+    }
+    else {
+      $status = 0;
+      `touch $workdir/REGRESS_FAIL`;
+    }
+  }
+}
 else {
   my @regress_report = ();
   foreach my $line (@testList) {
@@ -262,105 +350,3 @@ else {
     print @regress_report;
   }
 }
-=cut
-#-----------------------------------------------------------
-# systemCmd
-# Runs and displays the command line, exits on error
-#-----------------------------------------------------------
-#sub systemCmd {
-#  my (@cmd) = @_;
-#  chomp(@cmd);
-#  doPrint("'$cmd[0]'\n");
-#  my $ret = system("@cmd 2>> $workdir/$scriptLog.log >> $workdir/$scriptLog.log");
-#  #my $ret = system("@cmd |& tee -a $pwd/$script.log");
-#  if ($ret) {
-#    die("[$scriptLog.pl] ERROR: While running '@cmd'\n\n");  
-#  }
-#}
-#
-##-----------------------------------------------------------
-## systemCmd
-## Runs and displays the command line, exits on error
-##-----------------------------------------------------------
-#sub systemFileCmd {
-#  my (@cmd) = @_;
-#  chomp(@cmd);
-#  doPrint("'$cmd[0] > $cmd[1]'\n");
-#  my @sysOut = `$cmd[0]`;
-#  my $ret = $?;
-#  if ($ret) {
-#    die("[$scriptLog.pl] ERROR: Running '@cmd'\n\n");  
-#  }
-#  else {
-#    open FILE, ">$cmd[1]";
-#    print FILE @sysOut;
-#    close FILE;
-#  }
-#  #my $ret = system("@cmd 2>> $workdir/$scriptLog.log >> $workdir/$scriptLog.log");
-#  #my $ret = system("@cmd |& tee -a $pwd/$script.log");
-#  #if ($ret) {
-#  #  die("[$scriptLog.pl] ERROR Running: '@cmd'\n\n");  
-#  #}
-#}
-#
-##-----------------------------------------------------------
-## doClean
-## Deletes generated output
-##------------------------------------------------------------
-#sub doClean {
-#  doPrint("Cleaning...\n");
-#  systemCmd("rm -rf $shaktiHome/verification/workdir/*");
-#  systemCmd("rm -rf $shaktiHome/verification/tests/random/riscv-torture/generated_tests/*");
-#  systemCmd("rm -rf $shaktiHome/verification/tests/random/aapg/generated_tests/*");
-#}
-#
-##-----------------------------------------------------------
-## doPrint
-## Prints message
-##------------------------------------------------------------
-#sub doPrint {
-#  my @msg = @_;
-#  print "[$scriptLog.pl] @msg";
-#  print LOG "[$scriptLog.pl] @msg";
-#}
-#
-##-----------------------------------------------------------
-## doDebugPrint
-## Prints message to help debug
-##------------------------------------------------------------
-#sub doDebugPrint {
-#  my @msg = @_;
-#  if (testRunConfig::getConfig("CONFIG_LOG")) {
-#    print "[$scriptLog.pl] @msg";
-#    print LOG "[$scriptLog.pl] @msg";
-#  }
-#}
-
-sub getSimulator {
-  my $sim = @_[0];
-  if ($sim == 0) {
-    return "bluespec";
-  }
-  elsif ($sim == 1) {
-    return "ncverilog";
-  }
-  else {
-    return "vcs";
-  }
-}
-#-----------------------------------------------------------
-# printHelp
-# Displays script usage
-#------------------------------------------------------------
-sub printHelp {
-  my $usage =<<USAGE;
-
-Description: Generates test dump directory
-Options:
-  --test=TEST_NAME
-
-USAGE
-
-  print $usage;
-}
-
