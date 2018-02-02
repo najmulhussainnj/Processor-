@@ -29,9 +29,6 @@ typedef enum{Send_rd_req,Get_rd_resp,Send_wr_req,Get_wr_resp,Idle} Mem_state der
 (*synthesize*)
 module mkTCM (Ifc_TCM);
 	
-//	BRAM_DUAL_PORT#(Bit#(8),Bit#(64)) data [64];
-//	for(Integer i=0;i<64;i=i+1)
-//		data[i] <- mkBRAMCore2(256,False);
 	BRAM_DUAL_PORT#(Bit#(14), Bit#(32)) dataLSB <-mkBRAMCore2(16384,False);
 	BRAM_DUAL_PORT#(Bit#(14), Bit#(32)) dataMSB <-mkBRAMCore2(16384,False);
 
