@@ -46,6 +46,7 @@ interface AXI4_Fabric_IFC #(numeric type num_masters,
 				 numeric type wd_addr,
 				 numeric type wd_data,
 				 numeric type wd_user);
+   method Action reset;
    method Action set_verbosity (Bit #(4) verbosity);
 
    // From masters
@@ -78,8 +79,8 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
    Reg #(Bit #(4)) cfg_verbosity  <- mkConfigReg (2);
 
    // Transactors facing masters
-   Vector #(num_masters, AXI4_Slave_Xactor_IFC  #(wd_addr, wd_data, wd_user))
-      xactors_from_masters <- replicateM (mkAXI4_Slave_Xactor);
+   Vector #(num_masters, AXI4_Slave_Fabric_IFC  #(wd_addr, wd_data, wd_user))
+      xactors_from_masters <- replicateM (mkAXI4_Slave_Fabric);
 
    // Transactors facing slaves
    Vector #(num_slaves,  AXI4_Master_Fabric_IFC #(wd_addr, wd_data, wd_user))
@@ -90,37 +91,37 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
    // Legal masters are 0..(num_masters-1)
    // The value of 'num_masters' is used for decode errors (no such slave)
 
-   Vector #(num_masters, FIFOF #(Bit #(log_ns_plus_1))) v_f_wr_sjs      <- replicateM (mkFIFOF);
-   Vector #(num_masters, FIFOF #(Bit #(wd_user)))       v_f_wr_err_user <- replicateM (mkFIFOF);
-   Vector #(num_slaves,  FIFOF #(Bit #(log_nm_plus_1))) v_f_wr_mis      <- replicateM (mkFIFOF);
+   Vector #(num_masters, FIFOF #(Bit #(log_ns_plus_1))) v_f_wr_sjs      <- replicateM (mkBypassFIFOF);
+   Vector #(num_masters, FIFOF #(Bit #(wd_user)))       v_f_wr_err_user <- replicateM (mkBypassFIFOF);
+   Vector #(num_slaves,  FIFOF #(Bit #(log_nm_plus_1))) v_f_wr_mis      <- replicateM (mkBypassFIFOF);
 
-   Vector #(num_masters, FIFOF #(Bit #(log_ns_plus_1))) v_f_rd_sjs      <- replicateM (mkFIFOF);
-   Vector #(num_masters, FIFOF #(Bit #(wd_user)))       v_f_rd_err_user <- replicateM (mkFIFOF);
-   Vector #(num_slaves,  FIFOF #(Bit #(log_nm_plus_1))) v_f_rd_mis      <- replicateM (mkFIFOF);
+   Vector #(num_masters, FIFOF #(Bit #(log_ns_plus_1))) v_f_rd_sjs      <- replicateM (mkBypassFIFOF);
+   Vector #(num_masters, FIFOF #(Bit #(wd_user)))       v_f_rd_err_user <- replicateM (mkBypassFIFOF);
+   Vector #(num_slaves,  FIFOF #(Bit #(log_nm_plus_1))) v_f_rd_mis      <- replicateM (mkBypassFIFOF);
 
    // ----------------------------------------------------------------
    // BEHAVIOR
 
    function Bool wr_move_from_mi_to_sj (Integer mi, Integer sj);
-      let addr = xactors_from_masters [mi].o_wr_addr.first.awaddr;
+      let addr = xactors_from_masters [mi].o_wr_addr1.awaddr;
       match { .legal, .slave_num } = fn_addr_to_slave_num (addr);
       return (legal && (slave_num == fromInteger (sj)));
    endfunction
 
    function Bool wr_illegal_sj (Integer mi);
-      let addr = xactors_from_masters [mi].o_wr_addr.first.awaddr;
+      let addr = xactors_from_masters [mi].o_wr_addr1.awaddr;
       match { .legal, ._ } = fn_addr_to_slave_num (addr);
       return (! legal);
    endfunction
 
    function Bool rd_move_from_mi_to_sj (Integer mi, Integer sj);
-      let addr = xactors_from_masters [mi].o_rd_addr.first.araddr;
+      let addr = xactors_from_masters [mi].o_rd_addr1.araddr;
       match { .legal, .slave_num } = fn_addr_to_slave_num (addr);
       return (legal && (slave_num == fromInteger (sj)));
    endfunction
 
    function Bool rd_illegal_sj (Integer mi);
-      let addr = xactors_from_masters [mi].o_rd_addr.first.araddr;
+      let addr = xactors_from_masters [mi].o_rd_addr1.araddr;
       match { .legal, ._ } = fn_addr_to_slave_num (addr);
       return (! legal);
    endfunction
@@ -133,8 +134,8 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
       for (Integer sj = 0; sj < valueOf (num_slaves); sj = sj + 1)
 
 	 rule rl_wr_xaction_master_to_slave_addr (wr_move_from_mi_to_sj (mi, sj));
-	    AXI4_Wr_Addr #(wd_addr, wd_user) a <- pop_o(xactors_from_masters [mi].o_wr_addr);
-	    AXI4_Wr_Data #(wd_data)          d <- pop_o(xactors_from_masters [mi].o_wr_data);
+	    AXI4_Wr_Addr #(wd_addr, wd_user) a <- (xactors_from_masters [mi].o_wr_addr);
+	    AXI4_Wr_Data #(wd_data)          d <- (xactors_from_masters [mi].o_wr_data);
 	    xactors_to_slaves [sj].i_wr_addr(a);
 	    xactors_to_slaves [sj].i_wr_data(d);
 	    v_f_wr_mis        [sj].enq (fromInteger (mi));
@@ -151,7 +152,7 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
 
 	 rule rl_wr_xaction_master_to_slave_data ((v_f_wr_mis [sj].first == fromInteger (mi))
 					  && (v_f_wr_sjs [mi].first == fromInteger (sj)));
-	    AXI4_Wr_Data #(wd_data)          d <- pop_o(xactors_from_masters [mi].o_wr_data);
+	    AXI4_Wr_Data #(wd_data)          d <- (xactors_from_masters [mi].o_wr_data);
 	    xactors_to_slaves [sj].i_wr_data(d);
 	    if (cfg_verbosity > 1) begin
 	       `ifdef verbose $display ($time,"\tAXI4_Fabric: Write Data -> slave[%0d] \n",sj,$time,"\t", fshow (d)); `endif
@@ -161,8 +162,8 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
    // Non-existent destination slaves
    for (Integer mi = 0; mi < valueOf (num_masters); mi = mi + 1)
 	 rule rl_wr_xaction_no_such_slave (wr_illegal_sj (mi));
-	    AXI4_Wr_Addr #(wd_addr, wd_user) a <- pop_o(xactors_from_masters [mi].o_wr_addr);
-	    AXI4_Wr_Data #(wd_data)          d <- pop_o(xactors_from_masters [mi].o_wr_data);
+	    AXI4_Wr_Addr #(wd_addr, wd_user) a <- (xactors_from_masters [mi].o_wr_addr);
+	    AXI4_Wr_Data #(wd_data)          d <- (xactors_from_masters [mi].o_wr_data);
 
 	    v_f_wr_sjs        [mi].enq (fromInteger (valueOf (num_slaves)));
 	    v_f_wr_err_user   [mi].enq (a.awuser);
@@ -181,7 +182,7 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
       for (Integer sj = 0; sj < valueOf (num_slaves); sj = sj + 1)
 
 	 rule rl_rd_xaction_master_to_slave (rd_move_from_mi_to_sj (mi, sj));
-	    AXI4_Rd_Addr #(wd_addr, wd_user) a <- pop_o(xactors_from_masters [mi].o_rd_addr);
+	    AXI4_Rd_Addr #(wd_addr, wd_user) a <- (xactors_from_masters [mi].o_rd_addr);
 
 	    xactors_to_slaves [sj].i_rd_addr(a);
 
@@ -197,7 +198,7 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
    // Non-existent destination slaves
    for (Integer mi = 0; mi < valueOf (num_masters); mi = mi + 1)
 	 rule rl_rd_xaction_no_such_slave (rd_illegal_sj (mi));
-	    AXI4_Rd_Addr #(wd_addr, wd_user) a <- pop_o(xactors_from_masters [mi].o_rd_addr);
+	    AXI4_Rd_Addr #(wd_addr, wd_user) a <- (xactors_from_masters [mi].o_rd_addr);
 
 	    v_f_rd_sjs      [mi].enq (fromInteger (valueOf (num_slaves)));
 	    v_f_rd_err_user [mi].enq (a.aruser);
@@ -220,7 +221,7 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
 	    v_f_wr_sjs [mi].deq;
 	    AXI4_Wr_Resp #(wd_user) b <- (xactors_to_slaves [sj].o_wr_resp);
 
-	    xactors_from_masters [mi].i_wr_resp.enq(b);
+	    xactors_from_masters [mi].i_wr_resp(b);
 
 	    if (cfg_verbosity > 1) begin
 	       `ifdef verbose $display ($time,"\tAXI4_Fabric: wr master [%0d] <- slave [%0d]", mi, sj); `endif
@@ -241,7 +242,7 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
 
 	 let b = AXI4_Wr_Resp {bresp: AXI4_DECERR, buser: v_f_wr_err_user [mi].first, bid:fromInteger(mi)};
 
-	 xactors_from_masters [mi].i_wr_resp.enq(b);
+	 xactors_from_masters [mi].i_wr_resp(b);
 
 	 if (cfg_verbosity > 1) begin
 	    `ifdef verbose $display ($time,"\tAXI4_Fabric: wr master [%0d] <- error", mi); `endif
@@ -259,7 +260,7 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
 					  && (v_f_rd_sjs [mi].first == fromInteger (sj)));
 	    AXI4_Rd_Data #(wd_data, wd_user) r <- (xactors_to_slaves [sj].o_rd_data);
 
-	    xactors_from_masters [mi].i_rd_data.enq(r);
+	    xactors_from_masters [mi].i_rd_data(r);
 			if(r.rlast)begin
 		    v_f_rd_mis [sj].deq;
 		    v_f_rd_sjs [mi].deq;
@@ -284,7 +285,7 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
 	 Bit #(wd_data) data = 0;
 	 let r = AXI4_Rd_Data {rresp: AXI4_DECERR, ruser: v_f_rd_err_user [mi].first, rdata: data, rlast:True,rid:fromInteger(mi)};
 
-	 xactors_from_masters [mi].i_rd_data.enq(r);
+	 xactors_from_masters [mi].i_rd_data(r);
 
 	 if (cfg_verbosity > 1) begin
 	    `ifdef verbose $display ("%0d: AXI4_Fabric: rd master [%0d] <- error", cur_cycle, mi); `endif
@@ -297,6 +298,24 @@ module mkAXI4_Fabric #(function Tuple2 #(Bool, Bit #(TLog #(num_slaves)))
 
    function AXI4_Slave_IFC  #(wd_addr, wd_data, wd_user) f1 (Integer j) = xactors_from_masters [j].axi_side;
    function AXI4_Master_IFC #(wd_addr, wd_data, wd_user) f2 (Integer j) = xactors_to_slaves    [j].axi_side;
+
+   method Action reset;
+      for (Integer mi = 0; mi < valueOf (num_masters); mi = mi + 1) begin
+	 xactors_from_masters [mi].reset;
+
+	 v_f_wr_sjs [mi].clear;
+	 v_f_wr_err_user [mi].clear;
+
+	 v_f_rd_sjs [mi].clear;
+	 v_f_rd_err_user [mi].clear;
+      end
+
+      for (Integer sj = 0; sj < valueOf (num_slaves); sj = sj + 1) begin
+	 xactors_to_slaves [sj].reset;
+	 v_f_wr_mis [sj].clear;
+	 v_f_rd_mis [sj].clear;
+      end
+   endmethod
 
    method Action set_verbosity (Bit #(4) verbosity);
       cfg_verbosity <= verbosity;

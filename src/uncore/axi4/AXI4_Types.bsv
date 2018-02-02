@@ -396,6 +396,7 @@ deriving (Bits, FShow);
 interface AXI4_Master_Xactor_IFC #(numeric type wd_addr,
 					numeric type wd_data,
 					numeric type wd_user);
+   method Action reset;
 
    // AXI side
    interface AXI4_Master_IFC #(wd_addr, wd_data, wd_user) axi_side;
@@ -423,20 +424,22 @@ provisos(
    Bool guarded   = False;
 
    // These FIFOs are guarded on BSV side, unguarded on AXI side
-//   FIFOF #(AXI4_Wr_Addr #(wd_addr, wd_user)) f_wr_addr <- mkGLFIFOF (guarded, unguarded);
-//   FIFOF #(AXI4_Wr_Data #(wd_data))          f_wr_data <- mkGLFIFOF (guarded, unguarded);
-//   FIFOF #(AXI4_Wr_Resp #(wd_user))          f_wr_resp <- mkGLFIFOF (unguarded, guarded);
-//
-//   FIFOF #(AXI4_Rd_Addr #(wd_addr, wd_user))  f_rd_addr <- mkGLFIFOF (guarded, unguarded);
-//   FIFOF #(AXI4_Rd_Data #(wd_data, wd_user)) f_rd_data <- mkGLFIFOF  (unguarded, guarded);
-   FIFOF #(AXI4_Wr_Addr #(wd_addr, wd_user)) f_wr_addr <- mkGSizedFIFOF(guarded, unguarded,2);
-   FIFOF #(AXI4_Wr_Data #(wd_data))          f_wr_data <- mkGSizedFIFOF(guarded, unguarded,2) ;
-   FIFOF #(AXI4_Wr_Resp #(wd_user))          f_wr_resp <- mkGSizedFIFOF(unguarded, guarded,2) ;
+   FIFOF #(AXI4_Wr_Addr #(wd_addr, wd_user)) f_wr_addr <- mkGLFIFOF (guarded, unguarded);
+   FIFOF #(AXI4_Wr_Data #(wd_data))          f_wr_data <- mkGLFIFOF (guarded, unguarded);
+   FIFOF #(AXI4_Wr_Resp #(wd_user))          f_wr_resp <- mkGLFIFOF (unguarded, guarded);
 
-   FIFOF #(AXI4_Rd_Addr #(wd_addr, wd_user))  f_rd_addr <- mkGSizedFIFOF(guarded, unguarded,2);
-   FIFOF #(AXI4_Rd_Data #(wd_data, wd_user)) f_rd_data <-  mkGSizedFIFOF(unguarded, guarded,2);
+   FIFOF #(AXI4_Rd_Addr #(wd_addr, wd_user))  f_rd_addr <- mkGLFIFOF (guarded, unguarded);
+   FIFOF #(AXI4_Rd_Data #(wd_data, wd_user)) f_rd_data <- mkGLFIFOF (unguarded, guarded);
    // ----------------------------------------------------------------
    // INTERFACE
+
+   method Action reset;
+      f_wr_addr.clear;
+      f_wr_data.clear;
+      f_wr_resp.clear;
+      f_rd_addr.clear;
+      f_rd_data.clear;
+   endmethod
 
    // AXI side
    interface axi_side = interface AXI4_Master_IFC;
@@ -530,6 +533,7 @@ endmodule: mkAXI4_Master_Xactor
 interface AXI4_Master_Fabric_IFC #(numeric type wd_addr,
 					numeric type wd_data,
 					numeric type wd_user);
+   method Action reset;
 
    // AXI side
    interface AXI4_Master_IFC #(wd_addr, wd_data, wd_user) axi_side;
@@ -604,6 +608,14 @@ provisos(
 
    // ----------------------------------------------------------------
    // INTERFACE
+
+   method Action reset;
+      f_wr_addr[2]<=tagged Invalid;
+      f_wr_data[2]<=tagged Invalid;
+      f_wr_resp[2]<=tagged Invalid;
+      f_rd_addr[2]<=tagged Invalid;
+      f_rd_data[2]<=tagged Invalid;
+   endmethod
 
    // AXI side
    interface axi_side = interface AXI4_Master_IFC;
@@ -711,6 +723,7 @@ endmodule: mkAXI4_Master_Fabric
 interface AXI4_Slave_Xactor_IFC #(numeric type wd_addr,
 				       numeric type wd_data,
 				       numeric type wd_user);
+   method Action reset;
 
    // AXI side
    interface AXI4_Slave_IFC #(wd_addr, wd_data, wd_user) axi_side;
@@ -733,15 +746,23 @@ module mkAXI4_Slave_Xactor (AXI4_Slave_Xactor_IFC #(wd_addr, wd_data, wd_user));
    Bool guarded   = False;
 
    // These FIFOs are guarded on BSV side, unguarded on AXI side
-   FIFOF #(AXI4_Wr_Addr #(wd_addr, wd_user)) f_wr_addr <- mkGSizedFIFOF (unguarded, guarded,2);
-   FIFOF #(AXI4_Wr_Data #(wd_data))          f_wr_data <- mkGSizedFIFOF (unguarded, guarded,2);
-   FIFOF #(AXI4_Wr_Resp #(wd_user))          f_wr_resp <- mkGSizedFIFOF (guarded, unguarded,2);
+   FIFOF #(AXI4_Wr_Addr #(wd_addr, wd_user)) f_wr_addr <- mkGLFIFOF (unguarded, guarded);
+   FIFOF #(AXI4_Wr_Data #(wd_data))          f_wr_data <- mkGLFIFOF (unguarded, guarded);
+   FIFOF #(AXI4_Wr_Resp #(wd_user))          f_wr_resp <- mkGLFIFOF (guarded, unguarded);
 
-   FIFOF #(AXI4_Rd_Addr #(wd_addr, wd_user)) f_rd_addr <- mkGSizedFIFOF (unguarded, guarded,2);
-   FIFOF #(AXI4_Rd_Data #(wd_data, wd_user)) f_rd_data <- mkGSizedFIFOF (guarded, unguarded,2);
+   FIFOF #(AXI4_Rd_Addr #(wd_addr, wd_user)) f_rd_addr <- mkGLFIFOF (unguarded, guarded);
+   FIFOF #(AXI4_Rd_Data #(wd_data, wd_user)) f_rd_data <- mkGLFIFOF (guarded, unguarded);
 
    // ----------------------------------------------------------------
    // INTERFACE
+
+   method Action reset;
+      f_wr_addr.clear;
+      f_wr_data.clear;
+      f_wr_resp.clear;
+      f_rd_addr.clear;
+      f_rd_data.clear;
+   endmethod
 
    // AXI side
    interface axi_side = interface AXI4_Slave_IFC;
@@ -859,6 +880,7 @@ endmodule: mkAXI4_Slave_Xactor
 interface AXI4_Slave_Fabric_IFC #(numeric type wd_addr,
 				       numeric type wd_data,
 				       numeric type wd_user);
+   method Action reset;
 
    // AXI side
    interface AXI4_Slave_IFC #(wd_addr, wd_data, wd_user) axi_side;
@@ -890,6 +912,14 @@ module mkAXI4_Slave_Fabric (AXI4_Slave_Fabric_IFC #(wd_addr, wd_data, wd_user));
 
    // ----------------------------------------------------------------
    // INTERFACE
+
+   method Action reset;
+      f_wr_addr[2]<=tagged Invalid;
+      f_wr_data[2]<=tagged Invalid;
+      f_wr_resp[2]<=tagged Invalid;
+      f_rd_addr[2] <= tagged Invalid;
+      f_rd_data[2]<= tagged Invalid;
+   endmethod
 
    // AXI side
    interface axi_side = interface AXI4_Slave_IFC;
