@@ -87,6 +87,10 @@ elf2hex 8 32768 software.elf 2147483648 > code.hex
 This code.hex should now be further split into code.mem.LSB and code.mem.MSB as follows:
    cut -c1-8 code.hex> code.mem.MSB 
    cut -c9-16 code.hex > code.mem.LSB 
+   
+To generate VCD:
+    * in bsim environment: ./out -V
+    * in verilog environment: ./out +bscvcd
 
 More details to follow.. :)
 
