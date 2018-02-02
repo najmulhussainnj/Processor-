@@ -217,6 +217,8 @@ link_iverilog:
 
 .PHONY: generate_boot_files
 generate_boot_files:
+	@mkdir -p bin
+	@cd verification/dts/; make create_hex;
 	@cut -c1-8 verification/dts/boot.hex > bin/boot.MSB
 	@cut -c9-16 verification/dts/boot.hex > bin/boot.LSB
 
@@ -230,3 +232,4 @@ clean_verilog: clean
 
 restore: clean_verilog
 	@cd verification/tests/directed/benchmarks/; make clean
+	@cd verification/dts/; make clean
