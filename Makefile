@@ -175,8 +175,10 @@ generate_verilog: check-restore check-blue
 
 .PHONY: link_vcs
 link_vcs: 
-	@vcs -full64 -l compile.log -sverilog +vpi +nbaopt +delay_mode_zero +v2k -assert svaext +define+VCS_+TOP=$(TOP_MODULE) +error+20 +udpsched +cli+4 +libext+.v +notimingcheck -y ./$(VERILOGDIR)/ -y ${BLUESPECDIR}/Verilog/ -y ./src/bfm -timescale=1ns/1ps ${BLUESPECDIR}/Verilog/main.v
-	@mv simv bin/out
+	@rm -rf bin
+	@mkdir bin
+	@vcs -full64 -l vcs_compile.log -sverilog +vpi +nbaopt +delay_mode_zero +v2k -assert svaext +define+VCS_+TOP=$(TOP_MODULE) +error+20 +udpsched +cli+4 +libext+.v +notimingcheck -y ./$(VERILOGDIR)/ -y ${BLUESPECDIR}/Verilog/ -y ./src/bfm -timescale=1ns/1ps ${BLUESPECDIR}/Verilog/main.v -o out
+	@mv csrc out* vc_hdrs.h bin
 
 .PHONY: link_ncverilog
 link_ncverilog: 
