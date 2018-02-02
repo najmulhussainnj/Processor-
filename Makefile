@@ -173,6 +173,11 @@ generate_verilog: check-restore check-blue
 	@sed -i "s/(rg_tdo)/(rg_tdo\$$D_IN)/g" ./verilog/mkTbSoc.v
 	@echo Compilation finished
 
+.PHONY: link_vcs
+link_vcs: 
+	@vcs -full64 -l compile.log -sverilog +vpi +nbaopt +delay_mode_zero +v2k -assert svaext +define+VCS_+TOP=$(TOP_MODULE) +error+20 +udpsched +cli+4 +libext+.v +notimingcheck -y ./$(VERILOGDIR)/ -y ${BLUESPECDIR}/Verilog/ -y ./src/bfm -timescale=1ns/1ps ${BLUESPECDIR}/Verilog/main.v
+	@mv simv bin/out
+
 .PHONY: link_ncverilog
 link_ncverilog: 
 	@echo "Linking $(TOP_MODULE) using ncverilog..."
@@ -181,9 +186,9 @@ link_ncverilog:
 	@mkdir work
 	@echo "define work ./work" > cds.lib
 	@echo "define WORK work" > hdl.var
-	@ncvlog -sv -cdslib ./cds.lib -hdlvar ./hdl.var -MESSAGES -NOCOPYRIGHT -LINEDEBUG +define+TOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v -y ./$(VERILOGDIR)/ -y ${BLUESPECDIR}/Verilog/ -y ./src/bfm
-	@ncelab  -cdslib ./cds.lib -mess -NOWARN CUDEFB work.main -access +r -timescale 1ns/1ps -nospecify
-	@echo 'ncsim -cdslib ./cds.lib work.main #> /dev/null' > $(BSVOUTDIR)/out
+	@ncvlog -sv -cdslib ./cds.lib -hdlvar ./hdl.var +define+TOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v -y ./$(VERILOGDIR)/ -y ${BLUESPECDIR}/Verilog/ -y ./src/bfm
+	@ncelab  -cdslib ./cds.lib -hdlvar ./hdl.var work.main -access +r -timescale 1ns/1ps
+	@echo 'ncsim -cdslib ./cds.lib -hdlvar ./hdl.var work.main #> /dev/null' > $(BSVOUTDIR)/out
 	@mv work cds.lib hdl.var $(BSVOUTDIR)/
 	@chmod +x $(BSVOUTDIR)/out
 	@echo Linking finished
