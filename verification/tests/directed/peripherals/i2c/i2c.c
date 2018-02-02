@@ -30,6 +30,12 @@ TODO : Check with interrupts.
 #define writebytes 34 
 #define readbytes 32
 
+void waitfor(unsigned int secs) {
+	unsigned int time = 0;
+	while(time++ < secs);
+}
+
+
 int main()
 {
     printf("\tI2C: Starting Transaction\n");

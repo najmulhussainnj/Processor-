@@ -1,5 +1,5 @@
 #include "i2c.h"
-#include "../DMA/dma.h" //TODO change this relative path as well
+#include "../dma/dma.h" //TODO change this relative path as well
 
 #ifdef IGNORE_PRINTF
 #define printf(fmt, ...) (0)
@@ -7,6 +7,11 @@
 
 #define writebytes 34 
 #define readbytes 33
+void waitfor(unsigned int secs) {
+	unsigned int time = 0;
+	while(time++ < secs);
+}
+
 
 void wait_for_dma_interrupt_i2c()
 {

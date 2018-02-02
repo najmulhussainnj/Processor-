@@ -2,6 +2,12 @@
 #include <stdint.h>
 #include "write_data.h"
 
+void waitfor(unsigned int secs) {
+	unsigned int time = 0;
+	while(time++ < secs);
+}
+
+
 uintptr_t handle_trap(uintptr_t cause, uintptr_t epc, uintptr_t regs[32])
 {
   printf("\t Trap Taken: cause: %08x epc: %08x \n",cause,epc);

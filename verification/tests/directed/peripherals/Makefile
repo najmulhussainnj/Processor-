@@ -13,6 +13,8 @@ PLIC_DIR:=./plic/
 PLIC_OUT:=./plic/outputs
 BOOT_DIR:=./boot/
 BOOT_OUT:=./boot/outputs
+SMOKE_DIR:=./smoketests/
+SMOKE_OUT:=./smoketests/outputs
 
 #ASCII Escape codes
 RED='\033[0;31m' #Red
@@ -20,7 +22,7 @@ GREEN='\033[0;32m' #Green
 NC='\033[0m' # No Color
 
 all: create_dir	
-	make i2c.riscv qspi.riscv dma_mem2mem i2c_dma.riscv
+	make i2c.riscv dma_mem2mem i2c_dma.riscv
 
 create_dir:
 	@mkdir -p ./i2c/outputs/
@@ -30,14 +32,25 @@ create_dir:
 	@mkdir -p ./plic/outputs/
 	@mkdir -p ./uart/outputs/
 	@mkdir -p ./boot/outputs/
+	@mkdir -p ./smoketests/outputs/
+
+smoketests.riscv: crt.o syscalls.shakti create_dir
+	@echo -e "$(GREEN) Compiling Smoke tests $(NC)"
+	@riscv$(XLEN)-unknown-elf-gcc -w -mcmodel=medany -static -std=gnu99 -fno-builtin-printf -I $(I2C_DIR) -I $(QSPI_DIR) -I $(DMA_DIR) -I $(PLIC_DIR) -I $(CommonDIR) -c $(SMOKE_DIR)/smoke.c -o $(SMOKE_OUT)/smoke.o -march=rv$(XLEN)imafd -lm -lgcc
+	@riscv$(XLEN)-unknown-elf-gcc -T $(CommonDIR)/link.ld $(SMOKE_OUT)/smoke.o $(CommonDIR)/syscalls.shakti $(CommonDIR)/crt.o -o $(SMOKE_OUT)/smoke.shakti -static -nostartfiles -lm -lgcc
+	@riscv$(XLEN)-unknown-elf-objdump -D $(SMOKE_OUT)/smoke.shakti > $(SMOKE_OUT)/smoke.dump
+	@elf2hex 8 65536 $(SMOKE_OUT)/smoke.shakti 2147483648 > $(SMOKE_OUT)/code.mem
+	@cut -c1-8 $(SMOKE_OUT)/code.mem > $(SMOKE_OUT)/code.mem.MSB
+	@cut -c9-16 $(SMOKE_OUT)/code.mem > $(SMOKE_OUT)/code.mem.LSB
+
 
 i2c.riscv: crt.o syscalls.shakti create_dir
 	@echo -e "$(GREEN) Compiling I2C Polling code $(NC)"
 	@echo -e "$(RED) Caveat: I2C Code starts at 0x100000. Configure RTL appropriately $(NC)"
 	@riscv$(XLEN)-unknown-elf-gcc -w -mcmodel=medany -static -std=gnu99 -fno-builtin-printf  -c $(I2C_DIR)/i2c.c -o $(I2C_OUT)/i2c.o -march=rv$(XLEN)imafd -lm -lgcc
-	@riscv$(XLEN)-unknown-elf-gcc -T $(I2C_DIR)/i2clink.ld $(I2C_OUT)/i2c.o $(CommonDIR)/syscalls.shakti $(CommonDIR)/crt.o -o $(I2C_OUT)/I2C.shakti -static -nostartfiles -lm -lgcc
+	@riscv$(XLEN)-unknown-elf-gcc -T $(CommonDIR)/link.ld $(I2C_OUT)/i2c.o $(CommonDIR)/syscalls.shakti $(CommonDIR)/crt.o -o $(I2C_OUT)/I2C.shakti -static -nostartfiles -lm -lgcc
 	@riscv$(XLEN)-unknown-elf-objdump -D $(I2C_OUT)/I2C.shakti > $(I2C_OUT)/I2C.dump
-	@elf2hex 8 32768 $(I2C_OUT)/I2C.shakti 16777216 > $(I2C_OUT)/code.mem
+	@elf2hex 8 65536 $(I2C_OUT)/I2C.shakti 2147483648 > $(I2C_OUT)/code.mem
 	@cut -c1-8 $(I2C_OUT)/code.mem > $(I2C_OUT)/code.mem.MSB
 	@cut -c9-16 $(I2C_OUT)/code.mem > $(I2C_OUT)/code.mem.LSB
 
@@ -62,15 +75,6 @@ boot.riscv: create_dir
 	@elf2hex 8 8192 $(BOOT_OUT)/boot.shakti 4096 > $(BOOT_OUT)/boot.mem
 
 
-qspi.riscv: crt.o syscalls.shakti create_dir
-	@echo -e "$(GREEN) Compiling QSPI Pollingcode $(NC)"
-	@riscv$(XLEN)-unknown-elf-gcc -w -mcmodel=medany -static -std=gnu99 -fno-builtin-printf  -c $(QSPI_DIR)/qspi_flash.c -o $(QSPI_OUT)/qspi.o -march=rv$(XLEN)imafd -lm -lgcc
-	@riscv$(XLEN)-unknown-elf-gcc -T $(CommonDIR)/link.ld $(QSPI_OUT)/qspi.o $(CommonDIR)/syscalls.shakti $(CommonDIR)/crt.o -o $(QSPI_OUT)/qspi.shakti -static -nostartfiles -lm -lgcc
-	@riscv$(XLEN)-unknown-elf-objdump -D $(QSPI_OUT)/qspi.shakti > $(QSPI_OUT)/qspi.dump
-	@elf2hex 8 65536 $(QSPI_OUT)/qspi.shakti 2147483648 > $(QSPI_OUT)/code.mem
-	@cut -c1-8 $(QSPI_OUT)/code.mem > $(QSPI_OUT)/code.mem.MSB
-	@cut -c9-16 $(QSPI_OUT)/code.mem > $(QSPI_OUT)/code.mem.LSB
-
 qspi_dma.riscv: crt.o syscalls.shakti create_dir
 	@echo -e "$(GREEN) Compiling QSPI Pollingcode $(NC)"
 	@riscv$(XLEN)-unknown-elf-gcc -w -mcmodel=medany -static -std=gnu99 -fno-builtin-printf  -c $(QSPI_DIR)/qspi_dma.c -o $(QSPI_OUT)/qspi_dma.o -march=rv$(XLEN)imafd -lm -lgcc
@@ -85,7 +89,7 @@ qspi_cypress.riscv: crt.o syscalls.shakti create_dir
 	@riscv$(XLEN)-unknown-elf-gcc -w -mcmodel=medany -static -std=gnu99 -fno-builtin-printf  -c $(QSPI_DIR)/qspi_cypress.c -o $(QSPI_OUT)/qspi.o -march=rv$(XLEN)imafd -lm -lgcc
 	@riscv$(XLEN)-unknown-elf-gcc -T $(CommonDIR)/qspilink.ld $(QSPI_OUT)/qspi.o $(CommonDIR)/syscalls.shakti $(CommonDIR)/crt.o -o $(QSPI_OUT)/qspi_cypress_write.shakti -static -nostartfiles -lm -lgcc
 	@riscv$(XLEN)-unknown-elf-objdump -D $(QSPI_OUT)/qspi_cypress_write.shakti > $(QSPI_OUT)/qspi_cypress.dump
-	@elf2hex 8 32768 $(QSPI_OUT)/qspi_cypress.shakti 2147483648 > $(QSPI_OUT)/code.mem
+	@elf2hex 8 32768 $(QSPI_OUT)/qspi_cypress_write.shakti 2147483648 > $(QSPI_OUT)/code.mem
 	@cut -c1-8 $(QSPI_OUT)/code.mem > $(QSPI_OUT)/code.mem.MSB
 	@cut -c9-16 $(QSPI_OUT)/code.mem > $(QSPI_OUT)/code.mem.LSB
 
@@ -127,4 +131,5 @@ syscalls.shakti:
 
 clean: 
 	@rm -rf $(I2C_OUT)/* $(I2C_DMA_OUT)/* $(DMA_OUT)/* $(CommonDIR)/*.o $(CommonDIR)/*.shakti $(QSPI_OUT)/* $(PLIC_OUT)/* $(DMA_OUT)/* $(BOOT_OUT)/* $(BOOT_DIR)/*.o $(BOOT_DIR)/*.shakti
+	@rm -rf outputs/
 	@echo "cleaned"

@@ -57,11 +57,6 @@ void set_i2c_shakti(int *addr, int val)
     *addr = val;
 }
 
-void waitfor(unsigned int secs) {
-	unsigned int time = 0;
-	while(time++ < secs);
-}
-
 void i2c_start()
 {
 	set_i2c_shakti(i2c_control, I2C_SHAKTI_START);
@@ -100,13 +95,13 @@ int shakti_init_i2c()
     /* Send C1H to S1 - Set I2C to Idle mode -- SDA and SCL should be high                                                                  */
 
 
-    set_i2c_shakti(i2c_prescale,0x0F);  //Setting the I2C clock value to be 1, which will set the clock for module and prescaler clock
+    set_i2c_shakti(i2c_prescale,0x0A);  //Setting the I2C clock value to be 1, which will set the clock for module and prescaler clock
     unsigned char temp = get_i2c_shakti(i2c_prescale);
-    set_i2c_shakti(i2c_scl,0x51);  //Setting the I2C clock value to be 1, which will set the clock for module and prescaler clock
+    set_i2c_shakti(i2c_scl,0x0F);  //Setting the I2C clock value to be 1, which will set the clock for module and prescaler clock
     temp = get_i2c_shakti(i2c_scl);
 /* Just reading the written value to see if all is well -- Compiler should not optimize this load!!! Compiler can just optimize the store to pointer address followed by load pointer to a register to just an immediate load to the register since clock register is not used anywhere -- but the purpose is lost. Don't give compiler optimizations */
 
-    if((temp | 0x00) != 0x51){
+    if((temp | 0x00) != 0x0F){
         printf("\tClock initialization failed\n"); 
         return -ENXIO;
     }
