@@ -1,7 +1,8 @@
 # SHAKTI C-CLASS #
 
-This is the c-class core of the SHAKTI Processor systems. This repo contains all the relevant
-hardware and software related to the c-class core. The core and the peripherals are developed using If you wish to contribute or make some fixes please make a pull-request. You can reach out to team by mailing us at: shakti.iitm@gmail.com
+This is the C-class core of the SHAKTI Processor family. This repo contains all the relevant
+hardware and software related to the c-class core. The core and the peripherals are developed using Bluespec.
+If you wish to contribute or help fix issues, please make a pull-request. You can reach  us at: shakti.iitm@gmail.com
 
 ### Current FEATURES of C-CLASS ###
 
@@ -11,7 +12,7 @@ hardware and software related to the c-class core. The core and the peripherals 
 * Parameterized blocking Instruction and Data cache.
 * Serialized Single and Double Precision Floating Point Units.
 * Early out multiplier and a restoring divider.
-* Supports sv39.
+* Supervisor mode - sv39.
 * JTAG Debugger based on debug-spec-0.13
 * Boots riscv-linux kernel.
 * Performance = 1.67DMIPS/MHz and 2.2 Coremarks/MHz
@@ -20,8 +21,8 @@ hardware and software related to the c-class core. The core and the peripherals 
 
 ### Directory Structure ###
 
-* src - holds the bluespec source code of the core, uncore, peripherals, etc.
-* verification - holds the directed and random tests targetting the c-class core.
+* src - holds the bluespec source code of the core, uncore, peripherals and other related files
+* verification - holds the directed and random tests for the c-class core.
 
 
 ### Pre-requisites ###
