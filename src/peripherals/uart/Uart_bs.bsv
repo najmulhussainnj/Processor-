@@ -25,6 +25,9 @@ package Uart_bs;
 	`include "defined_parameters.bsv"
 	import RS232_modified::*;
 	import GetPut::*;
+	import FIFO::*;
+	import Clocks::*;
+
 
 	interface Ifc_Uart_bs;
   		interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) slave_axi_uart;
@@ -32,74 +35,107 @@ package Uart_bs;
 	endinterface
 
 	(*synthesize*)
-	(*preempts="(rl_handle_axi4_uart_read, rl_handle_axi4_uart_status), rl_handle_rest_axi4_req "*)
-	module mkUart_bs(Ifc_Uart_bs);
+	module mkUart_bs#(Clock core_clock, Reset core_reset)(Ifc_Uart_bs);
 
+		Clock uart_clock<-exposeCurrentClock;
+		Reset uart_reset<-exposeCurrentReset;
 		Reg#(Bit#(16)) baud_value <-mkReg(`BAUD_RATE);
 		UART#(`Depth) uart <-mkUART(8,NONE,STOP_1,baud_value); // charasize,Parity,Stop Bits,BaudDIV
-		AXI4_Slave_Xactor_IFC #(`PADDR,`Reg_width,`USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor;
+		AXI4_Slave_Xactor_IFC #(`PADDR,`Reg_width,`USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor(clocked_by core_clock, reset_by core_reset);
 		Reg#(Bit#(4)) rg_status <-mkReg(0);		//This register keeps track of whether some data
-												//is pending to be sent out through the UART Tx
+															//is pending to be sent out through the UART Tx
+		
+		SyncFIFOIfc#(AXI4_Rd_Addr	#(`PADDR,`USERSPACE))		ff_rd_addr <-	mkSyncFIFOToCC(1,core_clock,core_reset);
+		SyncFIFOIfc#(AXI4_Wr_Addr	#(`PADDR, `USERSPACE))		ff_wr_addr <-	mkSyncFIFOToCC(1,core_clock,core_reset);
+		SyncFIFOIfc#(AXI4_Wr_Data	#(`Reg_width))					ff_wr_data <-	mkSyncFIFOToCC(1,core_clock,core_reset);
+
+		SyncFIFOIfc#(AXI4_Rd_Data	#(`Reg_width,`USERSPACE))	ff_rd_resp <-	mkSyncFIFOFromCC(1,core_clock);
+		SyncFIFOIfc#(AXI4_Wr_Resp	#(`USERSPACE))					ff_wr_resp <-	mkSyncFIFOFromCC(1,core_clock);
+
+		rule capture_read_request;
+			let req <- pop_o (s_xactor.o_rd_addr);
+			ff_rd_addr.enq(req);
+		endrule
 
 		//Address 'h11304 is uart read data
-		rule rl_handle_axi4_uart_read(s_xactor.o_rd_addr.notEmpty && s_xactor.o_rd_addr.first.araddr[3:2]=='d1);
-			let req <- pop_o (s_xactor.o_rd_addr);
+		rule rl_handle_axi4_uart_read(ff_rd_addr.notEmpty && ff_rd_addr.first.araddr[3:2]=='d1);
+			let req = ff_rd_addr.first;
+			ff_rd_addr.deq;
 			`ifdef verbose $display($time,"\tReq: RD_ADDR %h", req.araddr); `endif
 			Bit#(8) data<-uart.tx.get;
 			let lv_resp= AXI4_Rd_Data {rresp:AXI4_OKAY, rdata: zeroExtend(data), rlast: True, ruser: ?, rid: req.arid};
 
 			`ifdef verbose $display($time,"\tResp: RD_RESP %h", req.araddr); `endif
-			s_xactor.i_rd_data.enq(lv_resp);
+			ff_rd_resp.enq(lv_resp);
 		endrule
 
 		//Address 'b11308 is uart read status
-		rule rl_handle_axi4_uart_status(s_xactor.o_rd_addr.notEmpty && s_xactor.o_rd_addr.first.araddr[3:2]=='d2);
-			let req <- pop_o (s_xactor.o_rd_addr);
+		rule rl_handle_axi4_uart_status(ff_rd_addr.notEmpty && ff_rd_addr.first.araddr[3:2]!='d1);
+			let req =ff_rd_addr.first;
+			ff_rd_addr.deq;
 			`ifdef verbose $display($time,"\tReq: RD_ADDR %h", req.araddr); `endif
 			let lv_resp= AXI4_Rd_Data {rresp:AXI4_OKAY, rdata: zeroExtend(rg_status), rlast: True, ruser: ?, rid: req.arid};
+			if(req.araddr[3:2]==2)
+				lv_resp.rdata=zeroExtend(rg_status);
+			else if(req.araddr[3:2]==3)
+				lv_resp.rdata=zeroExtend(baud_value);
+			else
+				lv_resp.rresp=AXI4_SLVERR;
 
 			`ifdef verbose $display($time,"\tResp: RD_RESP %h Status: %b", req.araddr, rg_status); `endif
-			s_xactor.i_rd_data.enq(lv_resp);
+			ff_rd_resp.enq(lv_resp);
 		endrule
 		
-		//Address 'h1130c is uart read status
-		rule rl_handle_axi4_uart_baud(s_xactor.o_rd_addr.notEmpty && s_xactor.o_rd_addr.first.araddr[3:2]=='d3);
-			let req <- pop_o (s_xactor.o_rd_addr);
-			`ifdef verbose $display($time,"\tReq: RD_ADDR %h", req.araddr); `endif
-			let lv_resp= AXI4_Rd_Data {rresp:AXI4_OKAY, rdata: zeroExtend(baud_value), rlast: True, ruser: ?, rid: req.arid};
-
-			`ifdef verbose $display($time,"\tResp: RD_RESP %h Status: %b", req.araddr, rg_status); `endif
-			s_xactor.i_rd_data.enq(lv_resp);
+		rule send_read_respone_to_bus;
+			s_xactor.i_rd_data.enq(ff_rd_resp.first);
+			ff_rd_resp.deq;
 		endrule
 
-		rule rl_handle_rest_axi4_req(s_xactor.o_rd_addr.notEmpty);
-
-			let req <- pop_o (s_xactor.o_rd_addr);
-			let lv_resp= AXI4_Rd_Data {rresp:AXI4_SLVERR, rdata: ?, rlast: True, ruser: ?, rid: req.arid};
-			s_xactor.i_rd_data.enq(lv_resp);
+		rule capture_write_request;
+			let req <- pop_o (s_xactor.o_wr_addr);
+			let wr_data <- pop_o(s_xactor.o_wr_data);
+			ff_wr_addr.enq(req);
+			ff_wr_data.enq(wr_data);
 		endrule
 
 		//Address 'b0000 is uart write data
-		rule rl_handle_axi4_write(s_xactor.o_wr_addr.notEmpty && s_xactor.o_wr_data.notEmpty);
-			let wr_addr <- pop_o(s_xactor.o_wr_addr);
+		rule rl_handle_axi4_write_rx(ff_wr_addr.notEmpty && ff_wr_data.notEmpty && ff_wr_addr.first.awaddr[3:2]==0);
+			let wr_addr = ff_wr_addr.first;
+			ff_wr_addr.deq;
+			let wr_data = ff_wr_data.first;
+			ff_wr_data.deq;
+
 			`ifdef verbose $display($time,"\tReq: WR_ADDR %h", wr_addr.awaddr); `endif
-			let wr_data <- pop_o(s_xactor.o_wr_data);
 			`ifdef verbose $display($time,"\tReq: WR_DATA %h", wr_data.wdata); `endif
 
-			if(wr_addr.awaddr[3:2]==2'd0) begin	//The address is valid for a write request
-				uart.rx.put(truncate(wr_data.wdata));
-        		let lv_resp = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: ?, bid: wr_addr.awid};
-        		s_xactor.i_wr_resp.enq(lv_resp);
-			end
-			else if(wr_addr.awaddr[3:2]=='d3) begin // change the baud value
+			uart.rx.put(truncate(wr_data.wdata));
+         let lv_resp = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: ?, bid: wr_addr.awid};
+      	ff_wr_resp.enq(lv_resp);
+		endrule
+
+		rule rl_handle_axi4_write(ff_wr_addr.notEmpty && ff_wr_data.notEmpty && ff_wr_addr.first.awaddr[3:2]!=0);
+			let wr_addr = ff_wr_addr.first;
+			ff_wr_addr.deq;
+			let wr_data = ff_wr_data.first;
+			ff_wr_data.deq;
+
+			`ifdef verbose $display($time,"\tReq: WR_ADDR %h", wr_addr.awaddr); `endif
+			`ifdef verbose $display($time,"\tReq: WR_DATA %h", wr_data.wdata); `endif
+
+			if(wr_addr.awaddr[3:2]=='d3) begin // change the baud value
 				baud_value<=truncate(wr_data.wdata);
         		let lv_resp = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: ?, bid: wr_addr.awid};
-        		s_xactor.i_wr_resp.enq(lv_resp);
+        		ff_wr_resp.enq(lv_resp);
 			end
 			else begin
         		let lv_resp = AXI4_Wr_Resp {bresp: AXI4_SLVERR, buser: ?, bid: wr_addr.awid};
-        		s_xactor.i_wr_resp.enq(lv_resp);
+        		ff_wr_resp.enq(lv_resp);
 			end
+		endrule
+
+		rule send_write_response;
+        	s_xactor.i_wr_resp.enq(ff_wr_resp.first);
+			ff_wr_resp.deq;
 		endrule
 
 		//The status register is 1 if the transmission FIFO is empty

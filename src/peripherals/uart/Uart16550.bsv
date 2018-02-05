@@ -67,6 +67,7 @@ package Uart16550;
 import FIFO::*;
 import FIFOF::*;
 import FIFOLevel::*;
+import Clocks::*;
 import ClientServer::*;
 import defined_types::*;
 import AXI4_Types::*;
@@ -191,8 +192,8 @@ endinterface
 (* synthesize,
    reset_prefix = "csi_clockreset_reset_n",
    clock_prefix = "csi_clockreset_clk" *)
-module mkUart16550(Uart16550_AXI4_Ifc);
-  AXI4_Slave_Xactor_IFC #(`PADDR,`Reg_width,`USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor;
+module mkUart16550#(Clock core_clock, Reset core_reset)(Uart16550_AXI4_Ifc);
+  AXI4_Slave_Xactor_IFC #(`PADDR,`Reg_width,`USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor(clocked_by core_clock, reset_by core_reset);
   UART_transmitter_ifc uart_tx <- mkUART_transmitter;
   UART_receiver_ifc    uart_rx <- mkUART_receiver;
   
@@ -274,6 +275,14 @@ module mkUart16550(Uart16550_AXI4_Ifc);
   Reg#(bit)           pin_stx <- mkReg(0);
   Reg#(bit)           pin_rts <- mkReg(0);
   Reg#(bit)           pin_dtr <- mkReg(0);
+		
+	SyncFIFOIfc#(AXI4_Rd_Addr	#(`PADDR,`USERSPACE))		ff_rd_addr <-	mkSyncFIFOToCC(1,core_clock,core_reset);
+	SyncFIFOIfc#(AXI4_Wr_Addr	#(`PADDR, `USERSPACE))		ff_wr_addr <-	mkSyncFIFOToCC(1,core_clock,core_reset);
+	SyncFIFOIfc#(AXI4_Wr_Data	#(`Reg_width))					ff_wr_data <-	mkSyncFIFOToCC(1,core_clock,core_reset);
+
+	SyncFIFOIfc#(AXI4_Rd_Data	#(`Reg_width,`USERSPACE))	ff_rd_resp <-	mkSyncFIFOFromCC(1,core_clock);
+	SyncFIFOIfc#(AXI4_Wr_Resp	#(`USERSPACE))					ff_wr_resp <-	mkSyncFIFOFromCC(1,core_clock);
+
 
   (* no_implicit_conditions *)
   rule synchronise_input_pins; // N.B. there must be no logic between these registers
@@ -468,11 +477,32 @@ module mkUart16550(Uart16550_AXI4_Ifc);
     rx_fifo_empty <= !rx_fifo.notEmpty;
     tx_fifo_empty <= !tx_fifo.notEmpty;
   endrule
+		
+	rule capture_read_request;
+		let req <- pop_o (s_xactor.o_rd_addr);
+		ff_rd_addr.enq(req);
+	endrule
+	rule send_read_respone_to_bus;
+		s_xactor.i_rd_data.enq(ff_rd_resp.first);
+		ff_rd_resp.deq;
+	endrule
+	rule capture_write_request;
+		let req <- pop_o (s_xactor.o_wr_addr);
+		let wr_data <- pop_o(s_xactor.o_wr_data);
+		ff_wr_addr.enq(req);
+		ff_wr_data.enq(wr_data);
+	endrule
+	rule send_write_response;
+     	s_xactor.i_wr_resp.enq(ff_wr_resp.first);
+		ff_wr_resp.deq;
+	endrule
+
  
-  rule handle_axi4_read(s_xactor.o_rd_addr.notEmpty);
+  rule handle_axi4_read(ff_rd_addr.notEmpty);
   
     Bool dlab = lcr.uart_LC_DL == 1'b1; // divisor latch enable
-    let req <- pop_o (s_xactor.o_rd_addr);
+    let req = ff_rd_addr.first;
+	 ff_rd_addr.deq;
     `ifdef verbose $display("RD_ADDR %h", req.araddr); `endif
     UART_ADDR_T addr = unpack(req.araddr[5:3]);
     Bool rtn_valid=True;
@@ -535,13 +565,13 @@ module mkUart16550(Uart16550_AXI4_Ifc);
         UART_ADDR_SCRATCH           :  rtn = scratch;
 
     endcase
-        let resq  =  AXI4_Rd_Data {rresp : AXI4_OKAY, rdata : rtn_valid? zeroExtend(rtn) : '1, rlast: True ,ruser: 0, rid: req.arid};
-        s_xactor.i_rd_data.enq(resq);
+        let resp  =  AXI4_Rd_Data {rresp : AXI4_OKAY, rdata : rtn_valid? zeroExtend(rtn) : '1, rlast: True ,ruser: 0, rid: req.arid};
+        ff_rd_resp.enq(resp);
        // $display ("DATA----------- %b", rtn);
        `ifdef verbose $display("%05t: --------------------------READ--------------------------------------------",$time); `endif
   endrule
 
-  rule handle_axi4_write(s_xactor.o_wr_addr.notEmpty && s_xactor.o_wr_data.notEmpty);
+  rule handle_axi4_write(ff_wr_addr.notEmpty && ff_wr_data.notEmpty);
     Bool dlab = lcr.uart_LC_DL == 1'b1; // divisor latch enable
     let ls = UART_LS_T{
        uart_LS_EI:  rx_fifo_full || (count_error!=0),       // error indicator
@@ -569,9 +599,11 @@ module mkUart16550(Uart16550_AXI4_Ifc);
     else
       ii = UART_II_NO_INT;
     
-    let wr_addr <- pop_o(s_xactor.o_wr_addr);
+    let wr_addr = ff_wr_addr.first;
    `ifdef verbose  $display("WR_ADDR %h", wr_addr.awaddr); `endif
-    let wr_data <- pop_o(s_xactor.o_wr_data);
+	ff_wr_addr.deq;
+    let wr_data = ff_wr_data.first;
+	 ff_wr_data.deq;
    `ifdef verbose  $display("WR_DATA %h", wr_data.wdata); `endif
     UART_ADDR_T addr = unpack(wr_addr.awaddr[5:3]);
     Bit#(8) d = truncate(pack(wr_data.wdata));
@@ -610,7 +642,7 @@ module mkUart16550(Uart16550_AXI4_Ifc);
             UART_ADDR_SCRATCH       :  begin scratch <= d; `ifdef verbose $display("scratch : %h",d); `endif end 
     endcase
         let resp = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: 0, bid: wr_addr.awid};
-        s_xactor.i_wr_resp.enq(resp);
+        ff_wr_resp.enq(resp);
      //   $display ("DATA WRITE----------- %b", wr_data.wdata);
      //   $display ("DATA Adress----------- %d", addr);
       `ifdef verbose  $display("%05t: ----------------------------WRITE------------------------------------------",$time); `endif

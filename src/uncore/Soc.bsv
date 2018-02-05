@@ -164,8 +164,10 @@ package Soc;
 	/*=============================================== */
 	endinterface
 	(*synthesize*)
-	module mkSoc #(Bit#(`VADDR) reset_vector, Clock clk0, Clock clk90, Clock clk180, Clock clk270, Clock tck, Reset trst)(Ifc_Soc);
-
+	module mkSoc #(Bit#(`VADDR) reset_vector, Clock uart_clock,  Clock clk0, Clock clk90, Clock clk180, Clock clk270, Clock tck, Reset trst)(Ifc_Soc);
+			Clock core_clock <-exposeCurrentClock;
+			Reset core_reset <-exposeCurrentReset;
+			Reset uart_reset <-mkSyncResetFromCR(1,uart_clock);
          `ifdef Debug 
 				Ifc_jtagdtm tap <-mkjtagdtm(clocked_by tck, reset_by trst);
             Wire#(Bit#(TLog#(`INTERRUPT_PINS))) interrupt_id <- mkWire();
@@ -189,10 +191,10 @@ package Soc;
 				Memory_IFC#(`SDRAMMemBase,`Addr_space) main_memory <- mkMemory("code.mem.MSB","code.mem.LSB","MainMEM");
 			`endif
 			`ifdef UART0
-				Uart16550_AXI4_Ifc uart0 <- mkUart16550();
+				Uart16550_AXI4_Ifc uart0 <- mkUart16550(clocked_by uart_clock, reset_by uart_reset, core_clock, core_reset);
 			`endif
 			`ifdef UART1
-				Ifc_Uart_bs uart1 <- mkUart_bs();
+				Ifc_Uart_bs uart1 <- mkUart_bs(clocked_by uart_clock, reset_by uart_reset,core_clock, core_reset);
 			`endif
 			`ifdef PLIC
 				Ifc_PLIC_AXI	plic <- mkplicperipheral();

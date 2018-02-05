@@ -90,8 +90,13 @@ package TbSoc;
 
 		ClockDividerIfc clk90_invert <-mkClockInverter(clocked_by clk90, reset_by rst3);
 		Clock clk270=clk90_invert.slowClock;
-       Reg#(Bit#(32)) rg_gpio_counter <- mkReg(0); 
-		Ifc_Soc soc <-mkSoc(reset_vector, clk0,clk90,clk180,clk270,tck_clk.new_clk,trst.new_rst);
+      Reg#(Bit#(32)) rg_gpio_counter <- mkReg(0); 
+
+		Clock uart_clock <-mkAbsoluteClock(0,20);
+		Reset uart_reset <-mkSyncResetFromCR(1,uart_clock);
+		
+
+		Ifc_Soc soc <-mkSoc(reset_vector, uart_clock,clk0,clk90,clk180,clk270,tck_clk.new_clk,trst.new_rst);
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmlsb <-mksdram_model_wrapper("code.mem.LSB",clocked_by clk0, reset_by rst0); `endif
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmmsb <-mksdram_model_wrapper("code.mem.MSB",clocked_by clk0, reset_by rst0); `endif
 		`ifdef AXIEXP Ifc_sample_axiexpslave axiexpslave <-mksample_axiexpslave; `endif
@@ -390,9 +395,9 @@ package TbSoc;
 
 `endif
 		Reg#(Bit#(32)) rg_counter<-mkReg(0);
-		UART#(16) uart <-mkUART(8,NONE,STOP_1,`BAUD_RATE); // charasize,Parity,Stop Bits,BaudRate
-		let reg_dump <- mkReg(InvalidFile) ;
-		Reg#(Bit#(1)) rg_count <-mkReg(0);
+		UART#(16) uart <-mkUART(8,NONE,STOP_1,`BAUD_RATE, clocked_by uart_clock, reset_by uart_reset); // charasize,Parity,Stop Bits,BaudRate
+		let reg_dump <- mkReg(InvalidFile,clocked_by uart_clock , reset_by uart_reset) ;
+		Reg#(Bit#(1)) rg_count <-mkReg(0,clocked_by uart_clock , reset_by uart_reset);
 		Reg#(Bit#(64)) rg <-mkReg(0);
     	rule open_file(rg_count==0);    	
     	    String reg_dumpFile = "app_log" ;
@@ -419,9 +424,9 @@ package TbSoc;
 			rule connect_uart0_sin;	//dummy rule to connect uart0 sin since its always_enabled
 				soc.uart0_coe.modem_input(uart.rs232.sout,0,0,0,0);
 			endrule
-	//		rule connect_uart0_sout;
-//				uart.rs232.sin(soc.uart0_coe.modem_output_stx);
-//			endrule
+//	//		rule connect_uart0_sout;
+////				uart.rs232.sin(soc.uart0_coe.modem_output_stx);
+////			endrule
 		`endif
 		
 
