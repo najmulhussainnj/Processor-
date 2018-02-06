@@ -23,13 +23,14 @@ sub checkSetup {
   }
   else {
     doPrint("ERROR: SHAKTI_HOME not defined\n");
-    exit(0);
+    exit(1);
   }
   $workdir = "$shaktiHome/verification/workdir";
   
   # create temporary directory where all outputs are generated
   unless (-e $workdir or mkdir $workdir) {
-    die "ERROR: Unable to create workdir!\n";
+    doPrint("ERROR: Unable to create workdir!\n");
+    exit(1);
   }
   appendLog("$workdir/$scriptLog.log");
 }
@@ -61,7 +62,8 @@ sub systemCmd {
     if ($cmd[0] =~ /^riscv.*-unknown-elf-gcc/) { `touch COMPILE_FAIL`};
     if ($cmd[0] =~ /^spike/) { `touch MODEL_FAIL`};
     if ($cmd[0] =~ /^\.\/out/) { `touch RTL_FAIL`};
-    die("[$scriptLog.pl] ERROR: While running '@cmd'\n\n");  
+    doPrint("ERROR: While running '@cmd'\n\n");  
+    exit(1);
   }
 }
 
@@ -89,7 +91,8 @@ sub systemFileCmd {
     if ($cmd[0] =~ /^riscv.*-unknown-elf-gcc/) { `touch COMPILE_FAIL`};
     if ($cmd[0] =~ /^spike/) { `touch MODEL_FAIL`};
     if ($cmd[0] =~ /^\.\/out/) { `touch RTL_FAIL`};
-    die("[$scriptLog.pl] ERROR: Running '@cmd'\n\n");  
+    doPrint("ERROR: Running '@cmd'\n\n");  
+    exit(1);
   }
   else {
     if ($cmd[1]) {

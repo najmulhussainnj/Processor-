@@ -235,7 +235,6 @@ elsif ($finalReport) { # waits till all the test results are there/timesout
   my %testResults = ();
   my @regress_report = ();
   my $timeout = 0; 
-  my $status = 0;
   my $passCount = 0;
 
   foreach my $line (@testList) {
@@ -258,7 +257,6 @@ elsif ($finalReport) { # waits till all the test results are there/timesout
       if (-e $compile_fail) {
         $result = sprintf("%30s %20s %5s    COMPILE_FAIL\n", $tSuite, $test, $pv);
         $delete = 1;
-        $status = 0;
       }
       elsif (-e $model_fail) {
         $result = sprintf("%30s %20s %5s    MODEL_FAIL\n", $tSuite, $test, $pv);
@@ -293,18 +291,17 @@ elsif ($finalReport) { # waits till all the test results are there/timesout
     }
   } # end of while
   if (keys %testResults) {
-    $status = 0;
     print @regress_report;
     # TODO:print NOT_RUN tests
   }
   else {
     print @regress_report;
     if ($passCount == @testList) {
-      $status = 1;
+      exit(0);
       `touch $workdir/REGRESS_PASS`;
     }
     else {
-      $status = 0;
+      exit(1);
       `touch $workdir/REGRESS_FAIL`;
     }
   }

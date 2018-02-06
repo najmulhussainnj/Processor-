@@ -51,7 +51,7 @@ my $trace;
 # Test name
 if (!$test_name) {
   doPrint("ERROR: Undefined test name\n");
-  exit(0);
+  exit(1);
 }
 else {
   $testName = $test_name;
@@ -60,7 +60,7 @@ else {
 # Test suite
 if (!$test_suite) {
   doPrint("ERROR: Undefined test suite\n");
-  exit(0);
+  exit(1);
 }
 else {
   $testSuite = "$testPath/$test_suite";
@@ -75,7 +75,7 @@ elsif ($test_sim =~ /^ncverilog$/ || $test_sim =~ /^vcs$/ || $test_sim =~ /^blue
 }
 else {
   doPrint("ERROR: Invalid simulator, --sim=[bluespec|ncverilog|vcs]\n");
-  exit(0);
+  exit(1);
 }
 
 # Type
@@ -87,7 +87,7 @@ elsif ($test_type =~ /^p$/ || $test_type =~ /^v$/) {
 }
 else {
   doPrint("ERROR: Invalid test type, --test_type=[p|v]\n");
-  exit(0);
+  exit(1);
 }
 
 # trace
@@ -115,7 +115,7 @@ systemCmd("find $testSuite -name $testName.S");
 my @test = `find $testSuite -name $testName.S`; chomp(@test);
 if (@test > 1) {
   doPrint("ERROR: Duplicate test names\n");
-  exit(0);
+  exit(1);
 }
 else {
   $currentTestPath = `dirname $test[0]`; chomp($currentTestPath);
@@ -200,5 +200,5 @@ doDebugPrint("---------------------------------------------\n");
 doPrint("testDir: $testDir\n");
 doPrint("$result\n");
 doDebugPrint("---------------------------------------------\n");
-closeLOG();
-appendLOG("$workdir/$scriptLog.log");
+closeLog();
+appendLog("$workdir/$scriptLog.log");

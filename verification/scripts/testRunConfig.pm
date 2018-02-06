@@ -42,7 +42,7 @@ sub setEnvConfig {
       }
       else {
         print "ERROR: Invalid CONFIG value\n";
-        exit(0);
+        exit(1);
       }
     }
     else {

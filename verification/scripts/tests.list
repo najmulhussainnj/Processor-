@@ -11,7 +11,7 @@
 # ------------------------------------------------------------------------------------
 csr           directed/riscv-tests/isa/rv64mi        p       						
 mcsr          directed/riscv-tests/isa/rv64mi			  p			
-ma_fetch      directed/riscv-tests/isa/rv64mi			  p			
+#ma_fetch      directed/riscv-tests/isa/rv64mi			  p			# Commented for JIRA #17
 ma_addr       directed/riscv-tests/isa/rv64mi			  p			
 scall         directed/riscv-tests/isa/rv64mi			  p			
 #sbreak        directed/riscv-tests/isa/rv64mi			  p			
@@ -22,8 +22,8 @@ scall         directed/riscv-tests/isa/rv64mi			  p
 # rv64si tests						
 # ------------------------------------------------------------------------------------
 csr           directed/riscv-tests/isa/rv64si			  p			
-dirty         directed/riscv-tests/isa/rv64si			  p			
-ma_fetch      directed/riscv-tests/isa/rv64si			  p			
+#dirty         directed/riscv-tests/isa/rv64si			  p			# TODO: commented for compile issue	
+#ma_fetch      directed/riscv-tests/isa/rv64si			  p			# Commented for JIRA #17
 scall         directed/riscv-tests/isa/rv64si			  p			
 #wfi           directed/riscv-tests/isa/rv64si			  p			
 #sbreak        directed/riscv-tests/isa/rv64si			  p			
