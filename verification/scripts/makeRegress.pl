@@ -147,7 +147,7 @@ if ($generate) {
     }
   }
   $MaxCount = $MaxCount * $testCount;
-  if ($testSuite =~ /^all$/) {
+  if ($testSuite =~ /^all$/ || $testSuite=~ /^riscv-torture$/) {
     my $timeout = 0;
     while ($count != $MaxCount) {
       sleep(5);
@@ -183,6 +183,7 @@ if ($compile) {
     systemCmd("make restore");
     systemCmd("make compile_bluesim");
     systemCmd("make link_bluesim");
+    systemCmd("make generate_boot_files");
   }
   elsif ($simulator == 1) {
     chdir($shaktiHome);
@@ -191,6 +192,7 @@ if ($compile) {
     systemCmd("make generate_verilog ");
     systemCmd("make compile_ncverilog");
     systemCmd("make link_ncverilog");
+    systemCmd("make generate_boot_files");
   }
 }
 
@@ -214,9 +216,51 @@ foreach my $line (@listFile) { # remove unwanted white space
 }
 
 if ($testSuite !~ /^all$/) {
-  @testList = grep /$testSuite/, @testList;
+  if ($testSuite =~ /^riscv-torture$/) {
+    @testList = ();
+    my @genTests = `find  $shaktiHome/verification/tests/random/riscv-torture -name "*.S"`;
+    chomp(@genTests);
+    foreach my $test (@genTests) {
+      my $file = `basename $test .S`; chomp($file);
+      my $suite = `dirname $test`; chomp($suite);
+      $suite = substr($suite, index($suite, "random/"));
+      push @testList, "$file\t\t\t\t$suite\t\t\t\tp\n";
+    }
+  }
+  elsif ($testSuite =~ /^aapg$/) {
+    @testList = ();
+    my @genTests = `find  $shaktiHome/verification/tests/random/aapg -name "*.S"`;
+    chomp(@genTests);
+    foreach my $test (@genTests) {
+      my $file = `basename $test .S`; chomp($file);
+      my $suite = `dirname $test`; chomp($suite);
+      $suite = substr($suite, index($suite, "random/"));
+      push @testList, "$file\t\t\t\t$suite\t\t\t\tp\n";
+    }
+  }
+}
+else {
+    my @genTests = `find  $shaktiHome/verification/tests/random/riscv-torture -name "*.S"`;
+    chomp(@genTests);
+    foreach my $test (@genTests) {
+      my $file = `basename $test .S`; chomp($file);
+      my $suite = `dirname $test`; chomp($suite);
+      $suite = substr($suite, index($suite, "random/"));
+      push @testList, "$file\t\t\t\t$suite\t\t\t\tp\n";
+    }
+    @genTests = `find  $shaktiHome/verification/tests/random/aapg -name "*.S"`;
+    chomp(@genTests);
+    foreach my $test (@genTests) {
+      my $file = `basename $test .S`; chomp($file);
+      my $suite = `dirname $test`; chomp($suite);
+      $suite = substr($suite, index($suite, "random/"));
+      push @testList, "$file\t\t\t\t$suite\t\t\t\tp\n";
+    }
 }
 
+if ($filter) {
+  @testList = grep /$filter/, @testList;
+}
 # run the tests 
 if ($submit) {
   foreach my $line (@testList) {

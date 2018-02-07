@@ -11,7 +11,9 @@ use testRunConfig;
 use scriptUtils;
 
 checkSetup();
+setEnvConfig();
 
+my $simulator = getConfig("CONFIG_SIM");
 my $configPath = "$shaktiHome/verification/tests/random/riscv-torture/configs";
 my $testPath =  "$shaktiHome/verification/tests/random/riscv-torture/generated_tests";
 
@@ -21,6 +23,7 @@ doPrint("Test generation: riscv-torture\n");
 GetOptions(
           qw(test_config=s)   => \my $test_config,
           qw(test_count=s)    => \my $test_count,
+          qw(submit)          => \my $submit,
           qw(nodebug) => \my $no_debug,
           qw(help)     => \my $help,
           qw(clean)    => \my $clean
@@ -60,6 +63,9 @@ else {
 
 }
 
+if ($submit) {
+  $testCount = 1;
+}
 # Prints command line usage of script
 if ($help) {
   printHelp();
@@ -94,94 +100,13 @@ else {
   for (my $i=0; $i < $testCount; $i++) {
     my @date = `date +%d%m%Y%s`; chomp(@date);
     my $testName = join("", "generated_tests/$testConfig/",$testConfig,"_", $date[0], "_test$i");
-    systemCmd("setsid java -Xmx1G -Xss8M -XX:MaxPermSize=128M -jar sbt-launch.jar \'generator/run --config $configFile --output $testName\' &");
+    if ($submit) {
+      my $name = join("", $testConfig, "_", $date[0], "_test$i");
+      systemCmd("java -Xmx1G -Xss8M -XX:MaxPermSize=128M -jar sbt-launch.jar \'generator/run --config $configFile --output $testName\'");
+      system("CONFIG_LOG=1 perl -I $shaktiHome/verification/scripts $shaktiHome/verification/scripts/makeTest.pl --test=$name --suite=random/riscv-torture/generated_tests/$testConfig --type=p --sim=$simulator");
+    }
+    else {
+      systemCmd("java -Xmx1G -Xss8M -XX:MaxPermSize=128M -jar sbt-launch.jar \'generator/run --config $configFile --output $testName\'");
+    }
   }
 }
-
-##-----------------------------------------------------------
-## systemCmd
-## Runs and displays the command line, exits on error
-##-----------------------------------------------------------
-#sub systemCmd {
-#  my (@cmd) = @_;
-#  chomp(@cmd);
-#  doPrint("'$cmd[0]'\n");
-#  my $ret = system("@cmd 2>> $workdir/$scriptLog.log >> $workdir/$scriptLog.log");
-#  #my $ret = system("@cmd |& tee -a $pwd/$script.log");
-#  if ($ret) {
-#    die("[$scriptLog.pl] ERROR: While running '@cmd'\n\n");  
-#  }
-#}
-#
-##-----------------------------------------------------------
-## systemCmd
-## Runs and displays the command line, exits on error
-##-----------------------------------------------------------
-#sub systemFileCmd {
-#  my (@cmd) = @_;
-#  chomp(@cmd);
-#  doPrint("'$cmd[0] > $cmd[1]'\n");
-#  my @sysOut = `$cmd[0]`;
-#  my $ret = $?;
-#  if ($ret) {
-#    die("[$scriptLog.pl] ERROR: Running '@cmd'\n\n");  
-#  }
-#  else {
-#    open FILE, ">$cmd[1]";
-#    print FILE @sysOut;
-#    close FILE;
-#  }
-#  #my $ret = system("@cmd 2>> $workdir/$scriptLog.log >> $workdir/$scriptLog.log");
-#  #my $ret = system("@cmd |& tee -a $pwd/$script.log");
-#  #if ($ret) {
-#  #  die("[$scriptLog.pl] ERROR Running: '@cmd'\n\n");  
-#  #}
-#}
-#
-##-----------------------------------------------------------
-## doClean
-## Deletes generated output
-##------------------------------------------------------------
-#sub doClean {
-#  doPrint("Cleaning...\n");
-#}
-#
-##-----------------------------------------------------------
-## doPrint
-## Prints message
-##------------------------------------------------------------
-#sub doPrint {
-#  my @msg = @_;
-#  print "[$scriptLog.pl] @msg";
-#  print LOG "[$scriptLog.pl] @msg";
-#}
-#
-##-----------------------------------------------------------
-## doDebugPrint
-## Prints message to help debug
-##------------------------------------------------------------
-#sub doDebugPrint {
-#  my @msg = @_;
-#  if (testRunConfig::getConfig("CONFIG_LOG")) {
-#    print "[$scriptLog.pl] @msg";
-#    print LOG "[$scriptLog.pl] @msg";
-#  }
-#}
-#
-#
-##-----------------------------------------------------------
-## printHelp
-## Displays script usage
-##------------------------------------------------------------
-#sub printHelp {
-#  my $usage =<<USAGE;
-#
-#Description: Generates test dump directory
-#Options:
-#  --test=TEST_NAME
-#
-#USAGE
-#
-#  print $usage;
-#}
-#
