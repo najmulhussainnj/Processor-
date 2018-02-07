@@ -17,7 +17,15 @@ If you wish to contribute or help fix issues, please make a pull-request. You ca
 * Boots riscv-linux kernel.
 * Performance = 1.67DMIPS/MHz and 2.2 Coremarks/MHz
 
+### Setting up environment variables ###
 
+Follow the below steps before using the code-line:
+    
+              $ git clone https://bitbucket.org/casl/c-class.git
+              $ cd c-class
+              $ export SHAKTI_HOME=$(pwd)
+              
+It is important to set the SHAKTI_HOME variable for regression tests to work.
 
 ### Directory Structure ###
 
@@ -27,7 +35,7 @@ If you wish to contribute or help fix issues, please make a pull-request. You ca
 
 ### Pre-requisites ###
 
-A BSV compiler (version 2017 or above) is necessary to compile the core. More information
+A BSV compiler (version 2017 or above) is necessary to compile the code. More information
 on Bluespec can be found [here](www.bluespec.com). 
 
 ### Configuring the Soc ###

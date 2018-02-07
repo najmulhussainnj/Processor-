@@ -97,9 +97,9 @@ spike: copy_spike riscv install
 regress: shakti
 	@echo "Starting regression"
 	@mkdir -p $(simdir);
-	@cut -c1-8 ../../dts/boot.hex > $(simdir)/boot.MSB;
-	@cut -c9-16 ../../dts/boot.hex > $(simdir)/boot.LSB;
-	@cd $(simdir); ln -f -s ../../../../bin/out* .;
+	@cut -c1-8 ${SHAKTI_HOME}/verification/dts/boot.hex > $(simdir)/boot.MSB;
+	@cut -c9-16 ${SHAKTI_HOME}/verification/dts/boot.hex > $(simdir)/boot.LSB;
+	@cd $(simdir); ln -f -s ${SHAKTI_HOME}/bin/out* .;
 	@touch $(simdir)/regression.log
 	@$(foreach bench, $(bmarks),\
 		echo '===================== Running BENCHMARK: $(bench) ==================='>> $(simdir)/regression.log;	\
