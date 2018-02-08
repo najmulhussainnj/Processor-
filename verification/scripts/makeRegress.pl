@@ -124,7 +124,8 @@ my $count = 0;
 if ($generate) {
   systemCmd("rm -rf $shaktiHome/verification/tests/random/riscv-torture/generated_tests/*");
   systemCmd("rm -rf $shaktiHome/verification/tests/random/aapg/generated_tests/*");
-  if ($testSuite =~ /^all$/ || $testSuite=~ /^aapg$/) {
+  #if ($testSuite =~ /^all$/ || $testSuite=~ /^aapg$/) {
+  if ($testSuite=~ /^aapg$/) {
     systemCmd("perl -pi -e 's/numberOfTests=.*/numberOfTests=$testCount/' $shaktiHome/verification/tests/random/aapg/configs/*.py");
     my @configs = `ls $shaktiHome/verification/tests/random/aapg/configs/*.py`;
     $MaxCount = $MaxCount + scalar(@configs);
