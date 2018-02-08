@@ -4,9 +4,9 @@
 include ./old_vars
 include soc_config.inc
 
-TOP_MODULE:=mkTbSoc
-TOP_FILE:=TbSoc.bsv
-TOP_DIR:=./src/testbench/
+TOP_MODULE:=mkAXI4Lite_AXI4_Bridge
+TOP_FILE:=AXI4Lite_AXI4_Bridge.bsv
+TOP_DIR:=./src/uncore/axi4lite
 WORKING_DIR := $(shell pwd)
 
 ifneq (,$(findstring RV64,$(ISA)))
@@ -113,7 +113,7 @@ ifeq ($(FLASHMODEL),micron)
 endif
 
 PERIPHERALS:=src/peripherals/bootrom:src/peripherals/clint:src/peripherals/plic:./src/peripherals/uart/:./src/peripherals/tcm/:./src/peripherals/jtagdtm:./src/peripherals/gpio:./src/peripherals/qspi:./src/peripherals/i2c/:./src/peripherals/sdram:./src/peripherals/axiexp:./src/peripherals/dma
-UNCORE:=./src/uncore:./src/uncore/axi4:./src/uncore/debug
+UNCORE:=./src/uncore:./src/uncore/axi4:./src/uncore/debug:./src/uncore/axi4lite
 CORE:=./src/core/fpu:./src/core/
 TESTBENCH:=./src/testbench/
 LIB:=./src/lib/
@@ -175,10 +175,9 @@ generate_verilog: check-restore check-blue
 
 .PHONY: link_vcs
 link_vcs: 
-	@rm -rf bin
-	@mkdir bin
-	@vcs -full64 -l vcs_compile.log -sverilog +vpi +nbaopt +delay_mode_zero +v2k -assert svaext +define+VCS_+TOP=$(TOP_MODULE) +error+20 +udpsched +cli+4 +libext+.v +notimingcheck -y ./$(VERILOGDIR)/ -y ${BLUESPECDIR}/Verilog/ -y ./src/bfm -timescale=1ns/1ps ${BLUESPECDIR}/Verilog/main.v -o out
-	@mv csrc out* vc_hdrs.h bin
+	@mkdir -p bin
+	@vcs -full64 -l vcs_compile.log -sverilog +vpi +nbaopt +delay_mode_zero +v2k +define+TOP=$(TOP_MODULE) +cli+4 +libext+.v +notimingcheck -y ./$(VERILOGDIR)/ -y ${BLUESPECDIR}/Verilog/ -y ./src/bfm -timescale=1ns/1ps ${BLUESPECDIR}/Verilog/main.v -o out
+	@mv csrc out* bin
 
 .PHONY: link_ncverilog
 link_ncverilog: 
@@ -189,7 +188,7 @@ link_ncverilog:
 	@echo "define work ./work" > cds.lib
 	@echo "define WORK work" > hdl.var
 	@ncvlog -sv -cdslib ./cds.lib -hdlvar ./hdl.var +define+TOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v -y ./$(VERILOGDIR)/ -y ${BLUESPECDIR}/Verilog/ -y ./src/bfm
-	@ncelab  -cdslib ./cds.lib -hdlvar ./hdl.var work.main -access +r -timescale 1ns/1ps
+	@ncelab  -cdslib ./cds.lib -hdlvar ./hdl.var work.main -timescale 1ns/1ps
 	@echo 'ncsim -cdslib ./cds.lib -hdlvar ./hdl.var work.main #> /dev/null' > $(BSVOUTDIR)/out
 	@mv work cds.lib hdl.var $(BSVOUTDIR)/
 	@chmod +x $(BSVOUTDIR)/out
@@ -207,6 +206,13 @@ link_msim:
 	echo 'vsim -quiet -novopt -lib work -do "run -all; quit" -c main' > $(BSVOUTDIR)/out
 	@chmod +x $(BSVOUTDIR)/out
 	@echo Linking finished
+
+.PHONY: link_verilator
+link_verilator: 
+	@echo "Linking $(TOP_MODULE) using verilator"
+	@mkdir -p bin
+	@verilator --bbox-sys -sv -cc -O2 -y ./src/bfm -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog/ -DTOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v -o out
+	@mv out bin/
 
 .PHONY: link_iverilog
 link_iverilog: 
