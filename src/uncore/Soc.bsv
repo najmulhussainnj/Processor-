@@ -170,7 +170,6 @@ package Soc;
 			Reset uart_reset <-mkSyncResetFromCR(1,uart_clock);
          `ifdef Debug 
 				Ifc_jtagdtm tap <-mkjtagdtm(clocked_by tck, reset_by trst);
-            Wire#(Bit#(TLog#(`INTERRUPT_PINS))) interrupt_id <- mkWire();
             rule drive_tmp_scan_outs;
                 tap.scan_out_1_i(1'b0);
                 tap.scan_out_2_i(1'b0);
@@ -198,6 +197,7 @@ package Soc;
 			`endif
 			`ifdef PLIC
 				Ifc_PLIC_AXI	plic <- mkplicperipheral();
+                Wire#(Bit#(TLog#(`INTERRUPT_PINS))) interrupt_id <- mkWire();
 				Vector#(`INTERRUPT_PINS, FIFO#(bit)) ff_gateway_queue <- replicateM(mkFIFO);
 				GPIO						gpio				<- mkgpio;
 			`endif
