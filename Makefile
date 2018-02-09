@@ -117,7 +117,7 @@ UNCORE:=./src/uncore:./src/uncore/axi4:./src/uncore/debug:./src/uncore/axi4lite
 CORE:=./src/core/fpu:./src/core/
 TESTBENCH:=./src/testbench/
 LIB:=./src/lib/
-
+VERILATOR_FLAGS = --stats -O3 -CFLAGS -O3 -LDFLAGS -static --x-assign fast --x-initial fast --noassert --cc --exe --bbox-sys
 BSVINCDIR:= .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:$(CORE):$(UNCORE):$(PERIPHERALS):$(TESTBENCH):$(LIB)
 default: compile_bluesim link_bluesim 
 
@@ -211,7 +211,7 @@ link_msim:
 link_verilator: 
 	@echo "Linking $(TOP_MODULE) using verilator"
 	@mkdir -p bin
-	@verilator --bbox-sys -sv -cc -O2 -y ./src/bfm -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog/ -DTOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v -o out
+	@verilator $(VERILATOR_FLAGS)  -I./src/bfm -I$(VERILOGDIR) -I${BLUESPECDIR}/Verilog -y ./src/bfm -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog/ -DTOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v -o out
 	@mv out bin/
 
 .PHONY: link_iverilog
