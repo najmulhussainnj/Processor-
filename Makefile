@@ -4,9 +4,9 @@
 include ./old_vars
 include soc_config.inc
 
-TOP_MODULE:=mkAXI4Lite_AXI4_Bridge
-TOP_FILE:=AXI4Lite_AXI4_Bridge.bsv
-TOP_DIR:=./src/uncore/axi4lite
+TOP_MODULE:=mkTbSoc
+TOP_FILE:=TbSoc.bsv
+TOP_DIR:=./src/testbench/
 WORKING_DIR := $(shell pwd)
 
 ifneq (,$(findstring RV64,$(ISA)))
