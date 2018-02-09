@@ -58,7 +58,7 @@ else {
     $testCount = $count;
   }
   else {
-    $testCount = 3;
+    $testCount = 1;
   }
 
 }
@@ -106,7 +106,7 @@ else {
       system("CONFIG_LOG=1 perl -I $shaktiHome/verification/scripts $shaktiHome/verification/scripts/makeTest.pl --test=$name --suite=random/riscv-torture/generated_tests/$testConfig --type=p --sim=$simulator");
     }
     else {
-      systemCmd("java -Xmx1G -Xss8M -XX:MaxPermSize=128M -jar sbt-launch.jar \'generator/run --config $configFile --output $testName\'");
+      systemCmd("setsid java -Xmx1G -Xss8M -XX:MaxPermSize=128M -jar sbt-launch.jar \'generator/run --config $configFile --output $testName\' &");
     }
   }
 }
