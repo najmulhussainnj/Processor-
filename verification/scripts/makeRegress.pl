@@ -103,7 +103,7 @@ else {
     $testCount = $count;
   }
   else {
-    $testCount = 3;
+    $testCount = 1;
   }
 }
 
