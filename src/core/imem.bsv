@@ -44,11 +44,11 @@ interface Ifc_imem;
 	method Action response_from_memory(From_Memory#(`DCACHE_WORD_SIZE) mem_data);
 	method ActionValue#(To_Memory#(`PADDR)) request_to_memory;
 	/*============================================ */
-	`ifdef bpu
-		interface Get#(Tuple4#(Bit#(3),Bit#(`VADDR),Bit#(`VADDR),Bit#(2))) prediction_response;
-		method Action training (Maybe#(Training_data#(`VADDR)) training_data);
-		interface Put#(Tuple2#(Bit#(3),Bit#(`VADDR))) send_prediction_request;
-	`endif
+//	`ifdef bpu
+//		interface Get#(Tuple4#(Bit#(3),Bit#(`VADDR),Bit#(`VADDR),Bit#(2))) prediction_response;
+//		method Action training (Maybe#(Training_data#(`VADDR)) training_data);
+//		interface Put#(Tuple2#(Bit#(3),Bit#(`VADDR))) send_prediction_request;
+//	`endif
 	`ifdef MMU
 		method Action translation_protection_frm_csr(bit tlb_disable, Chmod per_bits, Bit#(TAdd#(4,`ASID)) asid);
 		interface Get#(Request_PPN_PTW#(`VADDR,`OFFSET)) to_PTW; 
@@ -69,9 +69,9 @@ module mkimem(Ifc_imem);
 	Wire#(Bit#(`VADDR)) wr_address_from_core <-mkWire();
 	Wire#(Bool) wr_flush <-mkDWire(False);
 
-	`ifdef bpu
-		Ifc_branchpredictor bpu<-mkbranchpredictor();
-	`endif
+//	`ifdef bpu
+//		Ifc_branchpredictor bpu<-mkbranchpredictor();
+//	`endif
 
    
 	Wire#(Maybe#(Tuple7#(Bit#(`VADDR),Bit#(2),Bit#(`VADDR), Bit#(32), Trap_type, Bit#(`PERFMONITORS),Bit#(3)))) wr_response_to_cpu<-mkDWire(tagged Invalid);
@@ -144,11 +144,11 @@ module mkimem(Ifc_imem);
 	method Maybe#(Tuple7#(Bit#(`VADDR), Bit#(2),Bit#(`VADDR),Bit#(32), Trap_type, Bit#(`PERFMONITORS),Bit#(3))) instruction_response_to_core=wr_response_to_cpu;
 	/*==================================================== */
 
-	`ifdef bpu
-		method Action training (Maybe#(Training_data#(`VADDR)) training_data)=bpu.training(training_data);
-		interface send_prediction_request=bpu.send_prediction_request;
-		interface prediction_response=bpu.prediction_response;
-	`endif
+//	`ifdef bpu
+//		method Action training (Maybe#(Training_data#(`VADDR)) training_data)=bpu.training(training_data);
+//		interface send_prediction_request=bpu.send_prediction_request;
+//		interface prediction_response=bpu.prediction_response;
+//	`endif
 
 	method Action flush(Flush_type _flush);
 		`ifdef MMU

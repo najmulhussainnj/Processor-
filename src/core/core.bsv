@@ -31,6 +31,10 @@ package core;
 	import dmem				::*;
 	import GetPut			::*;
 	import PTWalk			::*;
+
+	`ifdef bpu
+		import branchpredictor::*;
+	`endif
 	/*================================== */
 
 
@@ -74,6 +78,9 @@ package core;
 	(*synthesize*)
 	module mkcore_AXI4#(Bit#(`VADDR) reset_vector)(Ifc_core_AXI4);
 	  	Ifc_riscv riscv <-mkriscv(reset_vector);
+		`ifdef bpu
+			Ifc_branchpredictor bpu<-mkbranchpredictor();
+		`endif
 		AXI4_Master_Xactor_IFC #(`PADDR,`Reg_width,`USERSPACE) imem_xactor <- mkAXI4_Master_Xactor;
 		AXI4_Master_Xactor_IFC #(`PADDR,`Reg_width,`USERSPACE) dmem_xactor <- mkAXI4_Master_Xactor;
 		Ifc_imem imem <-mkimem();
@@ -110,10 +117,10 @@ package core;
 			//mkConnection(ptw.to_TLB, imem.refill_TLB);
 			//mkConnection(ptw.to_TLB, dmem.refill_TLB);
 		`endif
-		mkConnection(imem.prediction_response,riscv.prediction_response);
-		mkConnection(riscv.send_prediction_request,imem.send_prediction_request);
+		mkConnection(bpu.prediction_response,riscv.prediction_response);
+		mkConnection(riscv.send_prediction_request,bpu.send_prediction_request);
 		rule connect_training;
-			imem.training(riscv.training_data);
+			bpu.training(riscv.training_data);
 		endrule
 //		(*conflict_free="connect_flush_to_imem,connect_flush_to_dmem"*)
 //		rule connect_flush_to_imem;
@@ -194,7 +201,7 @@ package core;
 			let w  = AXI4_Wr_Data {wdata:  actual_data, wstrb: write_strobe, wlast:info.burst_length>1?False:True, wid:'d0};
 			dmem_xactor.i_wr_addr.enq(aw);
 			dmem_xactor.i_wr_data.enq(w);
-	 	  	`ifdef verbose $display($time,"\tCORE: Sending Write Request from DCACHE for  Address: %h BurstLength: %h Data: %h WriteStrobe: %b",info.address,info.burst_length,info.data_line, write_strobe); `endif
+	`ifdef verbose $display($time,"\tCORE: Sending Write Request from DCACHE for  Address: %h BurstLength: %h Data: %h WriteStrobe: %b",info.address,info.burst_length,info.data_line, write_strobe); `endif
 			if(info.burst_length>1)begin // only enable the next rule when doing a line write in burst mode.
 			rg_data_line<=tagged Valid (info.data_line>>`Reg_width);
 			rg_burst_count<=rg_burst_count+1;
