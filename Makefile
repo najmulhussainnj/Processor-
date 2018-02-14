@@ -117,7 +117,7 @@ UNCORE:=./src/uncore:./src/uncore/axi4:./src/uncore/debug:./src/uncore/axi4lite
 CORE:=./src/core/fpu:./src/core/
 TESTBENCH:=./src/testbench/
 LIB:=./src/lib/
-VERILATOR_FLAGS = --stats -O3 -CFLAGS -O3 -LDFLAGS -static --x-assign fast --x-initial fast --noassert --cc --exe --bbox-sys
+VERILATOR_FLAGS = --stats -O3 -CFLAGS -O3 -LDFLAGS -static --x-assign fast --x-initial fast --noassert --cc $(TOP_MODULE).v --exe sim_main.cpp -Wno-STMTDLY -Wno-UNOPTFLAT -Wno-WIDTH -Wno-lint -Wno-COMBDLY -Wno-INITIALDLY 
 BSVINCDIR:= .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:$(CORE):$(UNCORE):$(PERIPHERALS):$(TESTBENCH):$(LIB)
 default: compile_bluesim link_bluesim 
 
@@ -211,8 +211,9 @@ link_msim:
 link_verilator: 
 	@echo "Linking $(TOP_MODULE) using verilator"
 	@mkdir -p bin
-	@verilator $(VERILATOR_FLAGS)  -I./src/bfm -I$(VERILOGDIR) -I${BLUESPECDIR}/Verilog -y ./src/bfm -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog/ -DTOP=$(TOP_MODULE) ${BLUESPECDIR}/Verilog/main.v -o out
-	@mv out bin/
+	@verilator $(VERILATOR_FLAGS)  -y ./src/bfm -y $(VERILOGDIR) -y ${BLUESPECDIR}/Verilog/ 
+	@ln -f -s ../src/testbench/sim_main.cpp obj_dir/sim_main.cpp
+	@make -j4 -C obj_dir -f V$(TOP_MODULE).mk
 
 .PHONY: link_iverilog
 link_iverilog: 
@@ -233,7 +234,7 @@ clean:
 	rm -rf $(BSVBUILDDIR) *.log $(BSVOUTDIR)
 
 clean_verilog: clean 
-	rm -rf verilog/
+	rm -rf verilog/ obj_dir
 
 
 restore: clean_verilog
