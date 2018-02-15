@@ -28,6 +28,7 @@ package Soc;
 	import AXI4_Fabric::*;
 	import defined_types::*;
 	import MemoryMap		 :: *;
+	import slow_peripherals::*;
 	`include "defines.bsv"
 	`include "defined_parameters.bsv"
 
@@ -43,13 +44,6 @@ package Soc;
 		`ifdef PLIC
 			import gpio				::*;
 			import plic				::*;
-		`endif
-		`ifdef UART0
-			import Uart16550		 :: *;
-		`endif
-		`ifdef UART1
-			import Uart_bs::*;
-			import RS232_modified::*;
 		`endif
 		`ifdef BOOTROM
 			import BootRom			::*;
@@ -76,14 +70,9 @@ package Soc;
 		`endif
 	/*========================= */
 	interface Ifc_Soc;
+		interface SP_ios slow_ios;
 		(*always_ready,always_enabled*)
 		method Action boot_sequence(Bit#(1) bootseq);
-		`ifdef UART0
-			interface RS232_PHY_Ifc uart0_coe;
-		`endif
-		`ifdef UART1
-			interface RS232 uart1_coe;
-		`endif
 		
 		`ifdef SDRAM 
 			(*always_ready*) interface Ifc_sdram_out sdram_out; 
@@ -164,10 +153,10 @@ package Soc;
 	/*=============================================== */
 	endinterface
 	(*synthesize*)
-	module mkSoc #(Bit#(`VADDR) reset_vector, Clock uart_clock,  Clock clk0, Clock clk90, Clock clk180, Clock clk270, Clock tck, Reset trst)(Ifc_Soc);
-			Clock core_clock <-exposeCurrentClock;
-			Reset core_reset <-exposeCurrentReset;
-			Reset uart_reset <-mkSyncResetFromCR(1,uart_clock);
+	module mkSoc #(Bit#(`VADDR) reset_vector, Clock slow_clock, Clock uart_clock,  Clock clk0, Clock tck, Reset trst)(Ifc_Soc);
+			Clock core_clock <-exposeCurrentClock; // slow peripheral clock
+			Reset core_reset <-exposeCurrentReset; // slow peripheral reset
+			Reset slow_reset <-mkAsyncResetFromCR(1,slow_clock);
          `ifdef Debug 
 				Ifc_jtagdtm tap <-mkjtagdtm(clocked_by tck, reset_by trst);
             rule drive_tmp_scan_outs;
@@ -188,12 +177,6 @@ package Soc;
 				Ifc_sdr_slave			sdram				<- mksdr_axi4_slave(clk0);
 			`else
 				Memory_IFC#(`SDRAMMemBase,`Addr_space) main_memory <- mkMemory("code.mem.MSB","code.mem.LSB","MainMEM");
-			`endif
-			`ifdef UART0
-				Uart16550_AXI4_Ifc uart0 <- mkUart16550(clocked_by uart_clock, reset_by uart_reset, core_clock, core_reset);
-			`endif
-			`ifdef UART1
-				Ifc_Uart_bs uart1 <- mkUart_bs(clocked_by uart_clock, reset_by uart_reset,core_clock, core_reset);
 			`endif
 			`ifdef PLIC
 				Ifc_PLIC_AXI	plic <- mkplicperipheral();
@@ -225,7 +208,7 @@ package Soc;
 			`ifdef CLINT
 				Ifc_clint				clint				<- mkclint();
 			`endif
-				
+		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, uart_clock, clocked_by slow_clock , reset_by slow_reset);	
 
    	// Fabric
    	AXI4_Fabric_IFC #(Num_Masters, Num_Slaves, `PADDR, `Reg_width,`USERSPACE)
@@ -251,12 +234,6 @@ package Soc;
 	   		mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Sdram_cfg_slave_num))],	sdram.axi4_slave_cntrl_reg); // 
 			`else
 				mkConnection(fabric.v_to_slaves[fromInteger(valueOf(Sdram_slave_num))],main_memory.axi_slave);
-			`endif
-			`ifdef UART0
-				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Uart0_slave_num))],	uart0.slave_axi_uart);  
-			`endif
-			`ifdef UART1
-	   		mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Uart1_slave_num))],	uart1.slave_axi_uart); 
 			`endif
   			`ifdef QSPI0 
 				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Qspi0_slave_num))],	qspi0.slave); 
@@ -289,6 +266,7 @@ package Soc;
 			`ifdef CLINT
 				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(CLINT_slave_num))],clint.axi4_slave);
 			`endif
+			mkConnection(fabric.v_to_slaves [fromInteger(valueOf(SlowPeripheral_slave_num))],slow_peripherals.axi_slave);
 
 			`ifdef DMA
 			//rule to connect all interrupt lines to the DMA
@@ -302,7 +280,7 @@ package Soc;
 															1'b1, 
 															`ifdef QSPI0 qspi0.interrupts[5] `else 1'b1 `endif , 
 															1'b1,1'b0, 
-															`ifdef UART0 uart0.irq `else 1'b1 `endif };
+															1'b1 /*TODO: Bring UART0 interrupt here */ };
 					dma.interrupt_from_peripherals(lv_interrupt_to_DMA);
 				endrule
 			`endif
@@ -418,10 +396,11 @@ package Soc;
                 
                     rule rl_connect_uart_to_plic;
                     `ifdef UART0
-                        if(uart0.irq==1'b1) begin
-                            ff_gateway_queue[27].enq(1);
-						    plic.ifc_external_irq[27].irq_frm_gateway(True);
+		                  /*if(uart0.irq==1'b1) begin
+									ff_gateway_queue[27].enq(1);
+									plic.ifc_external_irq[27].irq_frm_gateway(True);
                         end
+								*/
                     `else
                         ff_gateway_queue[27].enq(0);
                     `endif
@@ -503,12 +482,6 @@ package Soc;
 		`endif
 
       method Action boot_sequence(Bit#(1) bootseq) = core.boot_sequence(bootseq);
-		`ifdef UART0
-			interface uart0_coe=uart0.coe_rs232;
-		`endif
-		`ifdef UART1
-			interface uart1_coe=uart1.coe_rs232;
-		`endif
 		`ifdef QSPI0 interface qspi0_out = qspi0.out; `endif
       `ifdef QSPI1 interface qspi1_out = qspi1.out; `endif
 
@@ -564,6 +537,7 @@ package Soc;
 			interface axiexp1_out=axiexp1.slave_out;
 			interface axiexp1_in=axiexp1.slave_in;
 		`endif
+		interface slow_ios=slow_peripherals.slow_ios;
 
 	endmodule
 endpackage

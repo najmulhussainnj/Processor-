@@ -32,14 +32,8 @@ function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Bit#(`PA
 			else if(addr>=`BootRomBase && addr<=`BootRomEnd)
 				return tuple2(True,fromInteger(valueOf(BootRom_slave_num)));
 		`endif
-		`ifdef UART0
-			else if(addr>=`UART0Base && addr<=`UART0End)
-				return tuple2(True,fromInteger(valueOf(Uart0_slave_num)));
-		`endif
-		`ifdef UART1
-			else if(addr>=`UART1Base && addr<=`UART1End)
-				return tuple2(True,fromInteger(valueOf(Uart1_slave_num)));
-		`endif
+			else if( (addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) )
+				return tuple2(True,fromInteger(valueOf(SlowPeripheral_slave_num)));
 		`ifdef PLIC
 			else if(addr>=`PLICBase && addr<=`PLICEnd)
 				return tuple2(True,fromInteger(valueOf(Plic_slave_num)));

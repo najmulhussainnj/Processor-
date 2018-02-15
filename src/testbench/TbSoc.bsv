@@ -29,6 +29,7 @@ package TbSoc;
 	import Clocks::*;
 	import Connectable::*;
 	import TriState::*;
+	import slow_peripherals::*;
     `ifdef SDRAM	
 			import bsvmksdram_model_wrapper::*;
 			import sdr_top::*;
@@ -80,23 +81,13 @@ package TbSoc;
 		ClockDividerIfc clk166 <-mkClockDivider(2,clocked_by clk333,reset_by rst1);
 		Clock clk0=clk166.slowClock;
 		Reset rst0 <- mkAsyncResetFromCR (0, clk0);
-
-		ClockDividerIfc clk0_invert <-mkClockInverter(clocked_by clk0, reset_by rst0);
-		Clock clk180=clk0_invert.slowClock;
 		
-		ClockDividerIfc clk166_invert <-mkClockDivider(2,clocked_by clk333_neg,reset_by rst2);
-		Clock clk90=clk166_invert.slowClock;
-		Reset rst3 <- mkAsyncResetFromCR (0, clk90);
-
-		ClockDividerIfc clk90_invert <-mkClockInverter(clocked_by clk90, reset_by rst3);
-		Clock clk270=clk90_invert.slowClock;
-      Reg#(Bit#(32)) rg_gpio_counter <- mkReg(0); 
-
 		Clock uart_clock <-mkAbsoluteClock(0,20);
 		Reset uart_reset <-mkSyncResetFromCR(1,uart_clock);
-		
+	
+		ClockDividerIfc slow_clock <- mkClockDivider(2);
 
-		Ifc_Soc soc <-mkSoc(reset_vector, uart_clock,clk0,clk90,clk180,clk270,tck_clk.new_clk,trst.new_rst);
+		Ifc_Soc soc <-mkSoc(reset_vector,slow_clock.slowClock, uart_clock,clk0,tck_clk.new_clk,trst.new_rst);
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmlsb <-mksdram_model_wrapper("code.mem.LSB",clocked_by clk0, reset_by rst0); `endif
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmmsb <-mksdram_model_wrapper("code.mem.MSB",clocked_by clk0, reset_by rst0); `endif
 		`ifdef AXIEXP Ifc_sample_axiexpslave axiexpslave <-mksample_axiexpslave; `endif
@@ -413,16 +404,16 @@ package TbSoc;
 		`ifdef UART1
 			//Use UART1 (Bluespec UART) to generate app_log
 			rule connect_sin;
-				soc.uart1_coe.sin(uart.rs232.sout);
+				soc.slow_ios.uart1_coe.sin(uart.rs232.sout);
 	   	endrule
 			rule connect_sout;
-				uart.rs232.sin(soc.uart1_coe.sout);
+				uart.rs232.sin(soc.slow_ios.uart1_coe.sout);
 	   	endrule
 		`endif
 		
 		`ifdef UART0
 			rule connect_uart0_sin;	//dummy rule to connect uart0 sin since its always_enabled
-				soc.uart0_coe.modem_input(uart.rs232.sout,0,0,0,0);
+				soc.slow_ios.uart0_coe.modem_input(uart.rs232.sout,0,0,0,0);
 			endrule
 //	//		rule connect_uart0_sout;
 ////				uart.rs232.sin(soc.uart0_coe.modem_output_stx);
