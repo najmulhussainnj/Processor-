@@ -70,8 +70,8 @@ import FIFOLevel::*;
 import Clocks::*;
 import ClientServer::*;
 import defined_types::*;
-import AXI4_Types::*;
-import AXI4_Fabric::*;
+import AXI4_Lite_Types::*;
+import AXI4_Lite_Fabric::*;
 import Semi_FIFOF::*;
 `include "defined_parameters.bsv" 
 
@@ -182,9 +182,9 @@ interface RS232_PHY_Ifc;
 endinterface
 
 
-interface Uart16550_AXI4_Ifc;
+interface Uart16550_AXI4_Lite_Ifc;
   interface RS232_PHY_Ifc coe_rs232;
-  interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) slave_axi_uart;
+  interface AXI4_Lite_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) slave_axi_uart;
   (* always_ready, always_enabled *) method bit irq;
 endinterface
 
@@ -192,8 +192,8 @@ endinterface
 (* synthesize,
    reset_prefix = "csi_clockreset_reset_n",
    clock_prefix = "csi_clockreset_clk" *)
-module mkUart16550#(Clock core_clock, Reset core_reset)(Uart16550_AXI4_Ifc);
-  AXI4_Slave_Xactor_IFC #(`PADDR,`Reg_width,`USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor(clocked_by core_clock, reset_by core_reset);
+module mkUart16550#(Clock core_clock, Reset core_reset)(Uart16550_AXI4_Lite_Ifc);
+  AXI4_Lite_Slave_Xactor_IFC #(`PADDR,`Reg_width,`USERSPACE)  s_xactor <- mkAXI4_Lite_Slave_Xactor(clocked_by core_clock, reset_by core_reset);
   UART_transmitter_ifc uart_tx <- mkUART_transmitter;
   UART_receiver_ifc    uart_rx <- mkUART_receiver;
   
@@ -276,12 +276,12 @@ module mkUart16550#(Clock core_clock, Reset core_reset)(Uart16550_AXI4_Ifc);
   Reg#(bit)           pin_rts <- mkReg(0);
   Reg#(bit)           pin_dtr <- mkReg(0);
 		
-	SyncFIFOIfc#(AXI4_Rd_Addr	#(`PADDR,`USERSPACE))		ff_rd_addr <-	mkSyncFIFOToCC(1,core_clock,core_reset);
-	SyncFIFOIfc#(AXI4_Wr_Addr	#(`PADDR, `USERSPACE))		ff_wr_addr <-	mkSyncFIFOToCC(1,core_clock,core_reset);
-	SyncFIFOIfc#(AXI4_Wr_Data	#(`Reg_width))					ff_wr_data <-	mkSyncFIFOToCC(1,core_clock,core_reset);
+	SyncFIFOIfc#(AXI4_Lite_Rd_Addr	#(`PADDR,`USERSPACE))		ff_rd_addr <-	mkSyncFIFOToCC(1,core_clock,core_reset);
+	SyncFIFOIfc#(AXI4_Lite_Wr_Addr	#(`PADDR, `USERSPACE))		ff_wr_addr <-	mkSyncFIFOToCC(1,core_clock,core_reset);
+	SyncFIFOIfc#(AXI4_Lite_Wr_Data	#(`Reg_width))					ff_wr_data <-	mkSyncFIFOToCC(1,core_clock,core_reset);
 
-	SyncFIFOIfc#(AXI4_Rd_Data	#(`Reg_width,`USERSPACE))	ff_rd_resp <-	mkSyncFIFOFromCC(1,core_clock);
-	SyncFIFOIfc#(AXI4_Wr_Resp	#(`USERSPACE))					ff_wr_resp <-	mkSyncFIFOFromCC(1,core_clock);
+	SyncFIFOIfc#(AXI4_Lite_Rd_Data	#(`Reg_width,`USERSPACE))	ff_rd_resp <-	mkSyncFIFOFromCC(1,core_clock);
+	SyncFIFOIfc#(AXI4_Lite_Wr_Resp	#(`USERSPACE))					ff_wr_resp <-	mkSyncFIFOFromCC(1,core_clock);
 
 
   (* no_implicit_conditions *)
@@ -565,7 +565,7 @@ module mkUart16550#(Clock core_clock, Reset core_reset)(Uart16550_AXI4_Ifc);
         UART_ADDR_SCRATCH           :  rtn = scratch;
 
     endcase
-        let resp  =  AXI4_Rd_Data {rresp : AXI4_OKAY, rdata : rtn_valid? zeroExtend(rtn) : '1, rlast: True ,ruser: 0, rid: req.arid};
+        let resp  =  AXI4_Lite_Rd_Data {rresp : AXI4_LITE_OKAY, rdata : rtn_valid? zeroExtend(rtn) : '1, ruser: 0};
         ff_rd_resp.enq(resp);
        // $display ("DATA----------- %b", rtn);
        `ifdef verbose $display("%05t: --------------------------READ--------------------------------------------",$time); `endif
@@ -641,7 +641,7 @@ module mkUart16550#(Clock core_clock, Reset core_reset)(Uart16550_AXI4_Ifc);
             UART_ADDR_MODEM_STATUS  : begin /* no write */ end
             UART_ADDR_SCRATCH       :  begin scratch <= d; `ifdef verbose $display("scratch : %h",d); `endif end 
     endcase
-        let resp = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: 0, bid: wr_addr.awid};
+        let resp = AXI4_Lite_Wr_Resp {bresp: AXI4_LITE_OKAY, buser: 0};
         ff_wr_resp.enq(resp);
      //   $display ("DATA WRITE----------- %b", wr_data.wdata);
      //   $display ("DATA Adress----------- %d", addr);
