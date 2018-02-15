@@ -9,7 +9,7 @@
 
 //`define MMU
 `define PRFDEPTH 6
-`define USERSPACE 10
+`define USERSPACE 0
 `ifdef RV64
 	`define Burst_length_bits 8
 	`define byte_offset 2
