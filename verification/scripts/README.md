@@ -1,12 +1,40 @@
-# Verification Scripts #
+### 1. Verification test suites
 
-The scripts perform the following:
-* __makeTest.pl__: simulates a single test
-* __makeRegress.pl__: generates random tests and simulates both random and directed tests
-* __makeTorture.pl__: generates torture tests
+* riscv-tests
+* riscv-torture
+* csmith-run
+* benchmarks
+* peripherals
 
+### 2. Verification Scripts
 
+* **Initial Setup**
+```
+export SHAKTI_HOME=<repo-check-out-path>/c-class
+```
 
+* Compile and simulate a single test
 
+```
+perl makeTest.pl --test=<test_name> --suite=<test_directory>
 
+Eg. perl makeTest.pl --test=add --suite=riscv-tests/isa/rv64ui
+```
+* Run a smoke regression of riscv-tests before any checkin
+```
+perl makeRegress.pl --sub
+```
+* Run a regression with random and directed tests
+```
+perl makeRegress.pl --gen --sub
+```
+* Generate and compile a single riscv-torture tests
+```
+perl makeTorture.pl --sub
+```
+* Generate riscv-torture tests for a specific config file
+```
+perl makeTorture.pl --test_config=<test_config_name> --test_count=<count>
 
+Eg. perl makeTorture.pl --test_config=bringup --test_count=5
+```
