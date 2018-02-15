@@ -32,7 +32,7 @@ function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Bit#(`PA
 			else if(addr>=`BootRomBase && addr<=`BootRomEnd)
 				return tuple2(True,fromInteger(valueOf(BootRom_slave_num)));
 		`endif
-			else if( (addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) )
+			else if( (addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) || (addr>=`ClintBase && addr<=`ClintEnd) )
 				return tuple2(True,fromInteger(valueOf(SlowPeripheral_slave_num)));
 		`ifdef PLIC
 			else if(addr>=`PLICBase && addr<=`PLICEnd)
@@ -77,10 +77,6 @@ function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Bit#(`PA
 		`ifdef TCMemory
 			else if(addr>=`TCMBase && addr<=`TCMEnd)
 				return tuple2(True,fromInteger(valueOf(TCM_slave_num)));
-		`endif
-		`ifdef CLINT
-			else if(addr>=`ClintBase && addr<=`ClintEnd)
-				return tuple2(True,fromInteger(valueOf(CLINT_slave_num)));
 		`endif
 	else
 		return tuple2(False,?);

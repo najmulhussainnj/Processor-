@@ -23,6 +23,9 @@ package slow_peripherals;
 		import Uart_bs::*;
 		import RS232_modified::*;
 	`endif
+	`ifdef CLINT
+		import clint::*;
+	`endif
 	/*=====================================*/
 	
 	/*===== interface declaration =====*/
@@ -37,6 +40,11 @@ package slow_peripherals;
 	interface Ifc_slow_peripherals;
 		interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
 		interface SP_ios slow_ios;
+		`ifdef CLINT
+			method Bit#(1) msip_int;
+			method Bit#(1) mtip_int;
+			method Bit#(`Reg_width) mtime;
+		`endif
 	endinterface
 	/*================================*/
 
@@ -49,6 +57,11 @@ package slow_peripherals;
 		`ifdef UART1
 			if(addr>=`UART1Base && addr<=`UART1End)
 				return tuple2(True,fromInteger(valueOf(Uart1_slave_num)));
+			else
+		`endif
+		`ifdef CLINT
+			if(addr>=`ClintBase && addr<=`ClintEnd)
+				return tuple2(True,fromInteger(valueOf(CLINT_slave_num)));
 			else
 		`endif
 		return tuple2(False,?);
@@ -67,6 +80,9 @@ package slow_peripherals;
 		`ifdef UART1
 			Ifc_Uart_bs uart1 <- mkUart_bs(clocked_by uart_clock, reset_by uart_reset,sp_clock, sp_reset);
 		`endif
+		`ifdef CLINT
+			Ifc_clint				clint				<- mkclint();
+		`endif
 		/*=======================================================*/
 
    	AXI4_Lite_Fabric_IFC #(1, Num_Slow_Slaves, `PADDR, `Reg_width,`USERSPACE)	slow_fabric <- mkAXI4_Lite_Fabric(fn_address_mapping);
@@ -79,6 +95,9 @@ package slow_peripherals;
 		`endif
 		`ifdef UART1
 	   	mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Uart1_slave_num))],	uart1.slave_axi_uart); 
+		`endif
+		`ifdef CLINT
+			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(CLINT_slave_num))],clint.axi4_slave);
 		`endif
 		/*=======================================================*/
 

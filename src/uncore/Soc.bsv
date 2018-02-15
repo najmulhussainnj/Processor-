@@ -59,9 +59,6 @@ package Soc;
 		`ifdef TCMemory
 			import TCM::*;
 		`endif
-		`ifdef CLINT
-			import clint::*;
-		`endif
 		`ifdef Debug
 			import jtagdtm::*;
 			import DebugModule::*;
@@ -205,9 +202,6 @@ package Soc;
 			`ifdef AXIEXP
 				Ifc_AxiExpansion		axiexp1			<- mkAxiExpansion();	
 			`endif
-			`ifdef CLINT
-				Ifc_clint				clint				<- mkclint();
-			`endif
 		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, uart_clock, clocked_by slow_clock , reset_by slow_reset);	
 
    	// Fabric
@@ -262,9 +256,6 @@ package Soc;
 			`endif
 			`ifdef TCMemory
 				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(TCM_slave_num))],tcm.axi_slave);
-			`endif
-			`ifdef CLINT
-				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(CLINT_slave_num))],clint.axi4_slave);
 			`endif
 			mkConnection(fabric.v_to_slaves [fromInteger(valueOf(SlowPeripheral_slave_num))],slow_peripherals.axi_slave);
 
@@ -475,9 +466,9 @@ package Soc;
 	
 		`ifdef CLINT
 			rule connect_msip_mtip_from_clint;
-				core.clint_msip(clint.msip_int);
-				core.clint_mtip(clint.mtip_int);
-                 core.clint_mtime(clint.mtime);
+				core.clint_msip(slow_peripherals.msip_int);
+				core.clint_mtip(slow_peripherals.mtip_int);
+            core.clint_mtime(slow_peripherals.mtime);
 			endrule
 		`endif
 

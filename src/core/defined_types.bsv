@@ -539,8 +539,7 @@ typedef  TAdd#(I2c1_slave_num			,`ifdef PLIC 		1 `else 0 `endif )		GPIO_slave_nu
 typedef  TAdd#(GPIO_slave_num			,`ifdef AXIEXP	1 `else 0 `endif )		AxiExp1_slave_num;
 typedef  TAdd#(AxiExp1_slave_num		,`ifdef TCMemory	1 `else 0 `endif )		TCM_slave_num;
 typedef  TAdd#(TCM_slave_num			,`ifdef DMA			1 `else 0 `endif )		Dma_slave_num;
-typedef  TAdd#(Dma_slave_num			,`ifdef CLINT		1 `else 0 `endif )		CLINT_slave_num;
-typedef  TAdd#(CLINT_slave_num		,1 )		SlowPeripheral_slave_num;
+typedef  TAdd#(Dma_slave_num		,1 )		SlowPeripheral_slave_num;
 typedef	TAdd#(SlowPeripheral_slave_num,1)								Num_Slaves			;
 
 typedef 0 Dmem_master_num;
@@ -554,6 +553,7 @@ typedef TAdd#(DMA_master_num,1) Num_Masters;
 typedef  0	SlowMaster; 
 typedef	0	Uart0_slave_num	;
 typedef	TAdd#(Uart0_slave_num		,`ifdef UART1 		1 `else 0 `endif )		Uart1_slave_num	;
-typedef	TAdd#(Uart1_slave_num,1)									Num_Slow_Slaves			;
+typedef  TAdd#(Uart1_slave_num		,`ifdef CLINT		1 `else 0 `endif )		CLINT_slave_num;
+typedef	TAdd#(CLINT_slave_num,1)									Num_Slow_Slaves			;
 /*===========================================*/
 endpackage

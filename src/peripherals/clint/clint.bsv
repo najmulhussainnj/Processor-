@@ -16,7 +16,7 @@ package clint;
 	/*=== library imports === */ 
 	import ConfigReg::*;
 	import Semi_FIFOF::*;
-	import AXI4_Types::*;
+	import AXI4_Lite_Types::*;
 	import BUtils ::*;
 	/*======================== */
 	/*==== Project imports ====*/
@@ -28,8 +28,7 @@ package clint;
 		method Bit#(1) msip_int;
 		method Bit#(1) mtip_int;
 		method Bit#(`Reg_width) mtime;
-		method Bit#(`Reg_width) mtimecmp;
-		interface AXI4_Slave_IFC#(`PADDR, `Reg_width,`USERSPACE) axi4_slave;
+		interface AXI4_Lite_Slave_IFC#(`PADDR, `Reg_width,`USERSPACE) axi4_slave;
 	endinterface
 	
 	function Reg#(t) writeSideEffect(Reg#(t) r, Action a);
@@ -45,7 +44,7 @@ package clint;
 	(*synthesize*)
 	module mkclint(Ifc_clint);
 
-		AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor;
+		AXI4_Lite_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Lite_Slave_Xactor;
 		Wire#(Bool) wr_mtimecmp_written<-mkDWire(False);
 		Reg#(Bit#(1)) msip <-mkReg(0);
 		Reg#(Bit#(1)) mtip <-mkReg(0);
@@ -70,12 +69,12 @@ package clint;
 
 		rule axi_read_transaction;
 			let ar <- pop_o(s_xactor.o_rd_addr);
-			let r = AXI4_Rd_Data {rresp: AXI4_OKAY, rdata: ?, rlast: True, ruser: 0, rid:ar.arid};
+			let r = AXI4_Lite_Rd_Data {rresp: AXI4_LITE_OKAY, rdata: ?, ruser: 0};
 			case (ar.araddr[15:0]) matches
 				'h0000:		r.rdata=zeroExtend(msip); // MSIP interrupt bit
 				'h4000:		r.rdata=csr_mtimecmp;
 				'hbff8:		r.rdata=rgmtime;
-				default:	begin	r.rdata=0; r.rresp=AXI4_SLVERR; end
+				default:	begin	r.rdata=0; r.rresp=AXI4_LITE_SLVERR; end
 			endcase
 			s_xactor.i_rd_data.enq(r);
 		endrule
@@ -83,12 +82,12 @@ package clint;
 		rule axi_write_transaction;
 			let aw <- pop_o(s_xactor.o_wr_addr);
 			let w <- pop_o(s_xactor.o_wr_data);
-			let r = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: 0, bid:aw.awid};
+			let r = AXI4_Lite_Wr_Resp {bresp: AXI4_LITE_OKAY, buser: 0 };
 
 			case (aw.awaddr[15:0]) matches
 				'h0000:		msip<=w.wdata[0]; // MSIP interrupt bit
 				'h4000:		csr_mtimecmp<=w.wdata;
-				default:		r.bresp=AXI4_SLVERR;
+				default:		r.bresp=AXI4_LITE_SLVERR;
 			endcase
 			s_xactor.i_wr_resp.enq (r);
 		endrule
@@ -97,7 +96,6 @@ package clint;
 		method Bit#(1) msip_int=msip;
 		method Bit#(1) mtip_int=mtip;
 		method Bit#(`Reg_width) mtime = rgmtime;
-		method Bit#(`Reg_width) mtimecmp = csr_mtimecmp;
 
 	endmodule
 endpackage
