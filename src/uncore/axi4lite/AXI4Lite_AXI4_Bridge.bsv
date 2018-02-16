@@ -38,8 +38,7 @@ package AXI4Lite_AXI4_Bridge;
 	typedef enum {RegularReq,BurstReq} BridgeState deriving (Bits,Eq,FShow);
 
 	(*synthesize*)
-	module mkAXI4Lite_AXI4_Bridge#(Clock fast_clock)(Ifc_AXI4Lite_AXI4_Bridge);
-		Reset fast_reset <-mkAsyncResetFromCR(1,fast_clock);
+	module mkAXI4Lite_AXI4_Bridge#(Clock fast_clock, Reset fast_reset)(Ifc_AXI4Lite_AXI4_Bridge);
 		AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor(clocked_by fast_clock, reset_by fast_reset);
 		AXI4_Lite_Master_Xactor_IFC #(`PADDR,`Reg_width,`USERSPACE) m_xactor <- mkAXI4_Lite_Master_Xactor;
 		Reg#(BridgeState) rd_state <-mkReg(RegularReq);

@@ -23,8 +23,8 @@ import  TriState         ::*;
 import  Counter          ::*;
 // ================================================
 //  Project Imports and Includes
-import  AXI4_Types  ::*;
-import  AXI4_Fabric ::*;
+import  AXI4_Lite_Types  ::*;
+import  AXI4_Lite_Fabric ::*;
 import  ConcatReg        ::*;
 import  defined_types    ::*;
 import BUtils            ::*;
@@ -64,7 +64,7 @@ import  Semi_FIFOF       ::*;
 
         
     interface I2C_IFC;
-        interface AXI4_Slave_IFC#(`PADDR, `Reg_width, `USERSPACE) slave_i2c_axi;
+        interface AXI4_Lite_Slave_IFC#(`PADDR, `Reg_width, `USERSPACE) slave_i2c_axi;
         interface I2C_out out;
         (* always_enabled, always_ready *) 
         method Bit#(1) isint();
@@ -89,7 +89,7 @@ import  Semi_FIFOF       ::*;
  
     interface I2C_IFC_wrap;
         interface I2C_out_tri out_tri;
-        interface AXI4_Slave_IFC#(`PADDR, `Reg_width, `USERSPACE) slave_i2c_axi_wrap;
+        interface AXI4_Lite_Slave_IFC#(`PADDR, `Reg_width, `USERSPACE) slave_i2c_axi_wrap;
         (* always_enabled, always_ready *) 
         method Bit#(1) isint_wrap();
         method Action resetc_wrap (Bit#(1) rst);
@@ -254,7 +254,7 @@ import  Semi_FIFOF       ::*;
         Reg#(Bit#(6)) resetcount <- mkReg(0); // To count no. of cycles reset pin has been high
             
         //Module Instantiations
-        AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor;
+        AXI4_Lite_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Lite_Slave_Xactor;
 
 
 
@@ -836,7 +836,7 @@ Interrupt Generation And Documentation
 	        else
                 rdreg =  duplicate(get_i2c(unpack(truncate(req.araddr))));
             $display("Register Read  %h: Value: %d ",req.araddr,rdreg);
-            let resq  =  AXI4_Rd_Data {rresp : AXI4_OKAY, rdata : rdreg, rlast: True ,ruser: 0, rid: req.arid};
+            let resq  =  AXI4_Lite_Rd_Data {rresp : AXI4_LITE_OKAY, rdata : rdreg ,ruser: 0};
             s_xactor.i_rd_data.enq(resq);
            
         endrule
@@ -845,13 +845,13 @@ Interrupt Generation And Documentation
             $display("AXI Write Request  ",$time);
             let wr_addr <- pop_o (s_xactor.o_wr_addr);
             let wr_data <- pop_o (s_xactor.o_wr_data);
-            $display("Wr_addr : %h Wr_data: %h id: %d", wr_addr.awaddr, wr_data.wdata, wr_addr.awid);
+            $display("Wr_addr : %h Wr_data: %h", wr_addr.awaddr, wr_data.wdata);
             set_i2c(unpack(truncate(wr_addr.awaddr)),truncate(wr_data.wdata));
-            let resp = AXI4_Wr_Resp {bresp: AXI4_SLVERR, buser: wr_addr.awuser};
+            let resp = AXI4_Lite_Wr_Resp {bresp: AXI4_LITE_SLVERR, buser: wr_addr.awuser};
             if(ber==1)
-		 resp =  AXI4_Wr_Resp {bresp: AXI4_SLVERR, buser: wr_addr.awuser, bid: wr_addr.awid};
+		 resp =  AXI4_Lite_Wr_Resp {bresp: AXI4_LITE_SLVERR, buser: wr_addr.awuser};
  	    else
- 	    	 resp = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: wr_addr.awuser, bid: wr_addr.awid};
+ 	    	 resp = AXI4_Lite_Wr_Resp {bresp: AXI4_LITE_OKAY, buser: wr_addr.awuser};
 	    s_xactor.i_wr_resp.enq(resp);
             $display("Received Value %d",wr_data.wdata);
         endrule
@@ -958,28 +958,28 @@ Interrupt Generation And Documentation
         endmethod
 */
     endmodule
-
-    (*synthesize*)
-    module mkI2CController_wrap(I2C_IFC_wrap);
-     I2C_IFC dut <- mkI2CController();
-        TriState#(Bit#(1)) line_SCL <- mkTriState(dut.out.scl_out_en, dut.out.scl_out); 
-        TriState#(Bit#(1)) line_SDA  <-  mkTriState(dut.out.sda_out_en, dut.out.sda_out);   
-        rule send_input_scl;
-            dut.out.scl_in(line_SCL._read);
-        endrule
-        rule send_input_sda;
-            dut.out.sda_in(line_SDA._read);
-        endrule
-        interface slave_i2c_axi_wrap = dut.slave_i2c_axi;
-        method isint_wrap = dut.isint;
-        method resetc_wrap = dut.resetc;
-        method timerint_wrap = dut.timerint;
-        method isber_wrap = dut.isber;
-        interface I2C_out_tri out_tri;
-             interface sda = line_SDA.io;
-             interface scl = line_SCL.io;
-        endinterface
-    endmodule
+//
+//    (*synthesize*)
+//    module mkI2CController_wrap(I2C_IFC_wrap);
+//     I2C_IFC dut <- mkI2CController();
+//        TriState#(Bit#(1)) line_SCL <- mkTriState(dut.out.scl_out_en, dut.out.scl_out); 
+//        TriState#(Bit#(1)) line_SDA  <-  mkTriState(dut.out.sda_out_en, dut.out.sda_out);   
+//        rule send_input_scl;
+//            dut.out.scl_in(line_SCL._read);
+//        endrule
+//        rule send_input_sda;
+//            dut.out.sda_in(line_SDA._read);
+//        endrule
+//        interface slave_i2c_axi_wrap = dut.slave_i2c_axi;
+//        method isint_wrap = dut.isint;
+//        method resetc_wrap = dut.resetc;
+//        method timerint_wrap = dut.timerint;
+//        method isber_wrap = dut.isber;
+//        interface I2C_out_tri out_tri;
+//             interface sda = line_SDA.io;
+//             interface scl = line_SCL.io;
+//        endinterface
+//    endmodule
 // ===============================================
 /*
 // ===============================================

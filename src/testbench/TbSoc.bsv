@@ -86,8 +86,9 @@ package TbSoc;
 		Reset uart_reset <-mkSyncResetFromCR(1,uart_clock);
 	
 		ClockDividerIfc slow_clock <- mkClockDivider(2);
+		Reset slow_reset <-mkAsyncResetFromCR(0,slow_clock.slowClock);
 
-		Ifc_Soc soc <-mkSoc(reset_vector,slow_clock.slowClock, uart_clock,clk0,tck_clk.new_clk,trst.new_rst);
+		Ifc_Soc soc <-mkSoc(reset_vector,slow_clock.slowClock,slow_reset, uart_clock,clk0,tck_clk.new_clk,trst.new_rst);
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmlsb <-mksdram_model_wrapper("code.mem.LSB",clocked_by clk0, reset_by rst0); `endif
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmmsb <-mksdram_model_wrapper("code.mem.MSB",clocked_by clk0, reset_by rst0); `endif
 		`ifdef AXIEXP Ifc_sample_axiexpslave axiexpslave <-mksample_axiexpslave; `endif
@@ -137,9 +138,6 @@ package TbSoc;
                 //soc.gpio_in(interrupt_vector);
 				soc.slow_ios.gpio_in(replicate(0));
 			endrule
-        //    rule connect_gpio;
-        //        soc.gpio_in(replicate(0));
-        //    endrule
 
 		`endif
 		/*================= HYPERFLASHC Connections ========*/
@@ -153,17 +151,17 @@ package TbSoc;
 		`endif
 		/*================= I2C connections ============ */
        `ifdef I2C0
-              TriState#(Bit#(1)) line_SCL0 <- mkTriState(soc.i2c0_out.scl_out_en,soc.i2c0_out.scl_out);
-              TriState#(Bit#(1)) line_SDA0 <- mkTriState(soc.i2c0_out.sda_out_en,soc.i2c0_out.sda_out);
-              TriState#(Bit#(1)) linescl0 <- mkTriState(False,1'b1);
-              IFC_EEPROM i2c_bfm_slave0 <- mkM24AA1025(); 
+              TriState#(Bit#(1)) line_SCL0 <- mkTriState(soc.slow_ios.i2c0_out.scl_out_en,soc.slow_ios.i2c0_out.scl_out,clocked_by slow_clock.slowClock, reset_by slow_reset);
+              TriState#(Bit#(1)) line_SDA0 <- mkTriState(soc.slow_ios.i2c0_out.sda_out_en,soc.slow_ios.i2c0_out.sda_out,clocked_by slow_clock.slowClock, reset_by slow_reset);
+              TriState#(Bit#(1)) linescl0 <- mkTriState(False,1'b1,clocked_by slow_clock.slowClock, reset_by slow_reset);
+              IFC_EEPROM i2c_bfm_slave0 <- mkM24AA1025(clocked_by slow_clock.slowClock, reset_by slow_reset); 
               
               mkConnection(line_SDA0.io,i2c_bfm_slave0.linesda);
               mkConnection(line_SCL0.io,linescl0.io);
 
             rule send_sda_connect_i2c0;
-				soc.i2c0_out.scl_in(line_SCL0._read);
-                soc.i2c0_out.sda_in(line_SDA0._read);
+				soc.slow_ios.i2c0_out.scl_in(line_SCL0._read);
+                soc.slow_ios.i2c0_out.sda_in(line_SDA0._read);
             endrule
             
             rule connect_i2c0;
@@ -176,17 +174,17 @@ package TbSoc;
         `endif
 
         `ifdef I2C1
-              TriState#(Bit#(1)) line_SCL1 <- mkTriState(soc.i2c1_out.scl_out_en,soc.i2c1_out.scl_out);
-              TriState#(Bit#(1)) line_SDA1 <- mkTriState(soc.i2c1_out.sda_out_en,soc.i2c1_out.sda_out);
-              TriState#(Bit#(1)) linescl1 <- mkTriState(False,1'b1);
-              IFC_EEPROM i2c_bfm_slave1 <- mkM24AA1025(); 
+              TriState#(Bit#(1)) line_SCL1 <- mkTriState(soc.slow_ios.i2c1_out.scl_out_en,soc.slow_ios.i2c1_out.scl_out,clocked_by slow_clock.slowClock, reset_by slow_reset);
+              TriState#(Bit#(1)) line_SDA1 <- mkTriState(soc.slow_ios.i2c1_out.sda_out_en,soc.slow_ios.i2c1_out.sda_out,clocked_by slow_clock.slowClock, reset_by slow_reset);
+              TriState#(Bit#(1)) linescl1 <- mkTriState(False,1'b1,clocked_by slow_clock.slowClock, reset_by slow_reset);
+              IFC_EEPROM i2c_bfm_slave1 <- mkM24AA1025(clocked_by slow_clock.slowClock, reset_by slow_reset); 
               
               mkConnection(line_SDA1.io,i2c_bfm_slave1.linesda);
               mkConnection(line_SCL1.io,linescl1.io);
 
             rule send_sda_connect_i2c1;
-				soc.i2c1_out.scl_in(line_SCL1._read);
-                soc.i2c1_out.sda_in(line_SDA1._read);
+					soc.slow_ios.i2c1_out.scl_in(line_SCL1._read);
+               soc.slow_ios.i2c1_out.sda_in(line_SDA1._read);
             endrule
             
             rule connect_i2c1;

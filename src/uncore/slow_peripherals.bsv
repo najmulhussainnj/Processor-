@@ -32,6 +32,9 @@ package slow_peripherals;
 		import gpio				::*;
 		import plic				::*;
 	`endif
+	`ifdef I2C0
+		import I2C_top			 :: *;
+	`endif
 	/*=====================================*/
 	
 	/*===== interface declaration =====*/
@@ -50,6 +53,12 @@ package slow_peripherals;
 			(*always_ready,always_enabled*)
 			method Vector#(`IONum,Bit#(1))   gpio_out_en;
 		`endif
+		`ifdef I2C0
+			interface I2C_out i2c0_out;
+		`endif
+		`ifdef I2C1
+			interface I2C_out i2c1_out;
+		`endif
 	endinterface
 	interface Ifc_slow_peripherals;
 		interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
@@ -60,6 +69,8 @@ package slow_peripherals;
 			method Bit#(`Reg_width) mtime;
 		`endif
 		`ifdef PLIC method ActionValue#(Tuple2#(Bool,Bool)) intrpt_note; `endif
+		`ifdef I2C0	method Bit#(1) i2c0_isint; `endif
+		`ifdef I2C0	method Bit#(1) i2c1_isint; `endif
 	endinterface
 	/*================================*/
 
@@ -86,14 +97,23 @@ package slow_peripherals;
 				return tuple2(True,fromInteger(valueOf(GPIO_slave_num)));
 			else
 		`endif
+		`ifdef I2C0
+			if(addr>=`I2C0Base && addr<=`I2C0End)	
+				return tuple2(True,fromInteger(valueOf(I2c0_slave_num)));
+			else
+		`endif
+		`ifdef I2C1
+			if(addr>=`I2C1Base && addr<=`I2C1End)
+				return tuple2(True,fromInteger(valueOf(I2c1_slave_num)));
+			else
+		`endif
 		return tuple2(False,?);
 	endfunction
 
 	(*synthesize*)
-	module mkslow_peripherals#(Clock fast_clock, Clock uart_clock)(Ifc_slow_peripherals);
+	module mkslow_peripherals#(Clock fast_clock, Reset fast_reset, Clock uart_clock, Reset uart_reset)(Ifc_slow_peripherals);
 		Clock sp_clock <-exposeCurrentClock; // slow peripheral clock
 		Reset sp_reset <-exposeCurrentReset; // slow peripheral reset
-		Reset uart_reset <-mkSyncResetFromCR(1,uart_clock); // reset synchronization for uart clock
 
 		/*======= Module declarations for each peripheral =======*/
 		`ifdef UART0
@@ -111,10 +131,16 @@ package slow_peripherals;
 			Vector#(`INTERRUPT_PINS, FIFO#(bit)) ff_gateway_queue <- replicateM(mkFIFO);
 			GPIO						gpio				<- mkgpio;
 		`endif
+		`ifdef I2C0 
+			I2C_IFC					i2c0				<- mkI2CController();
+		`endif
+		`ifdef I2C1
+			I2C_IFC					i2c1				<- mkI2CController();
+		`endif
 		/*=======================================================*/
 
    	AXI4_Lite_Fabric_IFC #(1, Num_Slow_Slaves, `PADDR, `Reg_width,`USERSPACE)	slow_fabric <- mkAXI4_Lite_Fabric(fn_address_mapping);
-		Ifc_AXI4Lite_AXI4_Bridge bridge	<-mkAXI4Lite_AXI4_Bridge(fast_clock);
+		Ifc_AXI4Lite_AXI4_Bridge bridge	<-mkAXI4Lite_AXI4_Bridge(fast_clock,fast_reset);
    	
 		mkConnection (bridge.axi4_lite_master,	slow_fabric.v_from_masters [0]);
 		/*======= Slave connections to AXI4Lite fabric =========*/
@@ -130,6 +156,12 @@ package slow_peripherals;
 		`ifdef PLIC
 			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Plic_slave_num))],	plic.axi4_slave_plic); //
 			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(GPIO_slave_num))],	gpio.axi_slave); //
+		`endif
+		`ifdef I2C0
+   		mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(I2c0_slave_num))],		i2c0.slave_i2c_axi); 
+		`endif
+		`ifdef I2C1
+   		mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(I2c1_slave_num))],		i2c1.slave_i2c_axi); // 
 		`endif
 		/*=======================================================*/
 		/*=================== PLIC Connections ==================== */
@@ -297,6 +329,12 @@ package slow_peripherals;
 			method mtip_int=clint.mtip_int;
 			method mtime=clint.mtime;
 		`endif
+		`ifdef I2C0
+			method i2c0_isint=i2c0.isint;
+		`endif
+		`ifdef I2C1
+			method i2c1_isint=i2c1.isint;
+		`endif
 		interface SP_ios slow_ios;
 			`ifdef UART0
 				interface uart0_coe=uart0.coe_rs232;
@@ -308,6 +346,12 @@ package slow_peripherals;
 				method Action gpio_in (Vector#(`IONum,Bit#(1)) inp)=gpio.gpio_in(inp);
 				method Vector#(`IONum,Bit#(1))   gpio_out=gpio.gpio_out;
 				method Vector#(`IONum,Bit#(1))   gpio_out_en=gpio.gpio_out_en;
+			`endif
+			`ifdef I2C0
+				interface i2c0_out=i2c0.out;
+			`endif
+			`ifdef I2C1
+				interface i2c1_out=i2c1.out;
 			`endif
 		endinterface
 		/*===================================*/

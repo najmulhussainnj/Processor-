@@ -49,9 +49,6 @@ package Soc;
 		`else
 			import Memory_AXI4	::*;
 		`endif
-		`ifdef I2C0
-			import I2C_top			 :: *;
-		`endif
 		`ifdef TCMemory
 			import TCM::*;
 		`endif
@@ -100,12 +97,6 @@ package Soc;
 			(*always_ready,always_enabled*)
 			method Bit#(1) tdo_oe;
 		`endif
-		`ifdef I2C0
-			interface I2C_out i2c0_out;
-		`endif
-		`ifdef I2C1
-			interface I2C_out i2c1_out;
-		`endif
 		`ifdef AXIEXP
 //			method ActionValue#(Bit#(67)) axiexp1_out;
 //			method Action axiexp1_in(Bit#(67) datain);
@@ -120,10 +111,10 @@ package Soc;
 	/*=============================================== */
 	endinterface
 	(*synthesize*)
-	module mkSoc #(Bit#(`VADDR) reset_vector, Clock slow_clock, Clock uart_clock,  Clock clk0, Clock tck, Reset trst)(Ifc_Soc);
+	module mkSoc #(Bit#(`VADDR) reset_vector, Clock slow_clock, Reset slow_reset, Clock uart_clock,  Clock clk0, Clock tck, Reset trst)(Ifc_Soc);
 			Clock core_clock <-exposeCurrentClock; // slow peripheral clock
 			Reset core_reset <-exposeCurrentReset; // slow peripheral reset
-			Reset slow_reset <-mkAsyncResetFromCR(1,slow_clock);
+			Reset uart_reset <-mkAsyncResetFromCR(1,uart_clock); // reset synchronization for uart clock
          `ifdef Debug 
 				Ifc_jtagdtm tap <-mkjtagdtm(clocked_by tck, reset_by trst);
             rule drive_tmp_scan_outs;
@@ -151,12 +142,6 @@ package Soc;
 			`ifdef QSPI1 
 				Ifc_qspi			qspi1				<-	mkqspi(); 
 			`endif
-			`ifdef I2C0 
-				I2C_IFC					i2c0				<- mkI2CController();
-			`endif
-			`ifdef I2C1
-				I2C_IFC					i2c1				<- mkI2CController();
-			`endif
 			`ifdef TCMemory
 				Ifc_TCM					tcm				<- mkTCM;	
 			`endif
@@ -166,7 +151,7 @@ package Soc;
 			`ifdef AXIEXP
 				Ifc_AxiExpansion		axiexp1			<- mkAxiExpansion();	
 			`endif
-		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, uart_clock, clocked_by slow_clock , reset_by slow_reset);	
+		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, core_reset, uart_clock, uart_reset, clocked_by slow_clock , reset_by slow_reset);	
 
    	// Fabric
    	AXI4_Fabric_IFC #(Num_Masters, Num_Slaves, `PADDR, `Reg_width,`USERSPACE)
@@ -202,12 +187,6 @@ package Soc;
 			`ifdef BOOTROM
 				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(BootRom_slave_num))],bootrom.axi_slave);
 			`endif
-			`ifdef I2C0
-   			mkConnection (fabric.v_to_slaves [fromInteger(valueOf(I2c0_slave_num))],		i2c0.slave_i2c_axi); 
-			`endif
-			`ifdef I2C1
-   			mkConnection (fabric.v_to_slaves [fromInteger(valueOf(I2c1_slave_num))],		i2c1.slave_i2c_axi); // 
-			`endif
 			`ifdef DMA
    			mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Dma_slave_num))],	dma.cfg); //DMA slave
 			`endif
@@ -223,10 +202,16 @@ package Soc;
 			//rule to connect all interrupt lines to the DMA
 			//All the interrupt lines to DMA are active HIGH. For peripherals that are not connected, or those which do not
 			//generate an interrupt (like TCM), drive a constant 1 on the corresponding interrupt line.
+				`ifdef I2C1 SyncBitIfc#(Bit#(1)) i2c1_interrupt <-mkSyncFIFOToCC(slow_clock,slow_reset); `endif
+				`ifdef I2C0 SyncBitIfc#(Bit#(1)) i2c0_interrupt <-mkSyncFIFOToCC(slow_clock,slow_reset); `endif
+				rule synchronize_i2c_interrupts;
+					`ifdef I2C1 i2c1.send(slow_peripherals.i2c1_isint); `endif
+					`ifdef I2C0 i2c0.send(slow_peripherals.i2c0_isint); `endif
+				endrule
 				rule rl_connect_interrupt_to_DMA;
 					Bit#(12) lv_interrupt_to_DMA= {'d-1, 
-															`ifdef I2C1 i2c1.isint `else 1'b1 `endif , 
-															`ifdef I2C0 i2c0.isint `else 1'b1 `endif , 
+															i2c1.read , 
+															i2c0.read , 
 															`ifdef QSPI1 qspi1.interrupts[5] `else 1'b1 `endif ,
 															1'b1, 
 															`ifdef QSPI0 qspi0.interrupts[5] `else 1'b1 `endif , 
@@ -286,6 +271,7 @@ package Soc;
 				core.set_external_interrupt(plic_interrupt_note);
 			endrule
 		`endif
+
       method Action boot_sequence(Bit#(1) bootseq) = core.boot_sequence(bootseq);
 		`ifdef QSPI0 interface qspi0_out = qspi0.out; `endif
       `ifdef QSPI1 interface qspi1_out = qspi1.out; `endif
@@ -317,12 +303,6 @@ package Soc;
             method Bit#(1) scan_shift_en=tap.scan_shift_en;
 			method Bit#(1) tdo=tap.tdo;
 			method Bit#(1) tdo_oe=tap.tdo_oe;
-		`endif
-		`ifdef I2C0
-			interface i2c0_out=i2c0.out;
-		`endif
-		`ifdef I2C1
-			interface i2c1_out=i2c1.out;
 		`endif
 		`ifdef AXIEXP
 			interface axiexp1_out=axiexp1.slave_out;

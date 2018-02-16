@@ -32,7 +32,7 @@ function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Bit#(`PA
 			else if(addr>=`BootRomBase && addr<=`BootRomEnd)
 				return tuple2(True,fromInteger(valueOf(BootRom_slave_num)));
 		`endif
-			else if( (addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) || (addr>=`ClintBase && addr<=`ClintEnd) || (addr>=`PLICBase && addr<=`PLICEnd) || (addr>=`GPIOBase && addr<=`GPIOEnd) )
+			else if( (addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) || (addr>=`ClintBase && addr<=`ClintEnd) || (addr>=`PLICBase && addr<=`PLICEnd) || (addr>=`GPIOBase && addr<=`GPIOEnd) || (addr>=`I2C1Base && addr<=`I2C1End)|| (addr>=`I2C0Base && addr<=`I2C0End) )
 				return tuple2(True,fromInteger(valueOf(SlowPeripheral_slave_num)));
 		`ifdef QSPI0
 			else if(addr>=`QSPI0CfgBase && addr<=`QSPI0CfgEnd)
@@ -45,14 +45,6 @@ function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Bit#(`PA
 				return tuple2(True,fromInteger(valueOf(Qspi1_slave_num)));
 			else if(addr>=`QSPI1MemBase && addr<=`QSPI1MemEnd)
 				return tuple2(True,fromInteger(valueOf(Qspi1_slave_num)));
-		`endif
-		`ifdef I2C0
-			else if(addr>=`I2C0Base && addr<=`I2C0End)	
-				return tuple2(True,fromInteger(valueOf(I2c0_slave_num)));
-		`endif
-		`ifdef I2C1
-			else if(addr>=`I2C1Base && addr<=`I2C1End)
-				return tuple2(True,fromInteger(valueOf(I2c1_slave_num)));
 		`endif
 		`ifdef HYPER
 			else if(addr>=`HyperCfgBase && addr<=`HyperCfgEnd)
