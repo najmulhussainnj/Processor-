@@ -16,7 +16,7 @@ package plic;
 	import defined_types::*;
 	import ConfigReg::*;
 	import Semi_FIFOF::*;
-	import AXI4_Types::*;
+	import AXI4_Lite_Types::*;
 	import BUtils ::*;
 	import ConcatReg ::*;
 	`include "defined_parameters.bsv"
@@ -322,7 +322,7 @@ interface ifc_prog_reg = interface Ifc_program_registers;
 endmodule
 
 interface Ifc_PLIC_AXI;
-	interface AXI4_Slave_IFC#(`PADDR, `Reg_width,`USERSPACE) axi4_slave_plic;
+	interface AXI4_Lite_Slave_IFC#(`PADDR, `Reg_width,`USERSPACE) axi4_slave_plic;
 	interface Vector#(`INTERRUPT_PINS,Ifc_global_interrupt) ifc_external_irq;
 	method ActionValue#(Tuple2#(Bool,Bool)) intrpt_note;
 	method ActionValue#(Bit#(TLog#(`INTERRUPT_PINS))) intrpt_completion;
@@ -332,7 +332,7 @@ endinterface
 //(*conflict_free="rl_config_plic_reg_write,intrpt_completion"*)
 module mkplicperipheral(Ifc_PLIC_AXI);
 
-AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor_plic <- mkAXI4_Slave_Xactor;
+AXI4_Lite_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor_plic <- mkAXI4_Lite_Slave_Xactor;
 Ifc_PLIC#(`PADDR, `DCACHE_WORD_SIZE, `INTERRUPT_PINS) plic <- mkplic();
 
 (*preempts="rl_config_plic_reg_read, rl_config_plic_reg_write"*)
@@ -347,7 +347,7 @@ Ifc_PLIC#(`PADDR, `DCACHE_WORD_SIZE, `INTERRUPT_PINS) plic <- mkplic();
 		end
 		let x <- plic.ifc_prog_reg.prog_reg(UncachedMemReq{address : aw.awaddr, transfer_size : 'd3, 
 																							u_signed : 0, byte_offset : byte_offset, write_data : w.wdata, ld_st : Store}); 
-		let w_resp = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: 0, bid : aw.awid}; //TODO user value is null
+		let w_resp = AXI4_Lite_Wr_Resp {bresp: AXI4_LITE_OKAY, buser: 0 }; //TODO user value is null
 		s_xactor_plic.i_wr_resp.enq(w_resp);
 	endrule
 
@@ -356,14 +356,13 @@ Ifc_PLIC#(`PADDR, `DCACHE_WORD_SIZE, `INTERRUPT_PINS) plic <- mkplic();
 		let ar <- pop_o(s_xactor_plic.o_rd_addr);
 		let x <- plic.ifc_prog_reg.prog_reg(UncachedMemReq{address : ar.araddr, transfer_size : 'd3, 
 	    																				u_signed : 0, byte_offset : 0, ld_st : Load}); 
-        if(ar.arsize==3'd0)
-            x = duplicate(x[7:0]);
-        else if(ar.arsize==3'd1)
-            x = duplicate(x[15:0]);
-        else if(ar.arsize==3'd2)
-            x = duplicate(x[31:0]);
+//        if(ar.arsize==3'd0)
+//            x = duplicate(x[7:0]);
+//        else if(ar.arsize==3'd1)
+//            x = duplicate(x[15:0]);
+//        else if(ar.arsize==3'd2)
 
-		let r = AXI4_Rd_Data {rresp: AXI4_OKAY, rdata: x, rlast: True, ruser: 0, rid: ar.arid};
+		let r = AXI4_Lite_Rd_Data {rresp: AXI4_LITE_OKAY, rdata: duplicate(x), ruser: 0};
 		s_xactor_plic.i_rd_data.enq(r);
 	endrule
 

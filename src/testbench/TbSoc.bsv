@@ -135,7 +135,7 @@ package TbSoc;
                 //        interrupt_vector[31]=1;
                 //    end
                 //soc.gpio_in(interrupt_vector);
-				soc.gpio_in(replicate(0));
+				soc.slow_ios.gpio_in(replicate(0));
 			endrule
         //    rule connect_gpio;
         //        soc.gpio_in(replicate(0));

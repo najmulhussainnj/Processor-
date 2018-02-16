@@ -530,13 +530,11 @@ typedef 0 Sdram_slave_num;
 typedef  TAdd#(Sdram_slave_num		,`ifdef SDRAM		1 `else 0 `endif )		Sdram_cfg_slave_num;
 typedef	TAdd#(Sdram_cfg_slave_num	,`ifdef BOOTROM	1 `else 0 `endif )		BootRom_slave_num	;
 typedef	TAdd#(BootRom_slave_num    ,`ifdef Debug		1 `else 0 `endif )		Debug_slave_num	;
-typedef	TAdd#(Debug_slave_num		,`ifdef PLIC		1 `else 0 `endif )		Plic_slave_num		;
-typedef  TAdd#(Plic_slave_num			,`ifdef QSPI0 		1 `else 0 `endif )		Qspi0_slave_num   ;
+typedef  TAdd#(Debug_slave_num,`ifdef QSPI0 		1 `else 0 `endif )				Qspi0_slave_num   ;
 typedef  TAdd#(Qspi0_slave_num		,`ifdef QSPI1 		1 `else 0 `endif )		Qspi1_slave_num   ;
 typedef  TAdd#(Qspi1_slave_num		,`ifdef I2C0 		1 `else 0 `endif )		I2c0_slave_num   ;
 typedef  TAdd#(I2c0_slave_num			,`ifdef I2C1 		1 `else 0 `endif )		I2c1_slave_num   ;
-typedef  TAdd#(I2c1_slave_num			,`ifdef PLIC 		1 `else 0 `endif )		GPIO_slave_num   ;
-typedef  TAdd#(GPIO_slave_num			,`ifdef AXIEXP	1 `else 0 `endif )		AxiExp1_slave_num;
+typedef  TAdd#(I2c1_slave_num			,`ifdef AXIEXP	1 `else 0 `endif )			AxiExp1_slave_num;
 typedef  TAdd#(AxiExp1_slave_num		,`ifdef TCMemory	1 `else 0 `endif )		TCM_slave_num;
 typedef  TAdd#(TCM_slave_num			,`ifdef DMA			1 `else 0 `endif )		Dma_slave_num;
 typedef  TAdd#(Dma_slave_num		,1 )		SlowPeripheral_slave_num;
@@ -554,6 +552,8 @@ typedef  0	SlowMaster;
 typedef	0	Uart0_slave_num	;
 typedef	TAdd#(Uart0_slave_num		,`ifdef UART1 		1 `else 0 `endif )		Uart1_slave_num	;
 typedef  TAdd#(Uart1_slave_num		,`ifdef CLINT		1 `else 0 `endif )		CLINT_slave_num;
-typedef	TAdd#(CLINT_slave_num,1)									Num_Slow_Slaves			;
+typedef	TAdd#(CLINT_slave_num		,`ifdef PLIC		1 `else 0 `endif )		Plic_slave_num		;
+typedef  TAdd#(Plic_slave_num			,`ifdef PLIC 		1 `else 0 `endif )		GPIO_slave_num   ;
+typedef	TAdd#(GPIO_slave_num,1)									Num_Slow_Slaves			;
 /*===========================================*/
 endpackage

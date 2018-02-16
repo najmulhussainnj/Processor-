@@ -21,8 +21,8 @@ package gpio;
 	/*===== Project Imports ===== */
 	`include "defined_parameters.bsv"
 	import Semi_FIFOF        :: *;
-	import AXI4_Types   :: *;
-	import AXI4_Fabric  :: *;
+	import AXI4_Lite_Types   :: *;
+	import AXI4_Lite_Fabric  :: *;
 	/*============================ */
 
 	interface GPIO;
@@ -40,7 +40,7 @@ package gpio;
 		method Vector#(`IONum,Bit#(1))   gpio_PWRUPZHL;
 		method Vector#(`IONum,Bit#(1))   gpio_PWRUP_PULL_EN;
 		interface Vector#(`IONum,Reg#(Bit#(1))) to_plic;
-		interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
+		interface AXI4_Lite_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
 	endinterface
 
 	(*synthesize*)
@@ -59,7 +59,7 @@ package gpio;
 		Vector#(`IONum,ConfigReg#(Bit#(1))) pwrup_pull_en_reg	<-replicateM(mkConfigReg(0));	
 		Vector#(`IONum,ConfigReg#(Bit#(1))) toplic				<-replicateM(mkConfigReg(0));
 		
-		AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor;
+		AXI4_Lite_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Lite_Slave_Xactor;
 
 		rule capture_interrupt;
 			for(Integer i=0;i<`IONum;i=i+1)
@@ -70,7 +70,7 @@ package gpio;
 			// Get the wr request
       	let aw <- pop_o (s_xactor.o_wr_addr);
       	let w  <- pop_o (s_xactor.o_wr_data);
-	   	let b = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: aw.awuser, bid:aw.awid};
+	   	let b = AXI4_Lite_Wr_Resp {bresp: AXI4_LITE_OKAY, buser: aw.awuser};
 			if(aw.awaddr[5:0]=='h0)
 				for(Integer i=0;i<`IONum;i=i+1)
 					direction_reg[i]<=unpack(w.wdata[i]);
@@ -105,7 +105,7 @@ package gpio;
 				for(Integer i=0;i<`IONum;i=i+1)
 					pwrup_pull_en_reg[i]<=w.wdata[i];
 			else
-				b.bresp=AXI4_SLVERR;
+				b.bresp=AXI4_LITE_SLVERR;
 				
       	s_xactor.i_wr_resp.enq (b);
 		endrule
@@ -113,7 +113,7 @@ package gpio;
 		rule rl_rd_respond;
 			let ar<- pop_o(s_xactor.o_rd_addr);
 			Bit#(32) temp=0;
-			AXI4_Rd_Data#(`Reg_width,`USERSPACE) r = AXI4_Rd_Data {rresp: AXI4_OKAY, rdata: ?,rlast:True, ruser: 0, rid:ar.arid};
+			AXI4_Lite_Rd_Data#(`Reg_width,`USERSPACE) r = AXI4_Lite_Rd_Data {rresp: AXI4_LITE_OKAY, rdata: ?, ruser: 0};
 			if(ar.araddr[5:0]=='h0)begin
 				for(Integer i=0;i<`IONum;i=i+1)
 					temp[i]=pack(direction_reg[i]);
@@ -170,7 +170,7 @@ package gpio;
 				r.rdata=duplicate(temp);
 			end
 			else
-				r.rresp=AXI4_SLVERR;
+				r.rresp=AXI4_LITE_SLVERR;
 				
 			s_xactor.i_rd_data.enq(r);
 		endrule

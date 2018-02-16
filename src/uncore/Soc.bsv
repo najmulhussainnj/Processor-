@@ -41,10 +41,6 @@ package Soc;
 		`ifdef QSPI0 
 			import qspi				 :: *; 
 		`endif
-		`ifdef PLIC
-			import gpio				::*;
-			import plic				::*;
-		`endif
 		`ifdef BOOTROM
 			import BootRom			::*;
 		`endif
@@ -110,32 +106,6 @@ package Soc;
 		`ifdef I2C1
 			interface I2C_out i2c1_out;
 		`endif
-		`ifdef PLIC
-			(*always_ready,always_enabled*)
-			method Action gpio_in (Vector#(`IONum,Bit#(1)) inp);
-			(*always_ready,always_enabled*)
-			method Vector#(`IONum,Bit#(1))   gpio_out;
-			(*always_ready,always_enabled*)
-			method Vector#(`IONum,Bit#(1))   gpio_out_en;
-			(*always_ready,always_enabled*)
-			method Vector#(`IONum,Bit#(1))   gpio_DRV0;
-			(*always_ready,always_enabled*)
-			method Vector#(`IONum,Bit#(1))   gpio_DRV1;
-			(*always_ready,always_enabled*)
-			method Vector#(`IONum,Bit#(1))   gpio_DRV2;
-			(*always_ready,always_enabled*)
-			method Vector#(`IONum,Bit#(1))   gpio_PD;
-			(*always_ready,always_enabled*)
-			method Vector#(`IONum,Bit#(1))   gpio_PPEN;
-			(*always_ready,always_enabled*)
-			method Vector#(`IONum,Bit#(1))   gpio_PRG_SLEW;
-			(*always_ready,always_enabled*)
-			method Vector#(`IONum,Bit#(1))   gpio_PUQ;
-			(*always_ready,always_enabled*)
-			method Vector#(`IONum,Bit#(1))   gpio_PWRUPZHL;
-			(*always_ready,always_enabled*)
-			method Vector#(`IONum,Bit#(1))   gpio_PWRUP_PULL_EN;
-		`endif
 		`ifdef AXIEXP
 //			method ActionValue#(Bit#(67)) axiexp1_out;
 //			method Action axiexp1_in(Bit#(67) datain);
@@ -174,12 +144,6 @@ package Soc;
 				Ifc_sdr_slave			sdram				<- mksdr_axi4_slave(clk0);
 			`else
 				Memory_IFC#(`SDRAMMemBase,`Addr_space) main_memory <- mkMemory("code.mem.MSB","code.mem.LSB","MainMEM");
-			`endif
-			`ifdef PLIC
-				Ifc_PLIC_AXI	plic <- mkplicperipheral();
-                Wire#(Bit#(TLog#(`INTERRUPT_PINS))) interrupt_id <- mkWire();
-				Vector#(`INTERRUPT_PINS, FIFO#(bit)) ff_gateway_queue <- replicateM(mkFIFO);
-				GPIO						gpio				<- mkgpio;
 			`endif
 			`ifdef QSPI0 
 				Ifc_qspi			qspi0				<-	mkqspi(); 
@@ -235,10 +199,6 @@ package Soc;
   			`ifdef QSPI1 
 				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Qspi1_slave_num))],	qspi1.slave); 
 			`endif
-			`ifdef PLIC
-				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Plic_slave_num))],	plic.axi4_slave_plic); //
-				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(GPIO_slave_num))],	gpio.axi_slave); //
-			`endif
 			`ifdef BOOTROM
 				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(BootRom_slave_num))],bootrom.axi_slave);
 			`endif
@@ -276,169 +236,6 @@ package Soc;
 				endrule
 			`endif
 
-			/*=================== PLIC Connections ==================== */
-			`ifdef PLIC
-                for(Integer i=1; i<8; i=i+1) begin
-                `ifdef DMA
-                    rule rl_connect_dma_interrupts_to_plic;
-                    if(dma.interrupt_to_processor[i-1]==1'b1) begin
-                        ff_gateway_queue[i].enq(1);
-						plic.ifc_external_irq[i].irq_frm_gateway(True);
-                    end
-                    endrule
-                 `else
-                    rule rl_connect_dma_interrupts_to_plic;
-                        ff_gateway_queue[i].enq(0);
-                    endrule
-                 `endif
-                end
-
-                    rule rl_connect_i2c0_to_plic;
-                    `ifdef I2C0
-                    if(i2c0.isint()==1'b1) begin
-                        ff_gateway_queue[8].enq(1);
-						plic.ifc_external_irq[8].irq_frm_gateway(True);
-                    end
-                    `else
-                        ff_gateway_queue[8].enq(0);
-                    `endif
-                    endrule
-
-                    rule rl_connect_i2c1_to_plic;
-                    `ifdef I2C1
-                    if(i2c1.isint()==1'b1) begin
-                        ff_gateway_queue[9].enq(1);
-						plic.ifc_external_irq[9].irq_frm_gateway(True);
-                    end
-                    `else
-                        ff_gateway_queue[9].enq(0);
-                    `endif
-                    endrule
-
-                    rule rl_connect_i2c0_timerint_to_plic;
-                    `ifdef I2C0
-                    if(i2c0.timerint()==1'b1) begin
-                        ff_gateway_queue[10].enq(1);
-						plic.ifc_external_irq[10].irq_frm_gateway(True);
-                    end
-                    `else
-                        ff_gateway_queue[10].enq(0);
-                    `endif
-                    endrule
-
-                    rule rl_connect_i2c1_timerint_to_plic;
-                    `ifdef I2C1
-                    if(i2c1.timerint()==1'b1) begin
-                        ff_gateway_queue[11].enq(1);
-						plic.ifc_external_irq[11].irq_frm_gateway(True);
-                    end
-                    `else
-                        ff_gateway_queue[11].enq(0);
-                    `endif
-                    endrule
-
-                    rule rl_connect_i2c0_isber_to_plic;
-                    `ifdef I2C0
-                    if(i2c0.isber()==1'b1) begin
-                        ff_gateway_queue[12].enq(1);
-						plic.ifc_external_irq[12].irq_frm_gateway(True);
-                    end
-                    `else
-                        ff_gateway_queue[12].enq(0);
-                    `endif
-                    endrule
-
-                    rule rl_connect_i2c1_isber_to_plic;
-                    `ifdef I2C1
-                        if(i2c1.isber()==1'b1) begin
-                            ff_gateway_queue[13].enq(1);
-						    plic.ifc_external_irq[13].irq_frm_gateway(True);
-                        end
-                    `else
-                        ff_gateway_queue[13].enq(0);
-                    `endif
-                    endrule
-
-                    for(Integer i = 14; i < 20; i=i+1) begin
-                        rule rl_connect_qspi0_to_plic;
-                        `ifdef QSPI0
-                        if(qspi0.interrupts()[i-14]==1'b1) begin
-                            ff_gateway_queue[i].enq(1);
-						    plic.ifc_external_irq[i].irq_frm_gateway(True);
-                        end
-                        `else
-                            ff_gateway_queue[i].enq(0);
-                        `endif
-                        endrule
-                    end
-
-                    for(Integer i = 20; i<26; i=i+1) begin
-                        rule rl_connect_qspi1_to_plic;
-                        `ifdef QSPI1
-                        if(qspi1.interrupts()[i-20]==1'b1) begin
-                            ff_gateway_queue[i].enq(1);
-						    plic.ifc_external_irq[i].irq_frm_gateway(True);
-                        end
-                        `else
-                            ff_gateway_queue[i].enq(0);
-                        `endif
-                        endrule
-                    end
-                
-                    rule rl_connect_uart_to_plic;
-                    `ifdef UART0
-		                  /*if(uart0.irq==1'b1) begin
-									ff_gateway_queue[27].enq(1);
-									plic.ifc_external_irq[27].irq_frm_gateway(True);
-                        end
-								*/
-                    `else
-                        ff_gateway_queue[27].enq(0);
-                    `endif
-                    endrule
-                
-				for(Integer i = 28; i<`INTERRUPT_PINS; i=i+1) begin
-					rule rl_raise_interrupts;
-						if((i-28)<`IONum) begin	//Peripheral interrupts
-							if(gpio.to_plic[i-28]==1'b1) begin
-								plic.ifc_external_irq[i].irq_frm_gateway(True);
-									ff_gateway_queue[i].enq(1);	
-                     end
-						end
-					endrule
-				end
-
-				//for(Integer i=0; i<`INTERRUPT_PINS; i=i+1) begin
-				//	rule rl_connect_interrupts_to_plic;
-				//		plic.ifc_external_irq[i].irq_frm_gateway(unpack(ff_gateway_queue[i].first));
-                //        $display("PLIC taking Interrupt id: %d value: %b ",i, ff_gateway_queue[i].first);
-				//	endrule
-				//end
-
-			
-                rule rl_completion_msg_from_plic;
-					let id <- plic.intrpt_completion;
-                    interrupt_id <= id;
-                    $display("Dequeing the FIFO -- PLIC Interrupt Serviced id: %d",id);
-					//ff_gateway_queue[id].deq;
-				endrule
-
-                for(Integer i=0; i <`INTERRUPT_PINS; i=i+1) begin
-                    rule deq_gateway_queue;
-                        if(interrupt_id==fromInteger(i)) begin
-                            ff_gateway_queue[i].deq;
-                            $display($time,"Dequeing the Interrupt request for ID: %d",i);
-                        end
-                    endrule
-                end
-
-				
-                rule rl_send_external_interrupt_to_csr;
-					let note <- plic.intrpt_note;
-					core.set_external_interrupt(note);
-				endrule
-			`endif
-			/*======================================================= */
 
 		/*======= Synchornization between the JTAG and the Debug Module ========= */
 		`ifdef Debug
@@ -465,13 +262,30 @@ package Soc;
 		/*======================================================================= */
 	
 		`ifdef CLINT
+			SyncBitIfc#(Bit#(1)) clint_mtip_int <-mkSyncBitToCC(slow_clock,slow_reset);
+			SyncBitIfc#(Bit#(1)) clint_msip_int <-mkSyncBitToCC(slow_clock,slow_reset);
+			Reg#(Bit#(`Reg_width)) clint_mtime_value <-mkSyncRegToCC(0,slow_clock,slow_reset);
+			rule synchronize_clint_data;
+				clint_mtip_int.send(slow_peripherals.mtip_int);
+				clint_msip_int.send(slow_peripherals.msip_int);
+				clint_mtime_value<=slow_peripherals.mtime;
+			endrule
 			rule connect_msip_mtip_from_clint;
-				core.clint_msip(slow_peripherals.msip_int);
-				core.clint_mtip(slow_peripherals.mtip_int);
-            core.clint_mtime(slow_peripherals.mtime);
+				core.clint_msip(clint_msip_int.read);
+				core.clint_mtip(clint_mtip_int.read);
+            core.clint_mtime(clint_mtime_value);
 			endrule
 		`endif
-
+		`ifdef PLIC
+			Reg#(Tuple2#(Bool,Bool)) plic_interrupt_note <-mkSyncRegToCC(tuple2(False,False),slow_clock,slow_reset);
+			rule synchronize_interrupts;
+				let note <- slow_peripherals.intrpt_note;
+				plic_interrupt_note<=note;
+			endrule
+         rule rl_send_external_interrupt_to_csr;
+				core.set_external_interrupt(plic_interrupt_note);
+			endrule
+		`endif
       method Action boot_sequence(Bit#(1) bootseq) = core.boot_sequence(bootseq);
 		`ifdef QSPI0 interface qspi0_out = qspi0.out; `endif
       `ifdef QSPI1 interface qspi1_out = qspi1.out; `endif
@@ -509,20 +323,6 @@ package Soc;
 		`endif
 		`ifdef I2C1
 			interface i2c1_out=i2c1.out;
-		`endif
-		`ifdef PLIC
-			method Action gpio_in (Vector#(`IONum,Bit#(1)) inp)=gpio.gpio_in(inp);
-			method Vector#(`IONum,Bit#(1))   gpio_out=gpio.gpio_out;
-			method Vector#(`IONum,Bit#(1))   gpio_out_en=gpio.gpio_out_en;
-			method Vector#(`IONum,Bit#(1))   gpio_DRV0=gpio.gpio_DRV0;
-			method Vector#(`IONum,Bit#(1))   gpio_DRV1=gpio.gpio_DRV1;
-			method Vector#(`IONum,Bit#(1))   gpio_DRV2=gpio.gpio_DRV2;
-			method Vector#(`IONum,Bit#(1))   gpio_PD=gpio.gpio_PD;
-			method Vector#(`IONum,Bit#(1))   gpio_PPEN=gpio.gpio_PPEN;
-			method Vector#(`IONum,Bit#(1))   gpio_PRG_SLEW=gpio.gpio_PRG_SLEW;
-			method Vector#(`IONum,Bit#(1))   gpio_PUQ=gpio.gpio_PUQ;
-			method Vector#(`IONum,Bit#(1))   gpio_PWRUPZHL=gpio.gpio_PWRUPZHL;
-			method Vector#(`IONum,Bit#(1))   gpio_PWRUP_PULL_EN=gpio.gpio_PWRUP_PULL_EN;
 		`endif
 		`ifdef AXIEXP
 			interface axiexp1_out=axiexp1.slave_out;
