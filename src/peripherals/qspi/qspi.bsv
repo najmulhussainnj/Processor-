@@ -28,8 +28,8 @@ package qspi;
 	import TriState::*;
 	import ConcatReg ::*;
 	import Semi_FIFOF        :: *;
-	import AXI4_Types   :: *;
-	import AXI4_Fabric  :: *;
+	import AXI4_Lite_Types   :: *;
+	import AXI4_Lite_Fabric  :: *;
 	import FIFO::*;
 	import FIFOF::*;
 	import SpecialFIFOs::*;
@@ -57,7 +57,7 @@ package qspi;
 
     interface Ifc_qspi;
         interface QSPI_out out;
-		interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) slave;
+		interface AXI4_Lite_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) slave;
 		method Bit#(6) interrupts; // 0=TOF, 1=SMF, 2=Threshold, 3=TCF, 4=TEF 5 = request_ready
 `ifdef simulate
 		method Phase curphase;
@@ -131,7 +131,7 @@ package qspi;
 	(*synthesize*)
 	module mkqspi(Ifc_qspi);
 	
-	AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor;
+	AXI4_Lite_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Lite_Slave_Xactor;
 	/*************** List of implementation defined Registers *****************/
 	Reg#(bit) rg_clk <-mkReg(1);
 	Reg#(Bit#(8)) rg_clk_counter<-mkReg(0);
@@ -272,14 +272,10 @@ package qspi;
 	Reg#(Bit#(16)) lptr_timeout <-mkReg(0); // timeout period
 	Reg#(Bit#(32)) lptr =conditionalWrite(concatReg2(readOnlyReg(16'd0),lptr_timeout),sr_busy==0); // low power timeout register.
     Reg#(Bool) thres <- mkReg(False);
-	Reg#(Bit#(4)) rg_arid <- mkRegU();
-    Reg#(Bit#(8)) rg_arlen <- mkReg(0);
     Reg#(Bit#(32)) sdio0r   <- mkReg(32'h00000073);
     Reg#(Bit#(32)) sdio1r   <- mkReg(32'h00000073);
     Reg#(Bit#(32)) sdio2r   <- mkReg(32'h00000073);
     Reg#(Bit#(32)) sdio3r   <- mkReg(32'h00000073);
-    Reg#(Bit#(8)) rg_arlen_counter <- mkReg(0);
-    Reg#(Bool) rg_rlast_burst <- mkReg(False);
     Reg#(Bool) rg_request_ready <- mkReg(True);
     Bool ddr_clock = ((wr_sdr_clock&&!wr_sdr_delayed)||(!wr_sdr_clock&&wr_sdr_delayed));
 	Bool transfer_cond  =  (sr_busy==1 && cr_abort==0 && cr_en==1);
@@ -392,13 +388,13 @@ package qspi;
 	rule rl_write_request_from_AXI;
   	let aw <- pop_o (s_xactor.o_wr_addr);
     let w  <- pop_o (s_xactor.o_wr_data);
-    AXI4_Resp axi4_bresp = AXI4_OKAY;
+    AXI4_Lite_Resp axi4_bresp = AXI4_LITE_OKAY;
     if(ccr_fmode=='b11 && aw.awaddr[7:0]==`DR) begin  //Undefined behavior when written into integral fields in CR, CCR!!!
-         axi4_bresp = AXI4_SLVERR;
-         `ifdef verbose $display("Sending AXI4_SLVERR because store in memory mapped mode and not clearing Interrupt Flags"); `endif
+         axi4_bresp = AXI4_LITE_SLVERR;
+         `ifdef verbose $display("Sending AXI4_LITE_SLVERR because store in memory mapped mode and not clearing Interrupt Flags"); `endif
     end
     `ifdef verbose $display($time,"\tReceived AXI write request to Address: %h Data: %h Size: %h",aw.awaddr,w.wdata,aw.awsize); `endif
-          if(aw.awaddr[7:0]==`DR)begin
+      if(aw.awaddr[7:0]==`DR)begin
 			if(aw.awsize==0)begin
 				dr[7:0]<=w.wdata[7:0];
 				Vector#(4,Bit#(8)) temp=newVector();
@@ -425,27 +421,23 @@ package qspi;
 					fifo.enq(4,temp);
 			end
             else begin 
-                axi4_bresp = AXI4_SLVERR;
-                `ifdef verbose $display("Sending AXI4_SLVERR because DR awsize is 64-bit"); `endif
+                axi4_bresp = AXI4_LITE_SLVERR;
+                `ifdef verbose $display("Sending AXI4_LITE_SLVERR because DR awsize is 64-bit"); `endif
             end
 		end
 		else begin
 			let reg1=access_register(aw.awaddr[7:0]);
             `ifdef verbose $display("Write Reg access: %h Write Data: %h Size: %h",aw.awaddr[7:0],w.wdata,aw.awsize); `endif
             //Byte and Half-Word Writes are not permitted in ConfigReg Space
-		//	if(aw.awsize==0) // 8bits
-		//		reg1[7:0]<=w.wdata[7:0];
-		//	else if(aw.awsize==1) // 16 bits
-		//		reg1[15:0]<=w.wdata[15:0];
 			if(aw.awsize==2) // 32 bits
 				reg1<=w.wdata[31:0];
             else begin 
-                axi4_bresp = AXI4_SLVERR;
+                axi4_bresp = AXI4_LITE_SLVERR;
                 `ifdef verbose $display("Sending SLVERR because Accessed register's awsize was different"); `endif
 		end
 		end
     
-	  let b = AXI4_Wr_Resp {bresp: axi4_bresp, buser: aw.awuser, bid: aw.awid};
+	  let b = AXI4_Lite_Wr_Resp {bresp: axi4_bresp, buser: aw.awuser};
     s_xactor.i_wr_resp.enq (b);
 	endrule
 
@@ -454,40 +446,25 @@ package qspi;
     (*descending_urgency="rl_read_request_from_AXI,rl_write_request_from_AXI"*) //experimental
 	rule rl_read_request_from_AXI(rg_request_ready==True);
 		let axir<- pop_o(s_xactor.o_rd_addr);
-		rg_arid<= axir.arid;
         Bool request_ready = True;
         `ifdef verbose $display($time,"\tReceived AXI read request to Address: %h Size: %h",axir.araddr,axir.arsize); `endif
 		if((axir.araddr[27:0]>=`STARTMM && axir.araddr[27:0]<=`ENDMM) && axir.araddr[31]==1'b1)begin // memory mapped space
             
             wr_read_request_from_AXI<=True;   //Could this lead to some error? Need to think about this, without fail
-            AXI4_Resp axi4_rresp = AXI4_OKAY;
+            AXI4_Lite_Resp axi4_rresp = AXI4_LITE_OKAY;
 			mm_address<=truncate(axir.araddr);
             Bit#(4) data_length = axir.arsize==0?1:axir.arsize==1?2:axir.arsize==2?4:8; 
 			mm_data_length<= zeroExtend(data_length);
             Bit#(28) address_limit = 1 << dcr_fsize;
-            Bool rlast_burst = (axir.arlen==rg_arlen_counter);
-            rg_rlast_burst <= rlast_burst;
 
-            //If a register read request comes to the configuration address space while a burst transfer is going on! The system goes into an undefined state!! The onus is on the programmer!
-            if(!rlast_burst) begin
-                rg_arlen <= axir.arlen;
-                rg_arlen_counter <= rg_arlen_counter+1;
-                request_ready = False;
-            end
-            else begin
-                `ifdef verbose $display("Sending the last burst rlast_burst: %d rg_arlen: %d rg_arlen_counter: %d axir.arlen: %d",rlast_burst,rg_arlen,rg_arlen_counter,axir.arlen); `endif
-                rg_arlen <= 0;
-                rg_arlen_counter <= 0;
-            end
-            
             //It is forbidden to access the flash bank area before the SPI is properly configured -- fmode is '11??
             //If not sending a SLVERR now if the mode is not memory mapped and if an access is made outside allowed
             if(ccr_fmode!='b11 || axir.araddr[27:0] > address_limit) begin
                 `ifdef verbose $display("Sending Slave Error ccr_fmode: %h mm_address: %h address_limit: %h dcr_fsize: %h",ccr_fmode,mm_address,address_limit, dcr_fsize); `endif
-                axi4_rresp = AXI4_SLVERR;
-                let r = AXI4_Rd_Data {rresp: axi4_rresp, rdata: 0 ,rlast:rlast_burst, ruser: 0, rid: axir.arid};
+                axi4_rresp = AXI4_LITE_SLVERR;
+                let r = AXI4_Lite_Rd_Data {rresp: axi4_rresp, rdata: 0 , ruser: 0};
     	        s_xactor.i_rd_data.enq(r);
-                axi4_rresp = AXI4_SLVERR;
+                axi4_rresp = AXI4_LITE_SLVERR;
                 rg_phase <= Idle; //Will this work?
                 cr_en <= 0;
                 sr_busy <= 0;
@@ -534,9 +511,9 @@ package qspi;
 				    	end
 				    end
                     else 
-                        axi4_rresp = AXI4_SLVERR;
+                        axi4_rresp = AXI4_LITE_SLVERR;
                         `ifdef verbose $display("Sending Response to the core: reg1: %h", reg1); `endif
-             	    let r = AXI4_Rd_Data {rresp: axi4_rresp, rdata: duplicate(reg1) ,rlast:rlast_burst, ruser: 0, rid: axir.arid};
+             	    let r = AXI4_Lite_Rd_Data {rresp: axi4_rresp, rdata: duplicate(reg1) , ruser: 0};
     	            s_xactor.i_rd_data.enq(r);
                 end
             end
@@ -573,7 +550,7 @@ package qspi;
 				end
 			end
             `ifdef verbose $display("Sending Response : reg1: %x", reg1); `endif
-    	let r = AXI4_Rd_Data {rresp: AXI4_OKAY, rdata: duplicate(reg1) ,rlast:True, ruser: 0, rid: axir.arid};
+    	let r = AXI4_Lite_Rd_Data {rresp: AXI4_LITE_OKAY, rdata: duplicate(reg1) ,ruser: 0};
         request_ready = True;
     	s_xactor.i_rd_data.enq(r);
 		end
@@ -1159,7 +1136,7 @@ package qspi;
 					else if(ccr_fmode=='b11)begin// memory mapped mode
     				    if(first_read) begin
                             `ifdef verbose $display("Sending response back to the proc data_reg: %h",data_reg); `endif
-                            let r = AXI4_Rd_Data {rresp: AXI4_OKAY, rdata: duplicate(data_reg) ,rlast:rg_rlast_burst, ruser: 0, rid: rg_arid};
+                            let r = AXI4_Lite_Rd_Data {rresp: AXI4_LITE_OKAY, rdata: duplicate(data_reg) , ruser: 0};
     				        s_xactor.i_rd_data.enq(r);
                             first_read <= False;
                             //rg_request_ready <= True;

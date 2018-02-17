@@ -38,9 +38,6 @@ package Soc;
 		`ifdef AXIEXP
 			import axiexpansion	::*;
 		`endif
-		`ifdef QSPI0 
-			import qspi				 :: *; 
-		`endif
 		`ifdef BOOTROM
 			import BootRom			::*;
 		`endif
@@ -66,12 +63,6 @@ package Soc;
 		
 		`ifdef SDRAM 
 			(*always_ready*) interface Ifc_sdram_out sdram_out; 
-		`endif
-		`ifdef QSPI0 
-			interface QSPI_out qspi0_out; 
-		`endif
-      `ifdef QSPI1 
-			interface QSPI_out qspi1_out; 
 		`endif
       `ifdef Debug
 			(*always_ready,always_enabled*)
@@ -136,12 +127,6 @@ package Soc;
 			`else
 				Memory_IFC#(`SDRAMMemBase,`Addr_space) main_memory <- mkMemory("code.mem.MSB","code.mem.LSB","MainMEM");
 			`endif
-			`ifdef QSPI0 
-				Ifc_qspi			qspi0				<-	mkqspi(); 
-			`endif
-			`ifdef QSPI1 
-				Ifc_qspi			qspi1				<-	mkqspi(); 
-			`endif
 			`ifdef TCMemory
 				Ifc_TCM					tcm				<- mkTCM;	
 			`endif
@@ -178,12 +163,6 @@ package Soc;
 			`else
 				mkConnection(fabric.v_to_slaves[fromInteger(valueOf(Sdram_slave_num))],main_memory.axi_slave);
 			`endif
-  			`ifdef QSPI0 
-				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Qspi0_slave_num))],	qspi0.slave); 
-			`endif
-  			`ifdef QSPI1 
-				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Qspi1_slave_num))],	qspi1.slave); 
-			`endif
 			`ifdef BOOTROM
 				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(BootRom_slave_num))],bootrom.axi_slave);
 			`endif
@@ -204,17 +183,23 @@ package Soc;
 			//generate an interrupt (like TCM), drive a constant 1 on the corresponding interrupt line.
 				`ifdef I2C1 SyncBitIfc#(Bit#(1)) i2c1_interrupt <-mkSyncFIFOToCC(slow_clock,slow_reset); `endif
 				`ifdef I2C0 SyncBitIfc#(Bit#(1)) i2c0_interrupt <-mkSyncFIFOToCC(slow_clock,slow_reset); `endif
+				`ifdef QSPI1 SyncBitIfc#(Bit#(1)) qspi1_interrupt <-mkSyncFIFOToCC(slow_clock,slow_reset); `endif
+				`ifdef QSPI0 SyncBitIfc#(Bit#(1)) qspi0_interrupt <-mkSyncFIFOToCC(slow_clock,slow_reset); `endif
 				rule synchronize_i2c_interrupts;
-					`ifdef I2C1 i2c1.send(slow_peripherals.i2c1_isint); `endif
-					`ifdef I2C0 i2c0.send(slow_peripherals.i2c0_isint); `endif
+					`ifdef I2C1 i2c1_interrupt.send(slow_peripherals.i2c1_isint); `endif
+					`ifdef I2C0 i2c0_interrupt.send(slow_peripherals.i2c0_isint); `endif
+				endrule
+				rule synchronize_qspi_interrupts;
+					`ifdef QSPI0 qspi0_interrupt.send(slow_peripherals.qspi0_isint); `endif
+					`ifdef QSPI1 qspi1_interrupt.send(slow_peripherals.qspi1_isint); `endif
 				endrule
 				rule rl_connect_interrupt_to_DMA;
 					Bit#(12) lv_interrupt_to_DMA= {'d-1, 
-															i2c1.read , 
-															i2c0.read , 
-															`ifdef QSPI1 qspi1.interrupts[5] `else 1'b1 `endif ,
+															`ifdef I2C1 i2c1_interrupt.read `else 1'b1 `endif , 
+															`ifdef I2C0 i2c0_interrupt.read `else 1'b1 `endif , 
+															`ifdef QSPI1 qspi1_interrupt.read `else 1'b1 `endif ,
 															1'b1, 
-															`ifdef QSPI0 qspi0.interrupts[5] `else 1'b1 `endif , 
+															`ifdef QSPI0 qspi0_interrupt.read `else 1'b1 `endif , 
 															1'b1,1'b0, 
 															1'b1 /*TODO: Bring UART0 interrupt here */ };
 					dma.interrupt_from_peripherals(lv_interrupt_to_DMA);
@@ -273,9 +258,6 @@ package Soc;
 		`endif
 
       method Action boot_sequence(Bit#(1) bootseq) = core.boot_sequence(bootseq);
-		`ifdef QSPI0 interface qspi0_out = qspi0.out; `endif
-      `ifdef QSPI1 interface qspi1_out = qspi1.out; `endif
-
 		`ifdef SDRAM
 			interface sdram_out=sdram.ifc_sdram_out;
 		`endif

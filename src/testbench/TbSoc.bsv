@@ -199,80 +199,80 @@ package TbSoc;
         /********************** Micron FLASH Connections *****************/
       `ifdef micron
 		`ifdef QSPI0
-			Ifc_MicronFlashWrapper flash0 <-mkMicronFlashWrapper;
-			TriState#(Bit#(1)) qspi0tri_sio0<-mkTriState(soc.qspi0_out.io_enable[0]==1,soc.qspi0_out.io_o[0]);
-			TriState#(Bit#(1)) qspi0tri_sio1<-mkTriState(soc.qspi0_out.io_enable[1]==1,soc.qspi0_out.io_o[1]);
-			TriState#(Bit#(1)) qspi0tri_sio2<-mkTriState(soc.qspi0_out.io_enable[2]==1,soc.qspi0_out.io_o[2]);
-			TriState#(Bit#(1)) qspi0tri_sio3<-mkTriState(soc.qspi0_out.io_enable[3]==1,soc.qspi0_out.io_o[3]);
+			Ifc_MicronFlashWrapper flash0 <-mkMicronFlashWrapper(clocked_by slow_clock.slowClock, reset_by slow_reset);
+			TriState#(Bit#(1)) qspi0tri_sio0<-mkTriState(soc.slow_ios.qspi0_out.io_enable[0]==1,soc.slow_ios.qspi0_out.io_o[0],clocked_by slow_clock.slowClock, reset_by slow_reset);
+			TriState#(Bit#(1)) qspi0tri_sio1<-mkTriState(soc.slow_ios.qspi0_out.io_enable[1]==1,soc.slow_ios.qspi0_out.io_o[1],clocked_by slow_clock.slowClock, reset_by slow_reset);
+			TriState#(Bit#(1)) qspi0tri_sio2<-mkTriState(soc.slow_ios.qspi0_out.io_enable[2]==1,soc.slow_ios.qspi0_out.io_o[2],clocked_by slow_clock.slowClock, reset_by slow_reset);
+			TriState#(Bit#(1)) qspi0tri_sio3<-mkTriState(soc.slow_ios.qspi0_out.io_enable[3]==1,soc.slow_ios.qspi0_out.io_o[3],clocked_by slow_clock.slowClock, reset_by slow_reset);
 			mkConnection(qspi0tri_sio0.io,flash0.dq0);
         	mkConnection(qspi0tri_sio1.io,flash0.dq1);
         	mkConnection(qspi0tri_sio2.io,flash0.vpp_w_dq2);
         	mkConnection(qspi0tri_sio3.io,flash0.hold_dq3);
         	rule connect_flash0_ports1;
-        	    flash0.iS(soc.qspi0_out.ncs_o);
-        	    flash0.iC(soc.qspi0_out.clk_o);
+        	    flash0.iS(soc.slow_ios.qspi0_out.ncs_o);
+        	    flash0.iC(soc.slow_ios.qspi0_out.clk_o);
         	    flash0.iVcc('d1800);
         	endrule
         	rule connect_flash0_input_ports;
-        	    soc.qspi0_out.io_i({qspi0tri_sio3._read,qspi0tri_sio2._read,qspi0tri_sio1._read,qspi0tri_sio0._read});
+        	    soc.slow_ios.spi0_out.io_i({qspi0tri_sio3._read,qspi0tri_sio2._read,qspi0tri_sio1._read,qspi0tri_sio0._read});
         	endrule
 		`endif
 		`ifdef QSPI1
-			Ifc_MicronFlashWrapper flash1 <-mkMicronFlashWrapper;
-			TriState#(Bit#(1)) qspi1tri_sio0<-mkTriState(soc.qspi1_out.io_enable[0]==1,soc.qspi1_out.io_o[0]);
-			TriState#(Bit#(1)) qspi1tri_sio1<-mkTriState(soc.qspi1_out.io_enable[1]==1,soc.qspi1_out.io_o[1]);
-			TriState#(Bit#(1)) qspi1tri_sio2<-mkTriState(soc.qspi1_out.io_enable[2]==1,soc.qspi1_out.io_o[2]);
-			TriState#(Bit#(1)) qspi1tri_sio3<-mkTriState(soc.qspi1_out.io_enable[3]==1,soc.qspi1_out.io_o[3]);
+			Ifc_MicronFlashWrapper flash1 <-mkMicronFlashWrapper(clocked_by slow_clock.slowClock, reset_by slow_reset);
+			TriState#(Bit#(1)) qspi1tri_sio0<-mkTriState(soc.slow_ios.qspi1_out.io_enable[0]==1,soc.qspi1_out.io_o[0],clocked_by slow_clock.slowClock,reset_by slow_reset);
+			TriState#(Bit#(1)) qspi1tri_sio1<-mkTriState(soc.slow_ios.qspi1_out.io_enable[1]==1,soc.qspi1_out.io_o[1],clocked_by slow_clock.slowClock,reset_by slow_reset);
+			TriState#(Bit#(1)) qspi1tri_sio2<-mkTriState(soc.slow_ios.qspi1_out.io_enable[2]==1,soc.qspi1_out.io_o[2],clocked_by slow_clock.slowClock,reset_by slow_reset);
+			TriState#(Bit#(1)) qspi1tri_sio3<-mkTriState(soc.slow_ios.qspi1_out.io_enable[3]==1,soc.qspi1_out.io_o[3],clocked_by slow_clock.slowClock,reset_by slow_reset);
 			mkConnection(qspi1tri_sio0.io,flash1.dq0);
         	mkConnection(qspi1tri_sio1.io,flash1.dq1);
         	mkConnection(qspi1tri_sio2.io,flash1.vpp_w_dq2);
         	mkConnection(qspi1tri_sio3.io,flash1.hold_dq3);
         	rule connect_flash1_ports1;
-        	    flash1.iS(soc.qspi1_out.ncs_o);
-        	    flash1.iC(soc.qspi1_out.clk_o);
+        	    flash1.iS(soc.slow_ios.qspi1_out.ncs_o);
+        	    flash1.iC(soc.slow_ios.qspi1_out.clk_o);
         	    flash1.iVcc('d1800);
         	endrule
         	rule connect_flash1_input_ports;
-        	    soc.qspi1_out.io_i({qspi1tri_sio3._read,qspi1tri_sio2._read,qspi1tri_sio1._read,qspi1tri_sio0._read});
+        	    soc.slow_ios.qspi1_out.io_i({qspi1tri_sio3._read,qspi1tri_sio2._read,qspi1tri_sio1._read,qspi1tri_sio0._read});
         	endrule
 		`endif
         /*================================================================*/
         /*=================== Cypress Flash Connections ==================*/
       `else //Cypress BFM
         `ifdef QSPI0
-            Ifc_FlashWrapper flash0 <- mkCypressFlashWrapper;
-        	TriState#(Bit#(1)) qspi0tri_sio0<-mkTriState(soc.qspi0_out.io_enable[0]==1,soc.qspi0_out.io_o[0]);
-			TriState#(Bit#(1)) qspi0tri_sio1<-mkTriState(soc.qspi0_out.io_enable[1]==1,soc.qspi0_out.io_o[1]);
-			TriState#(Bit#(1)) qspi0tri_sio2<-mkTriState(soc.qspi0_out.io_enable[2]==1,soc.qspi0_out.io_o[2]);
-			TriState#(Bit#(1)) qspi0tri_sio3<-mkTriState(soc.qspi0_out.io_enable[3]==1,soc.qspi0_out.io_o[3]);
-			mkConnection(qspi0tri_sio0.io,flash0.si);
-        	mkConnection(qspi0tri_sio1.io,flash0.so);
-        	mkConnection(qspi0tri_sio2.io,flash0.wpNeg);
-        	mkConnection(qspi0tri_sio3.io,flash0.resetNeg);
-        	rule connect_flash0_ports1;
-        	    flash0.iCSNeg(soc.qspi0_out.ncs_o);
-        	    flash0.iSCK(soc.qspi0_out.clk_o);
-        	endrule
-        	rule connect_flash0_input_ports;
-        	    soc.qspi0_out.io_i({qspi0tri_sio3._read,qspi0tri_sio2._read,qspi0tri_sio1._read,qspi0tri_sio0._read});
-        	endrule
+            Ifc_FlashWrapper flash0 <- mkCypressFlashWrapper(clocked_by slow_clock.slowClock, reset_by slow_reset);
+				TriState#(Bit#(1)) qspi0tri_sio0<-mkTriState(soc.slow_ios.qspi0_out.io_enable[0]==1,soc.slow_ios.qspi0_out.io_o[0],clocked_by slow_clock.slowClock, reset_by slow_reset);
+				TriState#(Bit#(1)) qspi0tri_sio1<-mkTriState(soc.slow_ios.qspi0_out.io_enable[1]==1,soc.slow_ios.qspi0_out.io_o[1],clocked_by slow_clock.slowClock, reset_by slow_reset);
+				TriState#(Bit#(1)) qspi0tri_sio2<-mkTriState(soc.slow_ios.qspi0_out.io_enable[2]==1,soc.slow_ios.qspi0_out.io_o[2],clocked_by slow_clock.slowClock, reset_by slow_reset);
+				TriState#(Bit#(1)) qspi0tri_sio3<-mkTriState(soc.slow_ios.qspi0_out.io_enable[3]==1,soc.slow_ios.qspi0_out.io_o[3],clocked_by slow_clock.slowClock, reset_by slow_reset);
+				mkConnection(qspi0tri_sio0.io,flash0.si);
+        		mkConnection(qspi0tri_sio1.io,flash0.so);
+        		mkConnection(qspi0tri_sio2.io,flash0.wpNeg);
+        		mkConnection(qspi0tri_sio3.io,flash0.resetNeg);
+        		rule connect_flash0_ports1;
+        		    flash0.iCSNeg(soc.slow_ios.qspi0_out.ncs_o);
+        		    flash0.iSCK(soc.slow_ios.qspi0_out.clk_o);
+        		endrule
+        		rule connect_flash0_input_ports;
+        		    soc.slow_ios.qspi0_out.io_i({qspi0tri_sio3._read,qspi0tri_sio2._read,qspi0tri_sio1._read,qspi0tri_sio0._read});
+        		endrule
         `endif
         `ifdef QSPI1
-            Ifc_FlashWrapper flash1 <- mkCypressFlashWrapper;
-        	TriState#(Bit#(1)) qspi1tri_sio0<-mkTriState(soc.qspi1_out.io_enable[0]==1,soc.qspi1_out.io_o[0]);
-			TriState#(Bit#(1)) qspi1tri_sio1<-mkTriState(soc.qspi1_out.io_enable[1]==1,soc.qspi1_out.io_o[1]);
-			TriState#(Bit#(1)) qspi1tri_sio2<-mkTriState(soc.qspi1_out.io_enable[2]==1,soc.qspi1_out.io_o[2]);
-			TriState#(Bit#(1)) qspi1tri_sio3<-mkTriState(soc.qspi1_out.io_enable[3]==1,soc.qspi1_out.io_o[3]);
+            Ifc_FlashWrapper flash1 <- mkCypressFlashWrapper(clocked_by slow_clock.slowClock, reset_by slow_reset);
+        	TriState#(Bit#(1)) qspi1tri_sio0<-mkTriState(soc.slow_ios.qspi1_out.io_enable[0]==1,soc.slow_ios.qspi1_out.io_o[0],clocked_by slow_clock.slowClock, reset_by slow_reset);
+			TriState#(Bit#(1)) qspi1tri_sio1<-mkTriState(soc.slow_ios.qspi1_out.io_enable[1]==1,soc.slow_ios.qspi1_out.io_o[1],clocked_by slow_clock.slowClock, reset_by slow_reset);
+			TriState#(Bit#(1)) qspi1tri_sio2<-mkTriState(soc.slow_ios.qspi1_out.io_enable[2]==1,soc.slow_ios.qspi1_out.io_o[2],clocked_by slow_clock.slowClock, reset_by slow_reset);
+			TriState#(Bit#(1)) qspi1tri_sio3<-mkTriState(soc.slow_ios.qspi1_out.io_enable[3]==1,soc.slow_ios.qspi1_out.io_o[3],clocked_by slow_clock.slowClock, reset_by slow_reset);
 			mkConnection(qspi1tri_sio0.io,flash1.si);
         	mkConnection(qspi1tri_sio1.io,flash1.so);
         	mkConnection(qspi1tri_sio2.io,flash1.wpNeg);
         	mkConnection(qspi1tri_sio3.io,flash1.resetNeg);
         	rule connect_flash1_ports1;
-        	    flash1.iCSNeg(soc.qspi1_out.ncs_o);
-        	    flash1.iSCK(soc.qspi1_out.clk_o);
+        	    flash1.iCSNeg(soc.slow_ios.qspi1_out.ncs_o);
+        	    flash1.iSCK(soc.slow_ios.qspi1_out.clk_o);
         	endrule
         	rule connect_flash1_input_ports;
-        	    soc.qspi1_out.io_i({qspi1tri_sio3._read,qspi1tri_sio2._read,qspi1tri_sio1._read,qspi1tri_sio0._read});
+        	    soc.slow_ios.qspi1_out.io_i({qspi1tri_sio3._read,qspi1tri_sio2._read,qspi1tri_sio1._read,qspi1tri_sio0._read});
         	endrule
         `endif
       `endif

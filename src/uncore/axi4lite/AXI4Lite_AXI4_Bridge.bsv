@@ -68,7 +68,7 @@ package AXI4Lite_AXI4_Bridge;
 		rule send_read_request_on_slow_bus;
 			let request=ff_rd_addr.first;
 			ff_rd_addr.deq;
-		 	let lite_request = AXI4_Lite_Rd_Addr {araddr: request.araddr, arprot: 0, aruser: 0}; // arburst: 00-FIXED 01-INCR 10-WRAP
+		 	let lite_request = AXI4_Lite_Rd_Addr {araddr: request.araddr, arprot: 0, arsize:request.arsize,aruser: 0}; // arburst: 00-FIXED 01-INCR 10-WRAP
    	   m_xactor.i_rd_addr.enq(lite_request);	
 			rd_id<=request.arid;
 			rg_readburst_value<=request.arlen;

@@ -35,6 +35,9 @@ package slow_peripherals;
 	`ifdef I2C0
 		import I2C_top			 :: *;
 	`endif
+	`ifdef QSPI0 
+		import qspi				 :: *; 
+	`endif
 	/*=====================================*/
 	
 	/*===== interface declaration =====*/
@@ -59,6 +62,12 @@ package slow_peripherals;
 		`ifdef I2C1
 			interface I2C_out i2c1_out;
 		`endif
+		`ifdef QSPI0 
+			interface QSPI_out qspi0_out; 
+		`endif
+      `ifdef QSPI1 
+			interface QSPI_out qspi1_out; 
+		`endif
 	endinterface
 	interface Ifc_slow_peripherals;
 		interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
@@ -70,7 +79,9 @@ package slow_peripherals;
 		`endif
 		`ifdef PLIC method ActionValue#(Tuple2#(Bool,Bool)) intrpt_note; `endif
 		`ifdef I2C0	method Bit#(1) i2c0_isint; `endif
-		`ifdef I2C0	method Bit#(1) i2c1_isint; `endif
+		`ifdef I2C1	method Bit#(1) i2c1_isint; `endif
+		`ifdef QSPI0	method Bit#(1) qspi0_isint; `endif
+		`ifdef QSPI1	method Bit#(1) qspi1_isint; `endif
 	endinterface
 	/*================================*/
 
@@ -107,6 +118,20 @@ package slow_peripherals;
 				return tuple2(True,fromInteger(valueOf(I2c1_slave_num)));
 			else
 		`endif
+		`ifdef QSPI0
+			if(addr>=`QSPI0CfgBase && addr<=`QSPI0CfgEnd)
+				return tuple2(True,fromInteger(valueOf(Qspi0_slave_num)));
+			else if(addr>=`QSPI0MemBase && addr<=`QSPI0MemEnd)
+				return tuple2(True,fromInteger(valueOf(Qspi0_slave_num)));
+			else
+		`endif
+		`ifdef QSPI1
+			if(addr>=`QSPI1CfgBase && addr<=`QSPI1CfgEnd)
+				return tuple2(True,fromInteger(valueOf(Qspi1_slave_num)));
+			else if(addr>=`QSPI1MemBase && addr<=`QSPI1MemEnd)
+				return tuple2(True,fromInteger(valueOf(Qspi1_slave_num)));
+			else
+		`endif
 		return tuple2(False,?);
 	endfunction
 
@@ -137,6 +162,12 @@ package slow_peripherals;
 		`ifdef I2C1
 			I2C_IFC					i2c1				<- mkI2CController();
 		`endif
+		`ifdef QSPI0 
+			Ifc_qspi			qspi0				<-	mkqspi(); 
+		`endif
+		`ifdef QSPI1 
+			Ifc_qspi			qspi1				<-	mkqspi(); 
+		`endif
 		/*=======================================================*/
 
    	AXI4_Lite_Fabric_IFC #(1, Num_Slow_Slaves, `PADDR, `Reg_width,`USERSPACE)	slow_fabric <- mkAXI4_Lite_Fabric(fn_address_mapping);
@@ -162,6 +193,12 @@ package slow_peripherals;
 		`endif
 		`ifdef I2C1
    		mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(I2c1_slave_num))],		i2c1.slave_i2c_axi); // 
+		`endif
+  		`ifdef QSPI0 
+			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Qspi0_slave_num))],	qspi0.slave); 
+		`endif
+  		`ifdef QSPI1 
+			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Qspi1_slave_num))],	qspi1.slave); 
 		`endif
 		/*=======================================================*/
 		/*=================== PLIC Connections ==================== */
@@ -279,6 +316,7 @@ package slow_peripherals;
 				rule synchronize_the_uart0_interrupt;
 					uart0_interrupt.send(uart0.irq);		
 				endrule
+			`endif
 			rule rl_connect_uart_to_plic;
 				`ifdef UART0
 					if(uart0_interrupt.read==1'b1) begin
@@ -335,6 +373,8 @@ package slow_peripherals;
 		`ifdef I2C1
 			method i2c1_isint=i2c1.isint;
 		`endif
+		`ifdef QSPI0 method	qspi0_isint=qspi0.interrupts[5]; `endif
+		`ifdef QSPI1 method	qspi1_isint=qspi1.interrupts[5]; `endif
 		interface SP_ios slow_ios;
 			`ifdef UART0
 				interface uart0_coe=uart0.coe_rs232;
@@ -353,6 +393,13 @@ package slow_peripherals;
 			`ifdef I2C1
 				interface i2c1_out=i2c1.out;
 			`endif
+			`ifdef QSPI0 
+				interface qspi0_out = qspi0.out; 
+			`endif
+			`ifdef QSPI1 
+				interface qspi1_out = qspi1.out; 
+			`endif
+
 		endinterface
 		/*===================================*/
 	endmodule
