@@ -181,10 +181,10 @@ package Soc;
 			//rule to connect all interrupt lines to the DMA
 			//All the interrupt lines to DMA are active HIGH. For peripherals that are not connected, or those which do not
 			//generate an interrupt (like TCM), drive a constant 1 on the corresponding interrupt line.
-				`ifdef I2C1 SyncBitIfc#(Bit#(1)) i2c1_interrupt <-mkSyncFIFOToCC(slow_clock,slow_reset); `endif
-				`ifdef I2C0 SyncBitIfc#(Bit#(1)) i2c0_interrupt <-mkSyncFIFOToCC(slow_clock,slow_reset); `endif
-				`ifdef QSPI1 SyncBitIfc#(Bit#(1)) qspi1_interrupt <-mkSyncFIFOToCC(slow_clock,slow_reset); `endif
-				`ifdef QSPI0 SyncBitIfc#(Bit#(1)) qspi0_interrupt <-mkSyncFIFOToCC(slow_clock,slow_reset); `endif
+				`ifdef I2C1 SyncBitIfc#(Bit#(1)) i2c1_interrupt <-mkSyncBitToCC(slow_clock,slow_reset); `endif
+				`ifdef I2C0 SyncBitIfc#(Bit#(1)) i2c0_interrupt <-mkSyncBitToCC(slow_clock,slow_reset); `endif
+				`ifdef QSPI1 SyncBitIfc#(Bit#(1)) qspi1_interrupt <-mkSyncBitToCC(slow_clock,slow_reset); `endif
+				`ifdef QSPI0 SyncBitIfc#(Bit#(1)) qspi0_interrupt <-mkSyncBitToCC(slow_clock,slow_reset); `endif
 				rule synchronize_i2c_interrupts;
 					`ifdef I2C1 i2c1_interrupt.send(slow_peripherals.i2c1_isint); `endif
 					`ifdef I2C0 i2c0_interrupt.send(slow_peripherals.i2c0_isint); `endif
