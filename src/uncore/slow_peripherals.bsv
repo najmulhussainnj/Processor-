@@ -80,8 +80,9 @@ package slow_peripherals;
 		`ifdef PLIC method ActionValue#(Tuple2#(Bool,Bool)) intrpt_note; `endif
 		`ifdef I2C0	method Bit#(1) i2c0_isint; `endif
 		`ifdef I2C1	method Bit#(1) i2c1_isint; `endif
-		`ifdef QSPI0	method Bit#(1) qspi0_isint; `endif
-		`ifdef QSPI1	method Bit#(1) qspi1_isint; `endif
+		`ifdef QSPI0 method Bit#(1) qspi0_isint; `endif
+		`ifdef QSPI1 method Bit#(1) qspi1_isint; `endif
+		`ifdef UART0 method Bit#(1) uart0_intr; `endif
 	endinterface
 	/*================================*/
 
@@ -375,6 +376,7 @@ package slow_peripherals;
 		`endif
 		`ifdef QSPI0 method	qspi0_isint=qspi0.interrupts[5]; `endif
 		`ifdef QSPI1 method	qspi1_isint=qspi1.interrupts[5]; `endif
+		`ifdef UART0 method uart0_intr=uart0.irq; `endif
 		interface SP_ios slow_ios;
 			`ifdef UART0
 				interface uart0_coe=uart0.coe_rs232;

@@ -185,6 +185,7 @@ package Soc;
 				`ifdef I2C0 SyncBitIfc#(Bit#(1)) i2c0_interrupt <-mkSyncBitToCC(slow_clock,slow_reset); `endif
 				`ifdef QSPI1 SyncBitIfc#(Bit#(1)) qspi1_interrupt <-mkSyncBitToCC(slow_clock,slow_reset); `endif
 				`ifdef QSPI0 SyncBitIfc#(Bit#(1)) qspi0_interrupt <-mkSyncBitToCC(slow_clock,slow_reset); `endif
+				`ifdef UART0 SyncBitIfc#(Bit#(1)) uart0_interrupt <-mkSyncBitToCC(uart_clock,uart_reset); `endif
 				rule synchronize_i2c_interrupts;
 					`ifdef I2C1 i2c1_interrupt.send(slow_peripherals.i2c1_isint); `endif
 					`ifdef I2C0 i2c0_interrupt.send(slow_peripherals.i2c0_isint); `endif
@@ -192,6 +193,9 @@ package Soc;
 				rule synchronize_qspi_interrupts;
 					`ifdef QSPI0 qspi0_interrupt.send(slow_peripherals.qspi0_isint); `endif
 					`ifdef QSPI1 qspi1_interrupt.send(slow_peripherals.qspi1_isint); `endif
+				endrule
+				rule synchronize_uart0_interrupt;
+					`ifdef UART0 uart0_interrupt.send(slow_peripherals.uart0_intr); `endif
 				endrule
 				rule rl_connect_interrupt_to_DMA;
 					Bit#(12) lv_interrupt_to_DMA= {'d-1, 
@@ -201,7 +205,7 @@ package Soc;
 															1'b1, 
 															`ifdef QSPI0 qspi0_interrupt.read `else 1'b1 `endif , 
 															1'b1,1'b0, 
-															1'b1 /*TODO: Bring UART0 interrupt here */ };
+															`ifdef UART0 uart0_interrupt.read `else 1'b1 `endif };
 					dma.interrupt_from_peripherals(lv_interrupt_to_DMA);
 				endrule
 			`endif
