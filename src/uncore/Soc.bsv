@@ -102,10 +102,9 @@ package Soc;
 	/*=============================================== */
 	endinterface
 	(*synthesize*)
-	module mkSoc #(Bit#(`VADDR) reset_vector, Clock slow_clock, Reset slow_reset, Clock uart_clock,  Clock clk0, Clock tck, Reset trst)(Ifc_Soc);
+	module mkSoc #(Bit#(`VADDR) reset_vector, Clock slow_clock, Reset slow_reset, Clock uart_clock, Reset uart_reset, Clock clk0, Clock tck, Reset trst)(Ifc_Soc);
 			Clock core_clock <-exposeCurrentClock; // slow peripheral clock
 			Reset core_reset <-exposeCurrentReset; // slow peripheral reset
-			Reset uart_reset <-mkAsyncResetFromCR(1,uart_clock); // reset synchronization for uart clock
          `ifdef Debug 
 				Ifc_jtagdtm tap <-mkjtagdtm(clocked_by tck, reset_by trst);
             rule drive_tmp_scan_outs;

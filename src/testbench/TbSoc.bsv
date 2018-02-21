@@ -88,7 +88,7 @@ package TbSoc;
 		ClockDividerIfc slow_clock <- mkClockDivider(2);
 		Reset slow_reset <-mkAsyncResetFromCR(0,slow_clock.slowClock);
 
-		Ifc_Soc soc <-mkSoc(reset_vector,slow_clock.slowClock,slow_reset, uart_clock,clk0,tck_clk.new_clk,trst.new_rst);
+		Ifc_Soc soc <-mkSoc(reset_vector,slow_clock.slowClock,slow_reset, uart_clock,uart_reset,clk0,tck_clk.new_clk,trst.new_rst);
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmlsb <-mksdram_model_wrapper("code.mem.LSB",clocked_by clk0, reset_by rst0); `endif
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmmsb <-mksdram_model_wrapper("code.mem.MSB",clocked_by clk0, reset_by rst0); `endif
 		`ifdef AXIEXP Ifc_sample_axiexpslave axiexpslave <-mksample_axiexpslave; `endif
