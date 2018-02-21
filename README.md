@@ -113,6 +113,27 @@ To generate VCD go to the bin and execute the following:
 * in bsim environment: ./out -V
 * in verilog environment: ./out +bscvcd
 
+### Linux on Shakti ###
+
+To run linux on shakti follow the below steps (for the first time)
+
+    To Download the shakti-linux repository 
+            $ git clone https://bitbucket.org/casl/shakti-linux.git
+            $ cd shakti-linux
+            $ export SHAKTI_LINUX=$(pwd)
+            $ git submodule update --init --recursive
+    
+    To generate the kernel image 
+            $ cd $SHAKTI_LINUX
+            $ make -j16 ISA=rv64imafd
+            
+    To run the kernel on simulation
+            $ cd $SHAKTI_HOME
+            $ make linux_bsim
+            
+    The make linux_bluesim command will begin running the bluesim simulation 
+
+
 More details to follow.. :)
 
 

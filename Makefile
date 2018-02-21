@@ -229,9 +229,17 @@ generate_boot_files:
 	@cut -c1-8 verification/dts/boot.hex > bin/boot.MSB
 	@cut -c9-16 verification/dts/boot.hex > bin/boot.LSB
 
+.PHONY: linux_bsim
+linux_bsim: compile_bluesim link_bluesim generate_boot_files 
+	@ln -s $(SHAKTI_LINUX)/work/riscv-pk/bbl .
+	@elf2hex 8 2097152 bbl 2147483648 > bbl.hex
+	@cut -c1-8  bbl.hex > $(BSVOUTDIR)/code.mem.MSB
+	@cut -c9-16 bbl.hex > $(BSVOUTDIR)/code.mem.LSB
+	@cd $(BSVOUTDIR) && ./out
+
 .PHONY: clean
 clean:
-	rm -rf $(BSVBUILDDIR) *.log $(BSVOUTDIR)
+	rm -rf $(BSVBUILDDIR) *.log $(BSVOUTDIR) ./bbl*
 
 clean_verilog: clean 
 	rm -rf verilog/ obj_dir
