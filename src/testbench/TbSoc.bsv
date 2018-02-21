@@ -83,7 +83,7 @@ package TbSoc;
 		Reset rst0 <- mkAsyncResetFromCR (0, clk0);
 		
 		Clock uart_clock <-mkAbsoluteClock(0,20);
-		Reset uart_reset <-mkSyncResetFromCR(1,uart_clock);
+		Reset uart_reset <-mkAsyncResetFromCR(1,uart_clock);
 	
 		ClockDividerIfc slow_clock <- mkClockDivider(2);
 		Reset slow_reset <-mkAsyncResetFromCR(0,slow_clock.slowClock);
@@ -404,18 +404,19 @@ package TbSoc;
 			rule connect_sin;
 				soc.slow_ios.uart1_coe.sin(uart.rs232.sout);
 	   	endrule
-			rule connect_sout;
+	/*		rule connect_sout;
 				uart.rs232.sin(soc.slow_ios.uart1_coe.sout);
 	   	endrule
+	*/
 		`endif
 		
 		`ifdef UART0
 			rule connect_uart0_sin;	//dummy rule to connect uart0 sin since its always_enabled
 				soc.slow_ios.uart0_coe.modem_input(uart.rs232.sout,0,0,0,0);
 			endrule
-//	//		rule connect_uart0_sout;
-////				uart.rs232.sin(soc.uart0_coe.modem_output_stx);
-////			endrule
+			rule connect_uart0_sout;
+				uart.rs232.sin(soc.slow_ios.uart0_coe.modem_output_stx);
+			endrule
 		`endif
 		
 

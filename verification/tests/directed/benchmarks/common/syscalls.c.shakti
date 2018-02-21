@@ -164,9 +164,8 @@ int getchar()
     
    return a0;
 }
+*/
 
-
-#undef putchar
 int putchar(int ch)
 {
   register char a0 asm("a0") = ch;
@@ -179,8 +178,8 @@ int putchar(int ch)
 				:
 				:"x0","a0","t1","t2", "cc", "memory");
   return 0;
-}*/
-
+}
+/*
 int putchar(int ch)
 {
   register char a0 asm("a0") = ch;
@@ -191,12 +190,12 @@ int putchar(int ch)
 				:"a0","t1","cc","memory");
   return 0;
 }
-
+*/
 
 void _init(int cid, int nc)
 {
-  init_tls();
-  thread_entry(cid, nc);
+//  init_tls();
+//  thread_entry(cid, nc);
   // only single-threaded programs should ever get here.
   int ret = main(0, 0);
 

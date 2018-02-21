@@ -46,9 +46,20 @@ _start:
   li  x29,0
   li  x30,0
   li  x31,0
-  fence
-  fence.i
-  sfence.vma
+  /*=== UART0 initilization ===*/
+  li t1, 0x11200	//The base address of UART config registers
+  li t2, 0x83		//Access divisor registers
+  sb t2, 24(t1)	//Writing to UART_ADDR_LINE_CTRL
+  li t2, 0x0		//The upper bits of uart div
+  sb x0, 8(t1)		//Storing upper bits of uart div
+  li t2, 0x5 		//The lower bits of uart div
+  sb t2, 0(t1)			
+  li t2, 0x3 
+  sb t2, 24(t1)
+  li t2, 0x6
+  sb t2, 16(t1)
+  sb x0, 8(t1)
+  /*=========================*/
 
   # enable FPU and accelerator if present
   li t0, MSTATUS_FS | MSTATUS_XS
