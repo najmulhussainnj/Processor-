@@ -63,12 +63,21 @@ The soc_config.inc file is used to configure the specs of the core and the Soc t
 |__DMA__|enable,disable|Instantiates the home-grown DMA controller.|
 |__TCM__|enable,disable|Instantiates a 128KB BRAM based tightly-coupled memory.|
 |__CLINT__|enable,disable|Instantiates a core-level interrupt.|
-|__SYNTH__|SIM, FPGA| controls whether the core is being generated for simulation or synthesis. </br>* SIM: This will generate a core which will have some simulate-only features like file-io, etc.</br>* FPGA: This will generate a core which will ignore the simulate-only features.
+|__SYNTH__|SIM, FPGA| controls whether the core is being generated for simulation or synthesis. <br/>* SIM: This will generate a core which will have some simulate-only features like file-io, etc.<br/>* FPGA: This will generate a core which will ignore the simulate-only features.
 |__FLASHMODEL__|cypress,micron| instantiate either a cypress or a micron based FLASH BFM in the test-bench to be connected to the qspi.|
 
 ### Compiling the Core/SoC ###
 
-The Makefile in the root-folder is to be used to compile the core/SoC. For the makefile to work you need to have soc_config.inc and an empty file called "old_vars" in the root-folder. Following are the make targets that a user can use:
+The Makefile in the root-folder is to be used to compile the core/SoC bsv code. For the makefile to work you need to:
+
+* have soc_config.inc in the same folder (template is provided)
+* have a file called "old_vars" in the same folder (template is provided). 
+* set the following variables in Makefile:
+    * TOP_MODULE: set it to the top bsv module name (eg. mkTbSoc)
+    * TOP_FILE:   set it to the file (with .bsv extension) containing the TOP_MODULE (eg. TbSoc.bsv)
+    * TOP_DIR:    set it to relative path from root-folder containing TOP_FILE (eg. src/testbench.bsv )
+
+Following are the make targets that a user can use:
 
 | Target | Description |
 |--------|-------------|
