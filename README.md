@@ -131,7 +131,7 @@ To run linux on shakti follow the below steps (for the first time)
             $ cd $SHAKTI_HOME
             $ make linux_bsim
             
-    The make linux_bluesim command will begin running the bluesim simulation 
+    The make linux_bsim command will begin running the bluesim simulation. The log of the kernel execution will be in the file: app_log 
 
 
 More details to follow.. :)
