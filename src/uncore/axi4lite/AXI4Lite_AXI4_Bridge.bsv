@@ -19,6 +19,7 @@ package AXI4Lite_AXI4_Bridge;
 	import AXI4_Types ::*;
 	import Semi_FIFOF	::*;
 	import defined_types::*;
+	import axi_addr_generator::*;
 	`include "defined_parameters.bsv"
 	/*======================*/
 	/*=== Package imports ===*/
@@ -32,26 +33,6 @@ package AXI4Lite_AXI4_Bridge;
 
 	typedef enum {RegularReq,BurstReq} BridgeState deriving (Bits,Eq,FShow);
 
-	function Bit#(`PADDR) burst_address_generator(Bit#(8) arlen, Bit#(3) arsize, Bit#(2) arburst, Bit#(`PADDR) address);
-		Bit#(3) wrap_size;
-		case(arlen)
-			3: wrap_size= 1;
-			7: wrap_size= 2;
-			15: wrap_size=3;
-			default:wrap_size=0;
-		endcase
-
-		if(arburst==0) // FIXED
-			return address;
-		else if(arburst==1)begin // INCR
-			return address+ (('b1)<<arsize);
-		end
-		else begin // WRAP
-			let new_addr=address;
-			new_addr[arsize+wrap_size]=address[arsize+wrap_size:arsize]+1;
-			return new_addr;
-		end
-	endfunction
 	(*synthesize*)
 	module mkAXI4Lite_AXI4_Bridge#(Clock fast_clock, Reset fast_reset)(Ifc_AXI4Lite_AXI4_Bridge);
 		AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor(clocked_by fast_clock, reset_by fast_reset);
@@ -109,7 +90,7 @@ package AXI4Lite_AXI4_Bridge;
 		rule send_read_request_on_slow_bus;
 			let request=ff_rd_addr.first;
 			ff_rd_addr.deq;
-		 	let lite_request = AXI4_Lite_Rd_Addr {araddr: request.araddr, arprot: 0, arsize:request.arsize,aruser: 0}; // arburst: 00-FIXED 01-INCR 10-WRAP
+		 	let lite_request = AXI4_Lite_Rd_Addr {araddr: request.araddr, arsize:request.arsize,aruser: 0}; // arburst: 00-FIXED 01-INCR 10-WRAP
    	   m_xactor.i_rd_addr.enq(lite_request);	
 			rd_id<=request.arid;
 		endrule
@@ -125,6 +106,9 @@ package AXI4Lite_AXI4_Bridge;
 			if(wr_addr_req.awlen!=0) begin
 				wr_state<=BurstReq;
 			end
+			`ifdef verbose $display($time,"\tAXIBRIDGE: Write Request"); `endif
+			`ifdef verbose $display($time,"\tAddress Channel :",fshow(wr_addr_req)); `endif
+			`ifdef verbose $display($time,"\tData Channel :",fshow(wr_data_req)); `endif
 		endrule
 		// In case a write-burst request is received on the fast bus, then the bursts have to broken down into
 		// individual slow-bus write requests. 
@@ -143,13 +127,16 @@ package AXI4Lite_AXI4_Bridge;
 			if(wr_data_req.wlast)begin
 				wr_state<=RegularReq;
 			end
+			`ifdef verbose $display($time,"\tAXIBRIDGE: Burst Write Request"); `endif
+			`ifdef verbose $display($time,"\tAddress Channel :",fshow(rg_write_packet)); `endif
+			`ifdef verbose $display($time,"\tData Channel :",fshow(wr_data_req)); `endif
 		endrule
 		rule send_write_request_on_slow_bus;
 			let wr_addr_req  = ff_wr_addr.first;
 	      let wr_data_req  = ff_wr_data.first;
 			ff_wr_data.deq;
 			ff_wr_addr.deq;
-			let aw = AXI4_Lite_Wr_Addr {awaddr: wr_addr_req.awaddr, awprot:0, awuser:0}; // arburst: 00-FIXED 01-INCR 10-WRAP
+			let aw = AXI4_Lite_Wr_Addr {awaddr: wr_addr_req.awaddr, awuser:0}; // arburst: 00-FIXED 01-INCR 10-WRAP
 			let w  = AXI4_Lite_Wr_Data {wdata:  wr_data_req.wdata, wstrb: wr_data_req.wstrb};
 			m_xactor.i_wr_addr.enq(aw);
 			m_xactor.i_wr_data.enq(w);
