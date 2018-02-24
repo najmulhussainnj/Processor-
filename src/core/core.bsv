@@ -174,8 +174,7 @@ package core;
 			Bit#(2) arburst=2;
 			if(info.burst_length==1)
 				arburst=1;
-		 	let read_request = AXI4_Rd_Addr {araddr: truncate(info.address), arprot: 0, aruser: 0, arlen: info.burst_length-1, arsize: zeroExtend(info.transfer_size), arburst: arburst, arid:'d0,
-										arregion:0, arlock: 0, arcache: 0, arqos:0}; // arburst: 00-FIXED 01-INCR 10-WRAP
+		 	let read_request = AXI4_Rd_Addr {araddr: truncate(info.address), aruser: 0, arlen: info.burst_length-1, arsize: zeroExtend(info.transfer_size), arburst: arburst, arid:'d0}; // arburst: 00-FIXED 01-INCR 10-WRAP
    	   		dmem_xactor.i_rd_addr.enq(read_request);	
 			`ifdef verbose $display($time,"\tCORE: Sending Read Request from DCACHE for Address: %h Burst Length: %h",info.address,info.burst_length); `endif
 		endrule
@@ -189,8 +188,7 @@ package core;
 			end
 //			info.address[2:0]=0; // also make the address 64-bit aligned
 			/*========================================================================= */
-			let aw = AXI4_Wr_Addr {awaddr: truncate(info.address), awprot:0, awuser:0, awlen: info.burst_length-1, awsize: zeroExtend(info.transfer_size), awburst: 'b01, awid:'d0, 
-																				awregion:0, awlock: 0, awcache: 0, awqos:0}; // arburst: 00-FIXED 01-INCR 10-WRAP
+			let aw = AXI4_Wr_Addr {awaddr: truncate(info.address), awuser:0, awlen: info.burst_length-1, awsize: zeroExtend(info.transfer_size), awburst: 'b01, awid:'d0}; // arburst: 00-FIXED 01-INCR 10-WRAP
 			let w  = AXI4_Wr_Data {wdata:  actual_data, wstrb: write_strobe, wlast:info.burst_length>1?False:True, wid:'d0};
 			dmem_xactor.i_wr_addr.enq(aw);
 			dmem_xactor.i_wr_data.enq(w);
@@ -217,8 +215,7 @@ package core;
 		endrule
 		rule check_read_request_to_memory_from_icache;
 			let info <-imem.request_to_memory;
-			let read_request = AXI4_Rd_Addr {araddr: truncate(info.address), arprot: 0, aruser: 0, arlen: info.burst_length-1, arsize: info.transfer_size, arburst: 'b10, arid:'d1, // arburst: 00-FIXED 01-INCR 10-WRAP
-						arregion:0, arlock: 0, arcache: 0, arqos:0}; // arburst: 00-FIXED 01-INCR 10-WRAP
+			let read_request = AXI4_Rd_Addr {araddr: truncate(info.address), aruser: 0, arlen: info.burst_length-1, arsize: info.transfer_size, arburst: 'b10, arid:'d1}; // arburst: 00-FIXED 01-INCR 10-WRAP
 			imem_xactor.i_rd_addr.enq(read_request);	
 			`ifdef verbose $display($time,"\tCORE: Sending Read Request from ICACHE for Address: %h Burst Length: %h",info.address,info.burst_length); `endif
 		endrule

@@ -20,92 +20,112 @@ package BootRom;
 	import AXI4_Types   :: *;
 	import AXI4_Fabric  :: *;
 	import BUtils::*;
+	import axi_addr_generator::*;
 
 interface BootRom_IFC;
 	interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
 endinterface
-typedef enum{Send_req,Get_resp} Mem_state deriving(Bits,Eq);
+typedef enum{Idle,HandleBurst} Mem_state deriving(Bits,Eq);
 (*synthesize*)
 module mkBootRom (BootRom_IFC);
-	
+
+	// we create 2 32-bit BRAMs since the xilinx tool is easily able to map them to BRAM32BE cells
+	// which makes it easy to use data2mem for updating the bit file.
 	BRAM_PORT#(Bit#(13),Bit#(32)) dmemMSB <- mkBRAMCore1Load(valueOf(TExp#(13)),False,"boot.MSB",False);
 	BRAM_PORT#(Bit#(13),Bit#(32)) dmemLSB <- mkBRAMCore1Load(valueOf(TExp#(13)),False,"boot.LSB",False);
 
 	AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor;
-	 Reg#(Mem_state) rg_state[2] <-mkCReg(2,Send_req);
-	 Reg#(Bit#(8)) rg_readburst_counter<-mkReg(0);
-	 Reg#(Bit#(8)) rg_readburst_value<-mkReg(0);
-	 Reg#(Bit#(8)) rg_writeburst_counter<-mkReg(0);
-	 Reg#(Bit#(4)) rg_id<-mkReg(0);
-	 Reg#(Bit#(`PADDR)) rg_address<-mkReg(0);
-	 Reg#(Bit#(3)) rg_transfer_size<-mkReg(0);
 
-	rule rl_wr_respond;
+	Reg#(Mem_state) rd_state <-mkReg(Idle);
+	Reg#(Mem_state) wr_state <-mkReg(Idle);
+	Reg#(Bit#(8)) rg_readburst_counter<-mkReg(0);
+	Reg#(AXI4_Rd_Addr	#(`PADDR,`USERSPACE)) rg_read_packet <-mkReg(?);
+	Reg#(AXI4_Wr_Resp	#(`USERSPACE)) rg_write_response <-mkReg(?);
+
+	rule rl_wr_respond(wr_state==Idle);
       let aw <- pop_o (s_xactor.o_wr_addr);
       let w  <- pop_o (s_xactor.o_wr_data);
 	   let b = AXI4_Wr_Resp {bresp: AXI4_SLVERR, buser: aw.awuser, bid:aw.awid};
-     	s_xactor.i_wr_resp.enq (b);
+		rg_write_response<=b;
 		$display($time,"\tBootROM: Illegal Write operation on BootROM");
+		if(aw.awburst!=0)
+			wr_state<=HandleBurst;
+		else
+	     	s_xactor.i_wr_resp.enq (b);
 	endrule
 
-	rule rl_rd_request(rg_state[1]==Send_req);
-		  let ar<- pop_o(s_xactor.o_rd_addr);
-			Bit#(13) index_address=(ar.araddr-`BootRomBase)[15:3];
-			rg_address<=ar.araddr;
-			rg_transfer_size<=ar.arsize;
-			rg_readburst_value<=ar.arlen;
-			rg_id<=ar.arid;
-			dmemLSB.put(False,index_address,?);
-			dmemMSB.put(False,index_address,?);
-			rg_state[1]<=Get_resp;
-			`ifdef verbose $display($time,"\tBootROM: Recieved Read Request for Address: %h Index Address: %h",ar.araddr,index_address);  `endif
-	 endrule
+	rule rl_wr_burst_response(wr_state==HandleBurst);
+      let w  <- pop_o (s_xactor.o_wr_data);
+		if(w.wlast) begin
+			wr_state<=Idle;
+	    	s_xactor.i_wr_resp.enq (rg_write_response);
+		end
+	endrule
 
-	rule rl_rd_response(rg_state[0]==Get_resp);
+	rule rl_rd_request(rd_state==Idle);
+		let ar<- pop_o(s_xactor.o_rd_addr);
+		rg_read_packet<=ar;
+	  	Bit#(13) index_address=(ar.araddr-`BootRomBase)[15:3];
+		dmemLSB.put(False,index_address,?);
+		dmemMSB.put(False,index_address,?);
+		rd_state<=HandleBurst;
+		`ifdef verbose $display($time,"\tBootROM: Recieved Read Request for Address: %h Index Address: %h",ar.araddr,index_address);  `endif
+	endrule
+
+	rule rl_rd_response(rd_state==HandleBurst);
 	   Bit#(`Reg_width) data0 = {dmemMSB.read(),dmemLSB.read()};
-      AXI4_Rd_Data#(`Reg_width,`USERSPACE) r = AXI4_Rd_Data {rresp: AXI4_OKAY, rdata: data0 ,rlast:rg_readburst_counter==rg_readburst_value, ruser: 0, rid:rg_id};
-		if(rg_transfer_size==2)begin // 32 bit
-			if(rg_address[2:0]==0)
+      AXI4_Rd_Data#(`Reg_width,`USERSPACE) r = AXI4_Rd_Data {rresp: AXI4_OKAY, rdata: data0 ,rlast:rg_readburst_counter==rg_read_packet.arlen, ruser: 0, rid:rg_read_packet.arid};
+		let transfer_size=rg_read_packet.arsize;
+		let address=rg_read_packet.araddr;
+		if(transfer_size==2)begin // 32 bit
+			if(address[2:0]==0)
 				r.rdata=duplicate(data0[31:0]);
 			else
 				r.rdata=duplicate(data0[63:32]);
 		end
-      else if (rg_transfer_size=='d1)begin // half_word
-			if(rg_address[2:0] ==0)
+      else if (transfer_size=='d1)begin // half_word
+			if(address[2:0] ==0)
 				r.rdata = duplicate(data0[15:0]);
-			else if(rg_address[2:0] ==2)
+			else if(address[2:0] ==2)
 				r.rdata = duplicate(data0[31:16]);
-			else if(rg_address[2:0] ==4)
+			else if(address[2:0] ==4)
 				r.rdata = duplicate(data0[47:32]);
-			else if(rg_address[2:0] ==6)
+			else if(address[2:0] ==6)
 				r.rdata = duplicate(data0[63:48]);
       end
-      else if (rg_transfer_size=='d0) begin// one byte
-			if(rg_address[2:0] ==0)
+      else if (transfer_size=='d0) begin// one byte
+			if(address[2:0] ==0)
         	  r.rdata = duplicate(data0[7:0]);
-        	else if(rg_address[2:0] ==1)
+        	else if(address[2:0] ==1)
         	  r.rdata = duplicate(data0[15:8]);
-        	else if(rg_address[2:0] ==2)
+        	else if(address[2:0] ==2)
         	  r.rdata = duplicate(data0[23:16]);
-        	else if(rg_address[2:0] ==3)
+        	else if(address[2:0] ==3)
         	  r.rdata = duplicate(data0[31:24]);
-        	else if(rg_address[2:0] ==4)
+        	else if(address[2:0] ==4)
 				r.rdata = duplicate(data0[39:32]);
-        	else if(rg_address[2:0] ==5)
+        	else if(address[2:0] ==5)
 				r.rdata = duplicate(data0[47:40]);
-        	else if(rg_address[2:0] ==6)
+        	else if(address[2:0] ==6)
 				r.rdata = duplicate(data0[55:48]);
-        	else if(rg_address[2:0] ==7)
+        	else if(address[2:0] ==7)
 				r.rdata = duplicate(data0[63:56]);
       end
       s_xactor.i_rd_data.enq(r);
-		rg_state[0]<=Send_req;
-		if(rg_readburst_counter==rg_readburst_value)
+		address=burst_address_generator(rg_read_packet.arlen, rg_read_packet.arsize, rg_read_packet.arburst,rg_read_packet.araddr);
+	  	Bit#(13) index_address=(address-`BootRomBase)[15:3];
+		if(rg_readburst_counter==rg_read_packet.arlen)begin
 			rg_readburst_counter<=0;
-		else
+			rd_state<=Idle;
+		end
+		else begin
+			dmemLSB.put(False,index_address,?);
+			dmemMSB.put(False,index_address,?);
 			rg_readburst_counter<=rg_readburst_counter+1;
+		end
+		rg_read_packet.araddr<=address;
 		Bit#(64) new_data=r.rdata;
-		`ifdef verbose $display($time,"\tBootROM : Responding Read Request with Data: %8h BurstCounter: %d BurstValue: %d",new_data,rg_readburst_counter,rg_readburst_value);  `endif
+		`ifdef verbose $display($time,"\tBootROM : Responding Read Request with CurrAddr: %h Data: %8h BurstCounter: %d BurstValue: %d NextAddress: %h",rg_read_packet.araddr,new_data,rg_readburst_counter,rg_read_packet.arlen,address);  `endif
    endrule
 
    interface axi_slave= s_xactor.axi_side;

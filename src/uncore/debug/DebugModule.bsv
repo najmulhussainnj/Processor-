@@ -458,7 +458,7 @@ package DebugModule;
 		if(rg_sbsingleread[0] == 1)
 		begin
 			rg_sbsingleread[0]<=0;			
-			let read_request = AXI4_Rd_Addr {araddr:truncate(address) , arprot: 0, aruser: 0, arlen: 0, arsize:rg_sbaccess, arburst: 'b01, arid:'d2,arregion:0, arlock: 0, arcache: 0, arqos:0}; // arburst: 00-FIXED 01-INCR 10-WRAP
+			let read_request = AXI4_Rd_Addr {araddr:truncate(address) , aruser: 0, arlen: 0, arsize:rg_sbaccess, arburst: 'b01, arid:'d2}; // arburst: 00-FIXED 01-INCR 10-WRAP
 	  		master_xactor.i_rd_addr.enq(read_request);
   		end
 
@@ -496,7 +496,7 @@ package DebugModule;
 			`ifdef verbose $display("Debug : Memory Write: Data written : %d Address : %d Write_Strobe : %b",write_data[31:0],address,write_strobe); `endif
 
 			let request_data  = AXI4_Wr_Data {wdata: write_data , wstrb: write_strobe, wlast:True, wid:'d2};
-			let request_address = AXI4_Wr_Addr {awaddr: address, awprot:0, awuser:0, awlen: 0, awsize: rg_sbaccess, awburst: 'b01, awid:'d2,awregion:0, awlock: 0, awcache: 0, awqos:0}; // arburst: 00-FIXED 01-INCR 10-WRAP
+			let request_address = AXI4_Wr_Addr {awaddr: address, awuser:0, awlen: 0, awsize: rg_sbaccess, awburst: 'b01, awid:'d2}; // arburst: 00-FIXED 01-INCR 10-WRAP
 			master_xactor.i_wr_addr.enq(request_address) ;
 			master_xactor.i_wr_data.enq(request_data) ;
 
