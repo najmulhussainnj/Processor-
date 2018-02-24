@@ -38,6 +38,8 @@ bmarks = median \
 #--------------------------------------------------------------------
 # Build rules
 #--------------------------------------------------------------------
+check-env:
+	@if test -z "$$SHAKTI_HOME"; then echo "SHAKTI_HOME variable not set"; exit 1; fi;
 
 RISCV_PREFIX ?= riscv$(XLEN)-unknown-elf-
 RISCV_GCC ?= $(RISCV_PREFIX)gcc
@@ -91,10 +93,10 @@ define simulate_benchmarks
 
 endef
 
-all: shakti
+all: check-env shakti
 shakti: copy_shakti riscv install
 spike: copy_spike riscv install
-regress: shakti
+regress: check-env shakti
 	@echo "Starting regression"
 	@mkdir -p $(simdir);
 	@cut -c1-8 ${SHAKTI_HOME}/verification/dts/boot.hex > $(simdir)/boot.MSB;

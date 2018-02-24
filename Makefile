@@ -123,6 +123,7 @@ default: compile_bluesim link_bluesim
 
 check-blue:
 	@if test -z "$$BLUESPECDIR"; then echo "BLUESPECDIR variable not set"; exit 1; fi; 
+	@if test -z "$$SHAKTI_HOME"; then echo "SHAKTI_HOME variable not set"; exit 1; fi;
 
 check-py:
 	@if ! [ -a /usr/bin/python3 ] ; then echo "Python3 is required in /usr/bin to run AAPG" ; exit 1; fi;
@@ -231,6 +232,7 @@ generate_boot_files:
 
 .PHONY: linux_bsim
 linux_bsim: compile_bluesim link_bluesim generate_boot_files 
+	@if test -z "$$SHAKTI_LINUX"; then echo "SHAKTI_LINUX variable not set"; exit 1; fi;
 	@ln -s $(SHAKTI_LINUX)/work/riscv-pk/bbl .
 	@elf2hex 8 2097152 bbl 2147483648 > bbl.hex
 	@cut -c1-8  bbl.hex > $(BSVOUTDIR)/code.mem.MSB
