@@ -1,66 +1,40 @@
 package axi_addr_generator;
+	/*=== Project imports ===*/
 	import defined_types::*;
 	`include "defined_parameters.bsv"
-	function Bit#(`PADDR) burst_address_generator(Bit#(8) arlen, Bit#(3) arsize, Bit#(2) arburst, Bit#(`PADDR) address);
-	//	Bit#(3) wrap_size;
-	//	case(arlen)
-	//		3: wrap_size= 1;
-	//		7: wrap_size= 2;
-	//		15: wrap_size=3;
-	//		default:wrap_size=0;
-	//	endcase
+	/*=======================*/
 
-	//	if(arburst==0) // FIXED
-	//		return address;
-	//	else if(arburst==1)begin // INCR
-	//		return address+ (('b1)<<arsize);
-	//	end
-	//	else begin // WRAP
-	//		let new_addr=address;
-	//		new_addr[arsize+wrap_size:arsize]=address[arsize+wrap_size:arsize]+1;
-	//		return new_addr;
-	//	end
-	if(arburst==0) // FIXED
-		return address;
-	else if(arburst==1)begin // INCR
-		return address+ (('b1)<<arsize);
-	end
-	else begin // WRAP
-		let new_addr=address;
-		case (arlen) 
-			1: new_addr[arsize]=~address[arsize];
-			3: begin 
-				if(arsize==0)
-					new_addr[1:0]=new_addr[1:0]+1; // +1
-				else if(arsize==1)
-					new_addr[2:1]=new_addr[2:1]+1; // +2
-				else if(arsize==2)
-					new_addr[3:2]=new_addr[3:2]+1; // +4
-				else if(arsize==3)
-					new_addr[4:3]=new_addr[4:3]+1; // +8
-			end
-			7: begin 
-				if(arsize==0)
-					new_addr[2:0]=new_addr[2:0]+1;
-				else if(arsize==1)
-					new_addr[3:1]=new_addr[3:1]+1;
-				else if(arsize==2)
-					new_addr[4:2]=new_addr[4:2]+1;
-				else if(arsize==3)
-					new_addr[5:3]=new_addr[5:3]+1;
-			end
-			15:begin //Bit#(4) x = address[arsize+3:arsize]+1;new_addr[arsize+3:arsize]=x;end
-				if(arsize==0)
-					new_addr[3:0]=new_addr[3:0]+1;
-				else if(arsize==1)
-					new_addr[4:1]=new_addr[4:1]+1;
-				else if(arsize==2)
-					new_addr[5:2]=new_addr[5:2]+1;
-				else if(arsize==3)
-					new_addr[6:3]=new_addr[6:3]+1;
-			end
+	// This function is used by the slaves on the AXI4 bus to generate the sequential addresses in burst mode.
+	// the different modes supported are :
+	// FIXED: the same address is sent in all transactions. Typically used in polling modes.
+	// INCR: The address is simply incremented arlen number of times from the starting address.
+	// WRAP: This mode supports only 4 valid lengths: 2, 4 8 and 16 bursts. the increments happen in a wrap arouind fashion.
+	function Bit#(`PADDR) burst_address_generator(Bit#(8) arlen, Bit#(3) arsize, Bit#(2) arburst, Bit#(`PADDR) address);
+
+		// this variable will decide the index above which part of the address should
+		// not change in WRAP mode. Bits below this index value be incremented according
+		// to the value of arlen and arsize;
+		Bit#(3) wrap_size;
+		case(arlen)
+			3: wrap_size= 2;
+			7: wrap_size= 3;
+			15: wrap_size=4;
+			default:wrap_size=1;
 		endcase
-		return new_addr;
-	end
+
+		Bit#(`PADDR) new_address=address+(('b1)<<arsize); // this is address will directly be used for INCR mode.
+		Bit#(`PADDR) mask;
+		mask=('1)<<(arsize+wrap_size);						  // create a mask for bits which will remain constant in wrap mode.
+		Bit#(`PADDR) temp1=address& mask;					  // capture the constant part of the address in WRAP mode.
+		Bit#(`PADDR) temp2=new_address& (~mask);			  // capture the incremental part of the address in WRAP mode.
+
+		if(arburst==0) // FIXED
+			return address;
+		else if(arburst==1)begin // INCR
+			return new_address;
+		end
+		else begin // WRAP
+			return temp1|temp2;									  // create the new address in the wrap mode by ORing the masked values.
+		end
 	endfunction
 endpackage
