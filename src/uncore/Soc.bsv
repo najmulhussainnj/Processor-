@@ -103,38 +103,38 @@ package Soc;
 	endinterface
 	(*synthesize*)
 	module mkSoc #(Bit#(`VADDR) reset_vector, Clock slow_clock, Reset slow_reset, Clock uart_clock, Reset uart_reset, Clock clk0, Clock tck, Reset trst)(Ifc_Soc);
-			Clock core_clock <-exposeCurrentClock; // slow peripheral clock
-			Reset core_reset <-exposeCurrentReset; // slow peripheral reset
-         `ifdef Debug 
-				Ifc_jtagdtm tap <-mkjtagdtm(clocked_by tck, reset_by trst);
-            rule drive_tmp_scan_outs;
-                tap.scan_out_1_i(1'b0);
-                tap.scan_out_2_i(1'b0);
-                tap.scan_out_3_i(1'b0);
-                tap.scan_out_4_i(1'b0);
-                tap.scan_out_5_i(1'b0);
-            endrule
-				Ifc_DebugModule core<-mkDebugModule(reset_vector);
-			`else
-				Ifc_core_AXI4 core <-mkcore_AXI4(reset_vector);
-			`endif
-			`ifdef BOOTROM
-				BootRom_IFC bootrom <-mkBootRom;
-			`endif
-			`ifdef SDRAM
-				Ifc_sdr_slave			sdram				<- mksdr_axi4_slave(clk0);
-			`else
-				Memory_IFC#(`SDRAMMemBase,`Addr_space) main_memory <- mkMemory("code.mem.MSB","code.mem.LSB","MainMEM");
-			`endif
-			`ifdef TCMemory
-				Ifc_TCM					tcm				<- mkTCM;	
-			`endif
-			`ifdef DMA
-				DmaC#(7,12)				dma				<- mkDMA();
-			`endif
-			`ifdef AXIEXP
-				Ifc_AxiExpansion		axiexp1			<- mkAxiExpansion();	
-			`endif
+		Clock core_clock <-exposeCurrentClock; // slow peripheral clock
+		Reset core_reset <-exposeCurrentReset; // slow peripheral reset
+      `ifdef Debug 
+			Ifc_jtagdtm tap <-mkjtagdtm(clocked_by tck, reset_by trst);
+         rule drive_tmp_scan_outs;
+             tap.scan_out_1_i(1'b0);
+             tap.scan_out_2_i(1'b0);
+             tap.scan_out_3_i(1'b0);
+             tap.scan_out_4_i(1'b0);
+             tap.scan_out_5_i(1'b0);
+         endrule
+			Ifc_DebugModule core<-mkDebugModule(reset_vector);
+		`else
+			Ifc_core_AXI4 core <-mkcore_AXI4(reset_vector);
+		`endif
+		`ifdef BOOTROM
+			BootRom_IFC bootrom <-mkBootRom;
+		`endif
+		`ifdef SDRAM
+			Ifc_sdr_slave			sdram				<- mksdr_axi4_slave(clk0);
+		`else
+			Memory_IFC#(`SDRAMMemBase,`Addr_space) main_memory <- mkMemory("code.mem.MSB","code.mem.LSB","MainMEM");
+		`endif
+		`ifdef TCMemory
+			Ifc_TCM					tcm				<- mkTCM;	
+		`endif
+		`ifdef DMA
+			DmaC#(7,12)				dma				<- mkDMA();
+		`endif
+		`ifdef AXIEXP
+			Ifc_AxiExpansion		axiexp1			<- mkAxiExpansion();	
+		`endif
 		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, core_reset, uart_clock, uart_reset, clocked_by slow_clock , reset_by slow_reset);	
 
    	// Fabric
@@ -144,12 +144,12 @@ package Soc;
    	// Connect traffic generators to fabric
    	mkConnection (core.dmem_master,	fabric.v_from_masters [fromInteger(valueOf(Dmem_master_num))]);
    	mkConnection (core.imem_master,	fabric.v_from_masters [fromInteger(valueOf(Imem_master_num))]);
-    `ifdef Debug
-		mkConnection (core.debug_master, fabric.v_from_masters [fromInteger(valueOf(Debug_master_num))]);
-    `endif
-    `ifdef DMA
-            mkConnection (dma.mmu, fabric.v_from_masters[fromInteger(valueOf(DMA_master_num))]);
-    `endif
+		`ifdef Debug
+			mkConnection (core.debug_master, fabric.v_from_masters [fromInteger(valueOf(Debug_master_num))]);
+		`endif
+		`ifdef DMA
+         mkConnection (dma.mmu, fabric.v_from_masters[fromInteger(valueOf(DMA_master_num))]);
+		`endif
 
 
 		// Connect fabric to memory slaves
