@@ -426,7 +426,7 @@
 	`define QSPI1CfgBase	'h00011900
 	`define QSPI1CfgEnd  'h000119FF // 13 32-bit registers
 	`define TCMBase		'h00020000 // 
-	`define TCMEnd			'h00060000 // 128KB
+	`define TCMEnd			'h00040000 // 128KB
 	`define ClintBase		'h02000000
 	`define ClintEnd		'h020BFFFF 
 	`define SDRAMMemBase	'h80000000	

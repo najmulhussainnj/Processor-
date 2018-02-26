@@ -12,175 +12,140 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 */
 package TCM;
+	/*====== Porject imports ====*/
 	import defined_types::*;
 	`include "defined_parameters.bsv"
-  	import BRAMCore :: *;
 	import Semi_FIFOF        :: *;
 	import AXI4_Types   :: *;
 	import AXI4_Fabric  :: *;
-	import BUtils  :: *;
-    import FIFOF::*;
-    import DReg::*;
-    `define verbose
-interface Ifc_TCM;
-	interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
-endinterface
-typedef enum{Send_rd_req,Get_rd_resp,Send_wr_req,Get_wr_resp,Idle} Mem_state deriving(Bits,Eq,FShow);
-(*synthesize*)
-module mkTCM (Ifc_TCM);
+	import axi_addr_generator::*;
+	/*==== Package imports ======*/
+  	import BRAMCore :: *;
+	import DReg::*;
+	import BUtils::*;
+	/*============================*/
+
+	typedef TSub#(TLog#(TSub#(`TCMEnd,`TCMBase)),3) Index_bits;
+
+	interface Ifc_TCM;
+		interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
+	endinterface
+	typedef enum{Idle,HandleBurst} Mem_state deriving(Bits,Eq, FShow);
+	(*synthesize*)
+	module mkTCM(Ifc_TCM);
 	
-	BRAM_DUAL_PORT#(Bit#(14), Bit#(32)) dataLSB <-mkBRAMCore2(16384,False);
-	BRAM_DUAL_PORT#(Bit#(14), Bit#(32)) dataMSB <-mkBRAMCore2(16384,False);
 
-	AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor;
-	Reg#(Mem_state) rg_state[2] <-mkCReg(2,Idle);
-	Reg#(Bit#(8)) rg_readburst_counter<-mkReg(0);
-	Reg#(Bit#(8)) rg_readburst_value<-mkReg(0);
-	Reg#(Bit#(8)) rg_writeburst_counter<-mkReg(0);
-	Reg#(Bit#(4)) rg_id<-mkReg(0);
-	Reg#(Bit#(`PADDR)) rg_address<-mkReg(0);
-	Reg#(Bit#(3)) rg_transfer_size<-mkReg(0);
-	Reg#(Bit#(`USERSPACE)) rg_buser <- mkReg(0);
-	Reg#(Bit#(TDiv#(`Reg_width, 8))) rg_wrstrb <- mkReg(0);
-	Reg#(Bit#(`Reg_width)) rg_data<-mkReg(0);
-	Reg#(Bool) rg_wlast<-mkReg(False);
-    Reg#(Bool) read_last_address <- mkDReg(False);
-    Reg#(Bit#(`Reg_width)) rg_last_read <- mkReg(0);
-    FIFOF#(Bit#(64)) ff_input_fifo <- mkSizedFIFOF(3); 
-
-	(*preempts="rl_wr_request, rl_rd_request"*)
-	rule rl_wr_request(rg_state[1]==Send_wr_req || rg_state[1]==Idle);
-		// Get the wr request
-      let aw <- pop_o (s_xactor.o_wr_addr);
-      let w  <- pop_o (s_xactor.o_wr_data);
-	   let b = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: aw.awuser, bid:aw.awid};
-		Bit#(14) index_address= aw.awaddr[16:3];
-        Bit#(TSub#(`PADDR,3)) add_index = rg_address[`PADDR-1:3];
-		rg_address <= aw.awaddr;
-		rg_buser <= aw.awuser;
-		rg_id <= aw.awid;
-		rg_transfer_size<=aw.awsize;
-		rg_wrstrb <= w.wstrb;
-		rg_data <= w.wdata;
-		rg_readburst_value <= aw.awlen;
-        rg_wlast <= w.wlast;
-		dataMSB.a.put(False,index_address,?);
-		dataLSB.a.put(False,index_address,?);
-		rg_state[1] <= Send_wr_req;
-        ff_input_fifo.enq(w.wdata);
-        if(add_index==aw.awaddr[`PADDR-1:3]) begin
-            read_last_address <= True;
-            //$display($time,"\t rg_last_address True\n");
-        end
-		`ifdef verbose $display($time,"\tTCM:\t Recieved Write Request for Address: %h data: %h strb: %b awlen: %d ",aw.awaddr,w.wdata,w.wstrb,aw.awlen);  `endif
-	endrule
-
-	rule rl_wr_response(rg_state[0]==Send_wr_req);
-	  Bit#(`Reg_width) word = {dataMSB.a.read,dataLSB.a.read};
-        let rg_data = ff_input_fifo.first;
-        ff_input_fifo.deq; 
-        if(read_last_address)
-            word = rg_last_read;
-		
-        if(rg_wrstrb[0]==1)
-			word[7:0] = rg_data[7:0];
-		if(rg_wrstrb[1]==1)
-			word[15:7] = rg_data[15:7];
-		if(rg_wrstrb[2]==1)
-			word[23:16] = rg_data[23:16];
-		if(rg_wrstrb[3]==1)
-			word[31:24] = rg_data[31:24];
-		if(rg_wrstrb[4]==1)
-			word[39:32] = rg_data[39:32];
-		if(rg_wrstrb[5]==1)
-			word[47:40] = rg_data[47:40];
-		if(rg_wrstrb[6]==1)
-			word[55:48] = rg_data[55:48];
-		if(rg_wrstrb[7]==1)
-			word[63:56] = rg_data[63:56];
-
-		
-		dataMSB.b.put(True,rg_address[16:3],word[63:32]);
-		dataLSB.b.put(True,rg_address[16:3],word[31:0]);
-        rg_last_read <= word;
-		if(rg_wlast)begin
-			rg_writeburst_counter<=0;
-            s_xactor.i_wr_resp.enq (AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: rg_buser, bid:rg_id});
-			rg_state[0] <= Idle;
-		end
-		else begin
-			rg_writeburst_counter<=rg_writeburst_counter+1;
-			//rg_state[1] <= Send_wr_req;
-		end
-		`ifdef verbose $display($time,"\tTCM:\t Writing into Address: %h data: %h strb: %b if wlast %d rg_writeburst_counter: %d",rg_address,word,rg_wrstrb,rg_wlast,rg_writeburst_counter);  `endif
-
-	endrule
-
-	rule rl_rd_request(rg_state[1]==Send_rd_req || rg_state[1]==Idle);
-		let ar<- pop_o(s_xactor.o_rd_addr);
-		Bit#(14) index_address=ar.araddr[16:3];
-		rg_address<=ar.araddr;
-		rg_transfer_size<=ar.arsize;
-		rg_readburst_value<=ar.arlen;
-		rg_id<=ar.arid;
-		dataMSB.a.put(False,index_address,?);
-		dataLSB.a.put(False,index_address,?);
-		rg_state[1]<=Get_rd_resp;
-        `ifdef verbose $display($time,"\tTCM received read request for address %h, transfer size %d burst length %d", ar.araddr, ar.arsize, ar.arlen); `endif
-	 endrule
-
-	rule rl_rd_response(rg_state[0]==Get_rd_resp);
-	   Bit#(`Reg_width) word = {dataMSB.a.read,dataLSB.a.read};
-		if(rg_transfer_size==3) begin
-			word = word;
-		end
-		else if(rg_transfer_size==2) begin 
-			if(rg_address[2]==0)
-				word = duplicate(word[31:0]);
+		let index_bits=valueOf(Index_bits);
+		BRAM_DUAL_PORT_BE#(Bit#(TSub#(TLog#(TSub#(`TCMEnd,`TCMBase)),3)), Bit#(32),4) dmemMSB <-mkBRAMCore2BE(valueOf(TExp#(Index_bits)),False);
+		BRAM_DUAL_PORT_BE#(Bit#(TSub#(TLog#(TSub#(`TCMEnd,`TCMBase)),3)), Bit#(32),4) dmemLSB <-mkBRAMCore2BE(valueOf(TExp#(Index_bits)),False);
+	
+		AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor;
+	
+		Reg#(Mem_state) rd_state <-mkReg(Idle);
+		Reg#(Mem_state) wr_state <-mkReg(Idle);
+		Reg#(Bit#(8)) rg_readburst_counter<-mkReg(0);
+		Reg#(AXI4_Rd_Addr	#(`PADDR,`USERSPACE)) rg_read_packet <-mkReg(?);														   // hold the read packet during bursts
+		Reg#(AXI4_Wr_Addr	#(`PADDR,`USERSPACE)) rg_write_packet<-mkReg(?); // hold the write packer during bursts
+	
+		rule rl_wr_respond(wr_state==Idle);
+	      let aw <- pop_o (s_xactor.o_wr_addr);
+	      let w  <- pop_o (s_xactor.o_wr_data);
+			Bit#(Index_bits) index_address=(aw.awaddr-`TCMBase)[index_bits+2:3];
+			dmemLSB.b.put(w.wstrb[3:0],index_address,truncate(w.wdata));
+			dmemMSB.b.put(w.wstrb[7:4],index_address,truncateLSB(w.wdata));
+		   let b = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: aw.awuser, bid:aw.awid};
+			if(aw.awburst!=0) begin
+				wr_state<=HandleBurst;
+				let new_address=burst_address_generator(aw.awlen,aw.awsize,aw.awburst,aw.awaddr);
+				aw.awaddr=new_address;
+				rg_write_packet<=aw;
+			end
 			else
-				word = duplicate(word[63:32]);
-		end
-		else if(rg_transfer_size==1) begin 
-			if(rg_address[2:1]=='b0)
-				word = duplicate(word[15:0]);
-			else if(rg_address[2:1]=='b01)
-				word = duplicate(word[31:16]);
-			else if(rg_address[2:1]=='b10)
-				word = duplicate(word[47:32]);
-			else 
-				word = duplicate(word[63:48]);
-		end
-		else begin
-			if(rg_address[2:0]=='b0)
-				word = duplicate(word[7:0]);
-			else if(rg_address[2:0]=='b001)
-				word = duplicate(word[15:8]);
-			else if(rg_address[2:0]=='b010)
-				word = duplicate(word[23:16]);
-			else if(rg_address[2:0]=='b011)
-				word = duplicate(word[31:24]);
-			else if(rg_address[2:0]=='b100)
-				word = duplicate(word[39:32]);
-			else if(rg_address[2:0]=='b101)
-				word = duplicate(word[47:40]);
-			else if(rg_address[2:0]=='b110)
-				word = duplicate(word[55:48]);
-			else 
-				word = duplicate(word[63:56]);
-		end
-    AXI4_Rd_Data#(`Reg_width,`USERSPACE) r = AXI4_Rd_Data {rresp: AXI4_OKAY, rdata: word ,rlast:rg_readburst_counter==rg_readburst_value, ruser: 0, rid:rg_id};
-    s_xactor.i_rd_data.enq(r);
-       if(rg_readburst_counter==rg_readburst_value) begin
-			rg_readburst_counter<=0;
-            rg_state[0]<=Idle;
-        end
-        else begin
-			rg_readburst_counter<=rg_readburst_counter+1;
-            rg_state[0]<=Send_rd_req;
-        end
-        `ifdef verbose $display($time,"\tTCM responding data %h, transfer size %d, burst number %d", word, rg_transfer_size, rg_readburst_counter); `endif
-   endrule
-
-   interface axi_slave= s_xactor.axi_side;
-endmodule
+		     	s_xactor.i_wr_resp.enq (b);
+			`ifdef verbose $display($time,"\t",module_name,":\t Recieved Write Request for Address: %h data: %h strb: %b awlen: %d",aw.awaddr,w.wdata,w.wstrb,aw.awlen);  `endif
+		endrule
+	
+		rule rl_wr_burst_response(wr_state==HandleBurst);
+	      let w  <- pop_o (s_xactor.o_wr_data);
+		   let b = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: rg_write_packet.awuser, bid:rg_write_packet.awid};
+			if(w.wlast)begin
+				wr_state<=Idle;
+				s_xactor.i_wr_resp.enq (b);
+			end
+			Bit#(Index_bits) index_address=(rg_write_packet.awaddr-`TCMBase)[index_bits+2:3];
+			dmemLSB.b.put(w.wstrb[3:0],index_address,truncate(w.wdata));
+			dmemMSB.b.put(w.wstrb[7:4],index_address,truncateLSB(w.wdata));
+			let new_address=burst_address_generator(rg_write_packet.awlen,rg_write_packet.awsize,rg_write_packet.awburst,rg_write_packet.awaddr);
+			rg_write_packet.awaddr<=new_address;
+			`ifdef verbose $display($time,"\t",module_name,":\t BURST Write Request for Address: %h data: %h strb: %b awlen: %d",rg_write_packet.awaddr,w.wdata,w.wstrb,rg_write_packet.awlen);  `endif
+		endrule
+		
+		rule rl_rd_request(rd_state==Idle);
+			let ar<- pop_o(s_xactor.o_rd_addr);
+			rg_read_packet<=ar;
+			Bit#(Index_bits) index_address=(ar.araddr-`TCMBase)[index_bits+2:3];
+			dmemLSB.a.put(0,index_address,?);
+			dmemMSB.a.put(0,index_address,?);
+			rd_state<=HandleBurst;
+			`ifdef verbose $display($time,"\t",module_name,"\t Recieved Read Request for Address: %h Index Address: %h",ar.araddr,index_address);  `endif
+		endrule
+	
+		rule rl_rd_response(rd_state==HandleBurst);
+		   Bit#(`Reg_width) data0 = {dmemMSB.a.read(),dmemLSB.a.read()};
+	      AXI4_Rd_Data#(`Reg_width,`USERSPACE) r = AXI4_Rd_Data {rresp: AXI4_OKAY, rdata: data0 ,rlast:rg_readburst_counter==rg_read_packet.arlen, ruser: 0, rid:rg_read_packet.arid};
+			let transfer_size=rg_read_packet.arsize;
+			let address=rg_read_packet.araddr;
+			if(transfer_size==2)begin // 32 bit
+				if(address[2:0]==0)
+					r.rdata=duplicate(data0[31:0]);
+				else
+					r.rdata=duplicate(data0[63:32]);
+			end
+	      else if (transfer_size=='d1)begin // half_word
+				if(address[2:0] ==0)
+					r.rdata = duplicate(data0[15:0]);
+				else if(address[2:0] ==2)
+					r.rdata = duplicate(data0[31:16]);
+				else if(address[2:0] ==4)
+					r.rdata = duplicate(data0[47:32]);
+				else if(address[2:0] ==6)
+					r.rdata = duplicate(data0[63:48]);
+	      end
+	      else if (transfer_size=='d0) begin// one byte
+				if(address[2:0] ==0)
+	        	  r.rdata = duplicate(data0[7:0]);
+	        	else if(address[2:0] ==1)
+	        	  r.rdata = duplicate(data0[15:8]);
+	        	else if(address[2:0] ==2)
+	        	  r.rdata = duplicate(data0[23:16]);
+	        	else if(address[2:0] ==3)
+	        	  r.rdata = duplicate(data0[31:24]);
+	        	else if(address[2:0] ==4)
+					r.rdata = duplicate(data0[39:32]);
+	        	else if(address[2:0] ==5)
+					r.rdata = duplicate(data0[47:40]);
+	        	else if(address[2:0] ==6)
+					r.rdata = duplicate(data0[55:48]);
+	        	else if(address[2:0] ==7)
+					r.rdata = duplicate(data0[63:56]);
+	      end
+	      s_xactor.i_rd_data.enq(r);
+			address=burst_address_generator(rg_read_packet.arlen, rg_read_packet.arsize, rg_read_packet.arburst,rg_read_packet.araddr);
+			Bit#(Index_bits) index_address=(address-`TCMBase)[index_bits+2:3];
+			if(rg_readburst_counter==rg_read_packet.arlen)begin
+				rg_readburst_counter<=0;
+				rd_state<=Idle;
+			end
+			else begin
+				dmemLSB.a.put(0,index_address,?);
+				dmemMSB.a.put(0,index_address,?);
+				rg_readburst_counter<=rg_readburst_counter+1;
+			end
+			rg_read_packet.araddr<=address;
+			Bit#(64) new_data=r.rdata;
+			`ifdef verbose $display($time,"\t",module_name,"\t Responding Read Request with CurrAddr: %h Data: %8h BurstCounter: %d BurstValue: %d NextAddress: %h",rg_read_packet.araddr,new_data,rg_readburst_counter,rg_read_packet.arlen,address);  `endif
+	   endrule
+	
+	   interface axi_slave= s_xactor.axi_side;
+	endmodule
 endpackage
