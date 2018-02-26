@@ -426,11 +426,10 @@ module mkDMA( DmaC #(numChannels, numPeripherals) )
 			// Create a read request, and enqueue it
 			// Since there can be multiple pending requests, either read or
 			// writes, we use the `Req_Info field to mark these.
-			let read_request = AXI4_Rd_Addr {araddr: lv_araddr, arprot: 0,
+			let read_request = AXI4_Rd_Addr {araddr: lv_araddr, 
 											 arid: {1'b1,fromInteger(chanNum)}, arlen: lv_burst,
 											 arsize: zeroExtend(lv_arsize), arburst: zeroExtend(lv_burst_type), //arburst: 00-FIXED 01-INCR 10-WRAP
-											 arlock: 0, arcache: 0, arqos: 0,
-											 arregion: 0, aruser: 0 };
+											 aruser: 0 };
 				
 			xactor.i_rd_addr.enq(read_request);
             `ifdef verbose $display("Sending a read request with araddr: %h arid: %h arlen: %h arsize: %h arburst: %h",lv_araddr,fromInteger(chanNum),lv_burst,lv_arsize,lv_burst_type); `endif
@@ -525,9 +524,9 @@ module mkDMA( DmaC #(numChannels, numPeripherals) )
             rg_tsize <= lv_tsize; //Storing rg_tsize in a register. ~Vinod
 			// Generate a Write 
 			let write_data = AXI4_Wr_Data { wdata: actual_data , wstrb: write_strobe, wlast: lv_last, wid: {1'b1,fromInteger(chanNum)}};
-			let write_addr = AXI4_Wr_Addr {	awaddr: lv_data.addr, awprot:0, awuser: 0,
+			let write_addr = AXI4_Wr_Addr {	awaddr: lv_data.addr,  awuser: 0,
 											awlen: lv_burst_len, awsize: zeroExtend(lv_tsize), awburst: zeroExtend(lv_burst_type),
-											awlock: 0, awcache: 0, awqos: 0, awregion: 0, awid: {1'b1,fromInteger(chanNum)} };
+											awid: {1'b1,fromInteger(chanNum)} };
 
 			// enqueue the request.
 			xactor.i_wr_data.enq(write_data);
