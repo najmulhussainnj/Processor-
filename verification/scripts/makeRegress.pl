@@ -155,7 +155,7 @@ if ($generate) {
       $count = `find $shaktiHome/verification/tests/random/ -name "*.S" | wc -l`;
       chomp($count);
       $timeout++;
-      if ($timeout == 30) {
+      if ($timeout == 300) {
         last;
       }
     }
@@ -331,7 +331,7 @@ elsif ($finalReport) { # waits till all the test results are there/timesout
     } # end of foreach
     sleep(5);
     $timeout++;
-    if ($timeout == 30) {
+    if ($timeout == 300) {
       last;
     }
   } # end of while
