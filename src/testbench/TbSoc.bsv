@@ -91,7 +91,7 @@ package TbSoc;
 		Ifc_Soc soc <-mkSoc(reset_vector,slow_clock.slowClock,slow_reset, uart_clock,uart_reset,clk0,tck_clk.new_clk,trst.new_rst);
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmlsb <-mksdram_model_wrapper("code.mem.LSB",clocked_by clk0, reset_by rst0); `endif
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmmsb <-mksdram_model_wrapper("code.mem.MSB",clocked_by clk0, reset_by rst0); `endif
-		`ifdef AXIEXP Ifc_sample_axiexpslave axiexpslave <-mksample_axiexpslave; `endif
+		`ifdef AXIEXP Ifc_sample_axiexpslave axiexpslave <-mksample_axiexpslave(clocked_by slow_clock.slowClock,reset_by slow_reset); `endif
 		rule connect_boot;
 			soc.boot_sequence('b1);	
 		endrule
@@ -107,8 +107,8 @@ package TbSoc;
 	`endif
 
 		`ifdef AXIEXP
-			mkConnection(soc.axiexp1_out,axiexpslave.from_slave);
-			mkConnection(axiexpslave.to_slave,soc.axiexp1_in);
+			mkConnection(soc.slow_ios.axiexp1_out,axiexpslave.from_slave);
+			mkConnection(axiexpslave.to_slave,soc.slow_ios.axiexp1_in);
 		`endif
 
 		`ifdef PLIC

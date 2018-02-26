@@ -38,6 +38,9 @@ package slow_peripherals;
 	`ifdef QSPI0 
 		import qspi				 :: *; 
 	`endif
+	`ifdef AXIEXP
+		import axiexpansion	::*;
+	`endif
 	/*=====================================*/
 	
 	/*===== interface declaration =====*/
@@ -67,6 +70,10 @@ package slow_peripherals;
 		`endif
       `ifdef QSPI1 
 			interface QSPI_out qspi1_out; 
+		`endif
+		`ifdef AXIEXP
+			interface Get#(Bit#(67)) axiexp1_out;
+			interface Put#(Bit#(67)) axiexp1_in;
 		`endif
 	endinterface
 	interface Ifc_slow_peripherals;
@@ -133,6 +140,11 @@ package slow_peripherals;
 				return tuple2(True,fromInteger(valueOf(Qspi1_slave_num)));
 			else
 		`endif
+		`ifdef AXIEXP
+			if(addr>=`AxiExp1Base && addr<=`AxiExp1End)
+				return tuple2(True,fromInteger(valueOf(AxiExp1_slave_num)));
+			else
+		`endif
 		return tuple2(False,?);
 	endfunction
 
@@ -169,6 +181,9 @@ package slow_peripherals;
 		`ifdef QSPI1 
 			Ifc_qspi			qspi1				<-	mkqspi(); 
 		`endif
+		`ifdef AXIEXP
+			Ifc_AxiExpansion		axiexp1			<- mkAxiExpansion();	
+		`endif
 		/*=======================================================*/
 
    	AXI4_Lite_Fabric_IFC #(1, Num_Slow_Slaves, `PADDR, `Reg_width,`USERSPACE)	slow_fabric <- mkAXI4_Lite_Fabric(fn_address_mapping);
@@ -200,6 +215,9 @@ package slow_peripherals;
 		`endif
   		`ifdef QSPI1 
 			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Qspi1_slave_num))],	qspi1.slave); 
+		`endif
+		`ifdef AXIEXP
+   		mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(AxiExp1_slave_num))],	axiexp1.axi_slave); //
 		`endif
 		/*=======================================================*/
 		/*=================== PLIC Connections ==================== */
@@ -401,7 +419,10 @@ package slow_peripherals;
 			`ifdef QSPI1 
 				interface qspi1_out = qspi1.out; 
 			`endif
-
+			`ifdef AXIEXP
+				interface axiexp1_out=axiexp1.slave_out;
+				interface axiexp1_in=axiexp1.slave_in;
+			`endif
 		endinterface
 		/*===================================*/
 	endmodule

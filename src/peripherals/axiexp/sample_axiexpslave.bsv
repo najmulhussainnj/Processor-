@@ -40,7 +40,6 @@ package sample_axiexpslave;
 		BRAM_DUAL_PORT_BE#(Bit#(TSub#(32,2)),Bit#(32),4) dmemLSB <- mkBRAMCore2BELoad(valueOf(TExp#(TSub#(32,2))),False,"code.mem.LSB",False);
 		Reg#(Bit#(`PADDR)) rg_address<-mkReg(0);
 		Reg#(Bit#(3)) rg_transfer_size<-mkReg(0);
-		Reg#(Bit#(8)) rg_readburst_value<-mkReg(0);
 
 		Reg#(Bit#(8)) rg_wr_strb <-mkReg(0);
 		Reg#(Bit#(TSub#(32,2))) index_address1<-mkReg(0);
@@ -53,7 +52,6 @@ package sample_axiexpslave;
 			rg_state<=ReadResponse;
 			rg_address<=address;
 			rg_transfer_size<=get_slave_req.first[51:49];
-			rg_readburst_value<=get_slave_req.first[48:41];
 			get_slave_req.deq;
 		endrule
 

@@ -35,9 +35,6 @@ package Soc;
 		`ifdef DMA
 			import DMA				 :: *;
 		`endif
-		`ifdef AXIEXP
-			import axiexpansion	::*;
-		`endif
 		`ifdef BOOTROM
 			import BootRom			::*;
 		`endif
@@ -88,13 +85,6 @@ package Soc;
 			(*always_ready,always_enabled*)
 			method Bit#(1) tdo_oe;
 		`endif
-		`ifdef AXIEXP
-//			method ActionValue#(Bit#(67)) axiexp1_out;
-//			method Action axiexp1_in(Bit#(67) datain);
-			interface Get#(Bit#(67)) axiexp1_out;
-			// 1-bit indicating slave response or master request , 2 bits for slverror, 64-info signals, 
-			interface Put#(Bit#(67)) axiexp1_in;
-		`endif
 		`ifdef HYPER
 			(*always_ready,always_enabled*)	
 		   interface Ifc_flash ifc_flash;
@@ -132,9 +122,6 @@ package Soc;
 		`ifdef DMA
 			DmaC#(7,12)				dma				<- mkDMA();
 		`endif
-		`ifdef AXIEXP
-			Ifc_AxiExpansion		axiexp1			<- mkAxiExpansion();	
-		`endif
 		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, core_reset, uart_clock, uart_reset, clocked_by slow_clock , reset_by slow_reset);	
 
    	// Fabric
@@ -167,9 +154,6 @@ package Soc;
 			`endif
 			`ifdef DMA
    			mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Dma_slave_num))],	dma.cfg); //DMA slave
-			`endif
-			`ifdef AXIEXP
-   			mkConnection (fabric.v_to_slaves [fromInteger(valueOf(AxiExp1_slave_num))],	axiexp1.axi_slave); //
 			`endif
 			`ifdef TCMemory
 				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(TCM_slave_num))],tcm.axi_slave);
@@ -274,12 +258,6 @@ package Soc;
 			method Action bs_chain_i(Bit#(1) bs_chain);
 				tap.bs_chain_i(bs_chain);
 			endmethod
-//			method Action tck_i(Bit#(1) tck);
-//				tap.tck_i(tck);
-//			endmethod
-//			method Action trst_i(Bit#(1) trst);
-//				tap.trst_i(trst);
-//			endmethod
 			method Bit#(1) shiftBscan2Edge=tap.shiftBscan2Edge;
 			method Bit#(1) selectJtagInput=tap.selectJtagInput;
 			method Bit#(1) selectJtagOutput=tap.selectJtagOutput;
@@ -288,10 +266,6 @@ package Soc;
             method Bit#(1) scan_shift_en=tap.scan_shift_en;
 			method Bit#(1) tdo=tap.tdo;
 			method Bit#(1) tdo_oe=tap.tdo_oe;
-		`endif
-		`ifdef AXIEXP
-			interface axiexp1_out=axiexp1.slave_out;
-			interface axiexp1_in=axiexp1.slave_in;
 		`endif
 		interface slow_ios=slow_peripherals.slow_ios;
 

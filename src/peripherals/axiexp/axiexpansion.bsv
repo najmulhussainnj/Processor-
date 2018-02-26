@@ -23,25 +23,22 @@ package axiexpansion;
 	import defined_types::*;
 	`include "defined_parameters.bsv"
 	import Semi_FIFOF        :: *;
-	import AXI4_Types   :: *;
-	import AXI4_Fabric  :: *;
+	import AXI4_Lite_Types   :: *;
+	import AXI4_Lite_Fabric  :: *;
 	/*======================== */
 
 	/*=== Type of info to be capture by slave=== */
 	typedef struct{
 		Bit#(`Reg_width) data;
 		Bit#(`PADDR) address;
-		Bit#(2) burstmode; // 52:53
 		Bit#(3) size;		// 49:51
-		Bit#(8) burstlen; // 41:48
 		Bit#(8) wrstrb; //33:40
-		Bit#(1) wlast; //32
 	} SlaveReq deriving (Bits,Eq,FShow);
 	/*=============================================== */
 	typedef enum {SendReadAddress, SendWriteAddress, SendWriteData, SendWriteResponse, ReceiveReadData, Idle} State deriving (Bits,Eq,FShow);
 
 	interface Ifc_AxiExpansion;
-		interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
+		interface AXI4_Lite_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
 		// 1-bit indicating slave response or master request , 2 bits for slverror, 64-info signals, 
 	//	method ActionValue#(Bit#(67)) slave_out;
 		interface Get#(Bit#(67)) slave_out;
@@ -53,16 +50,11 @@ package axiexpansion;
 	(*synthesize*)
 	(*preempts="receive_from_AXIWrite_request,receive_from_AXIRead_request"*)
 	module mkAxiExpansion(Ifc_AxiExpansion);
-		AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  slave_xactor <- mkAXI4_Slave_Xactor;
+		AXI4_Lite_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  slave_xactor <- mkAXI4_Lite_Slave_Xactor;
 		FIFO#(SlaveReq) capture_slave_req <-mkLFIFO();
 		FIFO#(Bit#(67)) send_slave_req <-mkLFIFO();
 		Wire#(Maybe#(Bit#(67))) wr_receive_slavedata<-mkDWire(tagged Invalid);
 		FIFO#(Bit#(67)) ff_receive_slavedata<-mkLFIFO;
-
-		Reg#(Bit#(8)) rg_readburst_counter<-mkReg(0);
-		Reg#(Bit#(8)) rg_writeburst_counter<-mkReg(0);
-		Reg#(Bit#(8)) rg_readburst_value<-mkReg(0);
-		Reg#(Bit#(4)) rg_id<-mkReg(0);
 
 		Reg#(Bit#(32)) rg_prescale <-mkReg(10);
 		Reg#(Bit#(32)) rg_count <-mkReg(0);
@@ -80,7 +72,7 @@ package axiexpansion;
 			$display($time,"\tAXIEXP: Got Write Request");
 			let aw <- pop_o (slave_xactor.o_wr_addr);
 			let w  <- pop_o (slave_xactor.o_wr_data);
-			let b = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser:?, bid:aw.awid};
+			let b = AXI4_Lite_Wr_Resp {bresp: AXI4_LITE_OKAY, buser:?};
 			if(aw.awaddr=='hFFFFFFFF)begin
 				rg_prescale<=truncate(w.wdata);
 				slave_xactor.i_wr_resp.enq (b);
@@ -90,43 +82,24 @@ package axiexpansion;
 				capture_slave_req.enq(SlaveReq{
 					data:w.wdata,
 					address:aw.awaddr,
-					burstmode:aw.awburst,
 					size:aw.awsize,
-					burstlen:aw.awlen,
-					wrstrb:w.wstrb,
-					wlast:pack(w.wlast)});	
-				rg_writeburst_counter<=aw.awlen;
+					wrstrb:w.wstrb});	
 				rg_state<=SendWriteAddress;
-				rg_id<=aw.awid;
 			end
 		endrule
 		rule send_slave_writerequest(rg_state==SendWriteAddress && rg_count==0);
 			let x=capture_slave_req.first;
-			send_slave_req.enq({1'b1,2'd0,10'd0,x.burstmode,x.size,x.burstlen,x.wrstrb,x.wlast,x.address[31:0]});
+			send_slave_req.enq({1'b1,2'd0,21'd0,x.size,x.wrstrb,x.address[31:0]});
 			rg_state<=SendWriteData;
-		endrule
-		rule pop_burst_write_request_from_AXI(rg_state==SendWriteData && rg_count==0);
-			let aw <- pop_o (slave_xactor.o_wr_addr);
-			let w  <- pop_o (slave_xactor.o_wr_data);
-			capture_slave_req.enq(SlaveReq{
-				data:w.wdata,
-				address:aw.awaddr,
-				burstmode:aw.awburst,
-				size:aw.awsize,
-				burstlen:aw.awlen,
-				wrstrb:w.wstrb,
-				wlast:pack(w.wlast)});	
 		endrule
 		rule send_slave_writedata(rg_state==SendWriteData && rg_count==0);
 			let x=capture_slave_req.first;
 			send_slave_req.enq({1'b1,2'd1,x.data});
-			if(x.wlast==1)begin
-				rg_state<=SendWriteResponse;
-			end
+			rg_state<=SendWriteResponse;
 			capture_slave_req.deq;
 		endrule
 		rule send_slave_writeresponse(rg_state==SendWriteResponse && ff_receive_slavedata.first[66]==0);
-			let b = AXI4_Wr_Resp {bresp: unpack(ff_receive_slavedata.first[65:64]), buser:?, bid:rg_id};
+			let b = AXI4_Lite_Wr_Resp {bresp: unpack(ff_receive_slavedata.first[65:64]), buser:?};
 			ff_receive_slavedata.deq;
 			slave_xactor.i_wr_resp.enq (b);
 			rg_state<=Idle;
@@ -137,7 +110,7 @@ package axiexpansion;
 		rule receive_from_AXIRead_request(rg_state==Idle);
 			$display($time,"\tAXIEXP: Got Read Request");
 			let ar<- pop_o(slave_xactor.o_rd_addr);
-			AXI4_Rd_Data#(`Reg_width,`USERSPACE) r = AXI4_Rd_Data {rresp: AXI4_OKAY, rdata: duplicate(rg_prescale) ,rlast:True, ruser: 0, rid:ar.arid};
+			AXI4_Lite_Rd_Data#(`Reg_width,`USERSPACE) r = AXI4_Lite_Rd_Data {rresp: AXI4_LITE_OKAY, rdata: duplicate(rg_prescale) , ruser: 0};
 			if(ar.araddr=='hFFFFFFFF)begin
 				slave_xactor.i_rd_data.enq(r);
 				rg_state<=Idle;
@@ -146,34 +119,23 @@ package axiexpansion;
 				capture_slave_req.enq(SlaveReq{
 					data:0,
 					address:ar.araddr,
-					burstmode:ar.arburst,
 					size:ar.arsize,
-					burstlen:ar.arlen,
-					wrstrb:0,
-					wlast:0});	
-				rg_readburst_value<=ar.arlen;
+					wrstrb:0});
 				rg_state<=SendReadAddress;
-				rg_id<=ar.arid;
 			end
 		endrule
 		rule send_slave_readrequest(rg_state==SendReadAddress && rg_count==0);
 			let x=capture_slave_req.first;
-			send_slave_req.enq({1'b1,2'd2,10'd0,x.burstmode,x.size,x.burstlen,x.wrstrb,x.wlast,x.address[31:0]});
+			send_slave_req.enq({1'b1,2'd2,21'd0,x.size,x.wrstrb,x.address[31:0]});
 			capture_slave_req.deq;
 			rg_state<=ReceiveReadData;
 		endrule
 		rule send_axiread_slave_response(rg_state==ReceiveReadData && ff_receive_slavedata.first[66]==0);
-			AXI4_Rd_Data#(`Reg_width,`USERSPACE) r = AXI4_Rd_Data {rresp: AXI4_OKAY, rdata: ff_receive_slavedata.first[63:0] ,rlast:rg_readburst_counter==rg_readburst_value, ruser: 0, rid:rg_id};
+			AXI4_Lite_Rd_Data#(`Reg_width,`USERSPACE) r = AXI4_Lite_Rd_Data {rresp: AXI4_LITE_OKAY, rdata: ff_receive_slavedata.first[63:0] , ruser: 0};
 			ff_receive_slavedata.deq;
 			if(ff_receive_slavedata.first[65:64]!=0)
 				r.rresp=unpack(ff_receive_slavedata.first[65:64]);
 			slave_xactor.i_rd_data.enq(r);
-			if(rg_readburst_counter==rg_readburst_value)begin
-				rg_readburst_counter<=0;
-			end
-			else begin
-				rg_readburst_counter<=rg_readburst_counter+1;
-			end
 			rg_state<=Idle;
 		endrule
 		/*============================================================ */
