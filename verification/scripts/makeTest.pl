@@ -145,7 +145,7 @@ elsif ($testType =~ /^p$/) {
 systemFileCmd("riscv64-unknown-elf-objdump --disassemble-all --disassemble-zeroes --section=.text --section=.text.startup --section=.text.init --section=.data $testName.elf", "$testName.disass");
 
 # Generating hex
-systemFileCmd("elf2hex  8 65536 $testName.elf 2147483648","code.mem");
+systemFileCmd("elf2hex  8 524288 $testName.elf 2147483648","code.mem");
 systemFileCmd("cut -c1-8 code.mem", "code.mem.MSB");
 systemFileCmd("cut -c9-16 code.mem", "code.mem.LSB");
 if ($trace) {
