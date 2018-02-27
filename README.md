@@ -4,6 +4,12 @@ This is the C-class core of the SHAKTI Processor family. This repo contains all 
 hardware and software related to the c-class core. The core and the peripherals are developed using Bluespec.
 If you wish to contribute or help fix issues, please make a pull-request. You can reach  us at: shakti.iitm@gmail.com
 
+## Contributing to the Project ##
+
+The quickest way to contribute to the SHAKTI project is to create a pull-request for existing issues or any feature additions.
+
+The SHAKTI team is currently hiring for full-time positions. The work would primarily be involved in the domain of design and verification. Interested candidates please send your resume to shakti.iitm@gmail.com.
+
 ### Current FEATURES of C-CLASS ###
 
 * 6-stage 64/32-bit pipelined core.
