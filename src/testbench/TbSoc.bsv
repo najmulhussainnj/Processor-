@@ -21,7 +21,7 @@ package TbSoc;
 	import Uart16550::*;
 	import RS232_modified::*;
 	import Clocks::*;
-    import RBB_Shakti::*;
+        import RBB_Shakti::*;
 	import FIFO:: *;
 	import Vector::*;
 	import SpecialFIFOs::*;
@@ -30,21 +30,26 @@ package TbSoc;
 	import Connectable::*;
 	import TriState::*;
 	import slow_peripherals::*;
-    `ifdef SDRAM	
-			import bsvmksdram_model_wrapper::*;
-			import sdr_top::*;
-		`endif
+        `ifdef VME
+		import Memory_vme_32::*;
+		import Memory_vme_16::*;
+		import vme_master::*;
+	`endif
+         `ifdef SDRAM	
+		import bsvmksdram_model_wrapper::*;
+		import sdr_top::*;
+	`endif
    	`ifdef QSPI0 
 			import qspi::*;
          `ifdef micron
 				import bsvmkMicronFlashWrapper::*;
 			`else
 				import bsvmkCypressFlashWrapper::*;
-         `endif
+          `endif
 		`endif
 		`ifdef I2C0
 			import I2C_top			 :: *;
-            import bsvmkM24AA1025 ::*;
+                        import bsvmkM24AA1025 ::*;
 		`endif
 		`ifdef PLIC
 			import gpio				::*;
@@ -56,6 +61,7 @@ package TbSoc;
 		`ifdef AXIEXP
 			import sample_axiexpslave::*;
 		`endif
+
 	module mkTbSoc(Empty);
 
 		MakeClockIfc#(Bit#(1)) tck_clk <-mkUngatedClock(1);
@@ -92,7 +98,14 @@ package TbSoc;
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmlsb <-mksdram_model_wrapper("code.mem.LSB",clocked_by clk0, reset_by rst0); `endif
 		`ifdef SDRAM Ifc_sdram_model sdram_bfmmsb <-mksdram_model_wrapper("code.mem.MSB",clocked_by clk0, reset_by rst0); `endif
 		`ifdef AXIEXP Ifc_sample_axiexpslave axiexpslave <-mksample_axiexpslave(clocked_by slow_clock.slowClock,reset_by slow_reset); `endif
-		rule connect_boot;
+		 `ifdef VME
+
+			Vme_slave#(32'h40000000,`Addr_space) vme_memory<-mkMemory("vme_test.mem","VMEMEM");`endif
+//		 	Vme_slave#(32'h40000000,`Addr_space) vme_memory <-mkMemory("test_vme.mem","MainMEM");
+//			Memory_vme_16#(32'h40000000,`Addr_space) vme_memory<-mkMemory_16("test_vme.mem","MainMEM");
+
+
+rule connect_boot;
 			soc.boot_sequence('b1);	
 		endrule
 
@@ -183,7 +196,7 @@ package TbSoc;
               mkConnection(line_SCL1.io,linescl1.io);
 
             rule send_sda_connect_i2c1;
-					soc.slow_ios.i2c1_out.scl_in(line_SCL1._read);
+		soc.slow_ios.i2c1_out.scl_in(line_SCL1._read);
                soc.slow_ios.i2c1_out.sda_in(line_SDA1._read);
             endrule
             
@@ -409,6 +422,66 @@ package TbSoc;
 	   	endrule
 	*/
 		`endif
+`ifdef VME		
+//Connection b/w vme_controller and slave	
+	rule connect_address_slaves;
+		vme_memory.rd_addr(soc.proc_dbus.wr_addr());
+	endrule
+
+ 
+
+	rule connect_master_slave_vme_memory_1;
+		vme_memory.rd_byte_31_24(soc.proc_dbus.wr_byte_31_24());
+	endrule
+
+	rule connect_master_slave_vme_memory_2;
+		vme_memory.rd_byte_23_16(soc.proc_dbus.wr_byte_23_16());
+	endrule
+
+	rule connect_master_slave_vme_memory_3;
+		vme_memory.rd_byte_15_8 (soc.proc_dbus.wr_byte_15_8());
+	endrule
+
+	rule connect_master_slave_vme_memory_4;
+		vme_memory.rd_byte_7_0  (soc.proc_dbus.wr_byte_7_0());
+	endrule
+
+
+	rule connect_master_slave_vme_memory_5;
+		soc.proc_dbus.rd_byte_31_24(vme_memory.wr_byte_31_24());
+	endrule
+
+	rule connect_master_slave_vme_memory_6;
+		soc.proc_dbus.rd_byte_23_16(vme_memory.wr_byte_23_16());
+	endrule
+
+	rule connect_master_slave_vme_memory_7;
+		soc.proc_dbus.rd_byte_15_8 (vme_memory.wr_byte_15_8());
+	endrule
+
+	rule connect_master_slave_vme_memory_8;
+		soc.proc_dbus.rd_byte_7_0  (vme_memory.wr_byte_7_0());
+	endrule
+
+
+	rule cntl_word_master_vme_memory;
+		vme_memory.rd_as_l(soc.proc_ifc.wr_as_l());
+		vme_memory.rd_ds_l(soc.proc_ifc.wr_ds_l());
+		vme_memory.rd_siz0(soc.proc_dbus.wr_siz0());
+		vme_memory.rd_siz1(soc.proc_dbus.wr_siz1());
+		vme_memory.rd_wr_l(soc.proc_ifc.wr_wr_l());
+	endrule
+
+
+	rule cntl_word_vme_memory_master;
+		soc.proc_ifc.rd_dsack_0_l(vme_memory.wr_dsack_0_l());
+		soc.proc_ifc.rd_dsack_1_l(vme_memory. wr_dsack_1_l());
+		soc.proc_ifc.rd_berr_l(vme_memory.wr_berr_l());
+		soc.proc_ifc.rd_halt_l(vme_memory.wr_halt_l());
+	endrule
+
+`endif
+
 		
 		`ifdef UART0
 			rule connect_uart0_sin;	//dummy rule to connect uart0 sin since its always_enabled

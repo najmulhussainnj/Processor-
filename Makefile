@@ -75,6 +75,9 @@ endif
 ifeq ($(UART1),enable)
   define_macros += -D UART1=True
 endif
+ifeq ($(VME),enable)
+  define_macros += -D VME=True
+endif
 ifeq ($(BOOTROM),enable)
   define_macros += -D BOOTROM=True
 endif
@@ -112,7 +115,7 @@ ifeq ($(FLASHMODEL),micron)
   define_macros += -D micron=True
 endif
 
-PERIPHERALS:=src/peripherals/bootrom:src/peripherals/clint:src/peripherals/plic:./src/peripherals/uart/:./src/peripherals/tcm/:./src/peripherals/jtagdtm:./src/peripherals/gpio:./src/peripherals/qspi:./src/peripherals/i2c/:./src/peripherals/sdram:./src/peripherals/axiexp:./src/peripherals/dma
+PERIPHERALS:=src/peripherals/bootrom:src/peripherals/clint:./src/peripherals/vme:src/peripherals/plic:./src/peripherals/uart/:./src/peripherals/tcm/:./src/peripherals/jtagdtm:./src/peripherals/gpio:./src/peripherals/qspi:./src/peripherals/i2c/:./src/peripherals/sdram:./src/peripherals/axiexp:./src/peripherals/dma
 UNCORE:=./src/uncore:./src/uncore/axi4:./src/uncore/debug:./src/uncore/axi4lite
 CORE:=./src/core/fpu:./src/core/
 TESTBENCH:=./src/testbench/

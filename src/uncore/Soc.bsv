@@ -52,6 +52,14 @@ package Soc;
 		`else
 			import core::*;
 		`endif
+`ifdef  VME
+			import vme_top ::*;
+`endif
+
+`ifdef VME
+			import vme_master::*;
+`endif
+
 	/*========================= */
 	interface Ifc_Soc;
 		interface SP_ios slow_ios;
@@ -90,6 +98,11 @@ package Soc;
 		   interface Ifc_flash ifc_flash;
 		`endif
 	/*=============================================== */
+	   `ifdef VME
+        		interface Vme_out  proc_ifc;
+			interface Data_bus_inf proc_dbus;
+		`endif
+
 	endinterface
 	(*synthesize*)
 	module mkSoc #(Bit#(`VADDR) reset_vector, Clock slow_clock, Reset slow_reset, Clock uart_clock, Reset uart_reset, Clock clk0, Clock tck, Reset trst)(Ifc_Soc);
@@ -122,6 +135,9 @@ package Soc;
 		`ifdef DMA
 			DmaC#(7,12)				dma				<- mkDMA();
 		`endif
+			`ifdef VME
+			Ifc_vme_top             vme             <-mkvme_top();
+			`endif	
 		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, core_reset, uart_clock, uart_reset, clocked_by slow_clock , reset_by slow_reset);	
 
    	// Fabric
@@ -159,7 +175,9 @@ package Soc;
 				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(TCM_slave_num))],tcm.axi_slave);
 			`endif
 			mkConnection(fabric.v_to_slaves [fromInteger(valueOf(SlowPeripheral_slave_num))],slow_peripherals.axi_slave);
-
+			`ifdef VME
+				mkConnection (fabric.v_to_slaves[fromInteger(valueOf(VME_slave_num))],vme.slave_axi_vme);
+			`endif
 			`ifdef DMA
 			//rule to connect all interrupt lines to the DMA
 			//All the interrupt lines to DMA are active HIGH. For peripherals that are not connected, or those which do not
@@ -244,6 +262,10 @@ package Soc;
 			endrule
 		`endif
 
+		`ifdef VME
+			interface  proc_ifc = vme.proc_ifc;
+			interface   proc_dbus = vme.proc_dbus;
+		`endif 
       method Action boot_sequence(Bit#(1) bootseq) = core.boot_sequence(bootseq);
 		`ifdef SDRAM
 			interface sdram_out=sdram.ifc_sdram_out;

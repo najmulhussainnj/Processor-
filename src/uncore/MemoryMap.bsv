@@ -38,6 +38,11 @@ function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Bit#(`PA
 			else if(addr>=`DMABase && addr<=`DMAEnd)
 				return tuple2(True,fromInteger(valueOf(Dma_slave_num)));
 		`endif
+		`ifdef VME
+			else if(addr>=`VMEBase && addr<=`VMEEnd)
+				return tuple2(True,fromInteger(valueOf(VME_slave_num)));
+		`endif
+
 		`ifdef TCMemory
 			else if(addr>=`TCMBase && addr<=`TCMEnd)
 				return tuple2(True,fromInteger(valueOf(TCM_slave_num)));
