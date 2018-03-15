@@ -111,8 +111,15 @@ if ($clean) {
   exit(0);
 }
 
-systemCmd("find $testSuite -name $testName.S");
-my @test = `find $testSuite -name $testName.S`; chomp(@test);
+my @test = ();
+if ($testSuite =~ /csmith-run/) {
+  systemCmd("find $testSuite -name $testName.c");
+  @test = `find $testSuite -name $testName.c`; chomp(@test);
+}
+else {
+  systemCmd("find $testSuite -name $testName.S");
+  @test = `find $testSuite -name $testName.S`; chomp(@test);
+}
 if (@test > 1) {
   doPrint("ERROR: Duplicate test names\n");
   exit(1);
@@ -138,7 +145,16 @@ if ($testType =~ /^v$/) {
   systemCmd("riscv64-unknown-elf-gcc -march=rv64g -mabi=lp64 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -DENTROPY=0x9629af2 -std=gnu99 -O2 -I$riscvIncludeDir/env/v -I$riscvIncludeDir/isa/macros/scalar -T$riscvIncludeDir/env/v/link.ld $riscvIncludeDir/env/v/entry.S $riscvIncludeDir/env/v/*.c $test -o $testName.elf");
 }
 elsif ($testType =~ /^p$/) {
-  systemCmd("riscv64-unknown-elf-gcc -march=rv64g -mabi=lp64 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -I$riscvIncludeDir/env/p -I$riscvIncludeDir/isa/macros/scalar -T$riscvIncludeDir/env/p/link.ld $test -o $testName.elf");
+  if ($testSuite =~ /csmith-run/) {
+    my $csmithInc = "$shaktiHome/verification/tools/csmith_run";
+      systemCmd("riscv64-unknown-elf-gcc -march=rv64imafd  -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf -D__ASSEMBLY__=1 -c -I /tools/csmith/runtime $csmithInc/crt.S -o crt.o");
+      systemCmd("riscv64-unknown-elf-gcc -march=rv64imafd  -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf  -c -I /tools/csmith/runtime $csmithInc/syscalls_shakti.c -o syscalls.o");
+      systemCmd("riscv64-unknown-elf-gcc -w -Os -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf  -c -I /tools/csmith/runtime $shaktiHome/verification/tests/$test_suite/$testName.c  -march=rv64imafd -o $testName.o");
+      systemCmd("riscv64-unknown-elf-gcc -T $csmithInc/link.ld -I /tools/csmith/runtime $testName.o syscalls.o crt.o -static -nostdlib -nostartfiles -lgcc -lm -o $testName.elf");
+  }
+  else {
+    systemCmd("riscv64-unknown-elf-gcc -march=rv64g -mabi=lp64 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -I$riscvIncludeDir/env/p -I$riscvIncludeDir/isa/macros/scalar -T$riscvIncludeDir/env/p/link.ld $test -o $testName.elf");
+  }
 }
 
 # Generating the disassembly
@@ -177,23 +193,34 @@ if ($simulator =~ /^ncverilog$/) {
   systemCmd("ln -s $shaktiHome/verilog/include include");
 }
 
+
 if ($simulator =~ /^bluespec$/) {
   systemFileCmd("./out -w","log.txt");
 }
 else {
   systemFileCmd("./out","log.txt");
 }
-my @diff = `diff rtl.dump spike.dump`;
-print @diff;
 my $result;
 
-if (@diff) {
+if (!(-e "rtl.dump")) {
+  `touch FAILED`;
+   $result = "$testName.S | $test_suite | FAILED";
+}
+elsif (!(-e "spike.dump")) {
   `touch FAILED`;
    $result = "$testName.S | $test_suite | FAILED";
 }
 else {
-  `touch PASSED`;
-  $result = "$testName.S  | $test_suite | PASSED";
+  my @diff = `diff rtl.dump spike.dump`;
+  #print @diff;
+  if (@diff) {
+    `touch FAILED`;
+    $result = "$testName.S | $test_suite | FAILED";
+  }
+  else {
+    `touch PASSED`;
+    $result = "$testName.S  | $test_suite | PASSED";
+  }
 }
 systemFileCmd("sdiff -W rtl.dump spike.dump", "diff");
 doDebugPrint("---------------------------------------------\n");
