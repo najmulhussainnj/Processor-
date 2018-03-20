@@ -557,20 +557,4 @@ typedef  TAdd#(Qspi1_slave_num		,`ifdef AXIEXP		1 `else 0 `endif )		AxiExp1_slav
 typedef	TAdd#(AxiExp1_slave_num,1)									Num_Slow_Slaves			;
 /*===========================================*/
 
-typedef Bit#(Num_masters) Master_route; // encoding -----> DMA, Debug, IMEM, DMEM   
-Master_route route_to_SDRAM				= truncate(4'b1101);
-Master_route route_to_TCM				= truncate(4'b1101);
-Master_route route_to_BOOTROM			= truncate(4'b1101);
-Master_route route_to_debug				= truncate(4'b1101);
-Master_route route_to_DMA				= truncate(4'b1101);
-Master_route route_to_slow_peripherals	= truncate(4'b1101);
-Master_route route_to_uart0  = truncate(4'b1101);
-Master_route route_to_uart1  = truncate(4'b1101);
-Master_route route_to_clint1 = truncate(4'b0101);
-Master_route route_to_PLIC   = truncate(4'b0101);
-Master_route route_to_I2C0   = truncate(4'b1101);
-Master_route route_to_I2C1   = truncate(4'b1101);
-Master_route route_to_QSPI0  = truncate(4'b1101);
-Master_route route_to_QSPI1  = truncate(4'b1101);
-Master_route route_to_AXIEXP = truncate(4'b1101);
 endpackage

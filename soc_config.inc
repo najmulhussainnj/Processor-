@@ -21,6 +21,6 @@ DMA=disable
 AXIEXP=disable
 TCM=disable
 CLINT=enable
-VME=enable
+VME=disable
 SYNTH=SIM
 FLASHMODEL=cypress
