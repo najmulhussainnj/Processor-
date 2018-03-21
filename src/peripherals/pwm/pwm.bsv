@@ -114,6 +114,10 @@ package pwm;
                                        pwm_output_enable, continous_once, pwm_start, pwm_enable, 
                                        clock_selector);
     // ================================================ //
+
+    // Generate a reset signal is there is a reset from the bus interface of if the reset_counter
+    // bit in the control register is set. The new reset is called overall_reset. Only the counter
+    // and the output signals need to be reset by this.
     MakeResetIfc control_reset <- mkReset(1,False, bus_clock);
     rule generate_reset;
       if(reset_counter==1)
@@ -121,12 +125,13 @@ package pwm;
     endrule
     Reset overall_reset <- mkResetEither(bus_reset,control_reset.new_rst);
 
-    // == Select between bus clock or external clock == //
+    // Select between bus clock or external clock 
     MuxClkIfc clock_selection <- mkUngatedClockMux(ext_clock,bus_clock);
     Reset async_reset <- mkAsyncResetFromCR(0,clock_selection.clock_out);
     rule select_busclk_extclk;
       clock_selection.select(clock_selector==1);
     endrule
+
     // The following register is required to transfer the divisor value from bus_clock to 
     // external clock domain. This is necessary if the clock divider needs to operate on the
     // external clock. In this case, the divisor value should also come from the same clock domain.
@@ -134,51 +139,80 @@ package pwm;
     rule transfer_data_from_clock_domains;
       clock_divisor_sync <= clock_divisor;
     endrule
-    // ================================================ //
     
-    // == Downclock using the divisor register == //
+    // The PWM can operate on a slowed-down clock. The following module generates a slowed-down
+    // clock based on the value given in register divisor. Since the clock_divider works on a muxed
+    // clock domain of the external clock or bus_clock, the divisor (which operates on the bus_clock
+    // will have to be synchronized and sent to the divider
     ClockDiv clock_divider <- mkClockDiv(clocked_by clock_selection.clock_out, 
                                          reset_by async_reset);
     let downclock = clock_divider.slowclock; 
     Reset downreset <- mkAsyncReset(0,overall_reset,downclock);
-    Reg#(Bool) dummy <-mkReg(False,clocked_by downclock,reset_by downreset);
-    rule dummyrule;
-      dummy<=!dummy;
-    endrule
     rule generate_slow_clock;
       clock_divider.divisor(clock_divisor_sync);
     endrule
-    // ========================================== //
 
     // ======= Actual Counter and PWM signal generation ======== //
-    Reg#(Bit#(1)) pwm_output <- mkReg(0);
-    Reg#(Bit#(`PWMWIDTH)) rg_counter <-mkReg(0); 
-    let temp = period==0?0:period-1;
-    Wire#(Bool) clear_int <- mkDWire(False);
+    Reg#(Bit#(1)) pwm_output <- mkReg(0,clocked_by downclock,reset_by downreset);
+    Reg#(Bit#(`PWMWIDTH)) rg_counter <-mkReg(0,clocked_by downclock,reset_by downreset); 
+    
+    // create synchronizers for clock domain crossing.
+    Reg#(Bit#(1)) sync_pwm_output <- mkSyncRegToCC(0,downclock,downreset);
+    ReadOnly#(Bit#(1)) pwm_signal <- mkNullCrossingWire(bus_clock, pwm_output);
+    Reg#(Bit#(1)) sync_continous_once <- mkSyncRegFromCC(0,downclock);
+    Reg#(Bit#(`PWMWIDTH)) sync_duty_cycle <- mkSyncRegFromCC(0,downclock);
+    Reg#(Bit#(`PWMWIDTH)) sync_period <- mkSyncRegFromCC(0,downclock);
+    Reg#(Bit#(1)) sync_pwm_enable <- mkSyncRegFromCC(0,downclock);
+    Reg#(Bit#(1)) sync_pwm_start <- mkSyncRegFromCC(0,downclock);
+    rule sync_pwm_output_to_default_clock;
+      sync_pwm_output <= pwm_output;
+    endrule
 
+    // capture the synchronized values from the default clock domain to the downclock domain for
+    // actual timer and pwm functionality.
+    rule sync_from_default_to_downclock;
+      sync_continous_once <= continous_once;
+      sync_duty_cycle <= duty_cycle;
+      sync_period <= period;
+      sync_pwm_enable <= pwm_enable;
+      sync_pwm_start <= pwm_start;
+    endrule
+    let temp = sync_period==0?0:sync_period-1;
+
+    // This rule generates the interrupt in the timer mode and resets it if the user-write interface
+    // writes a value of 1 to the reset_counter bit.
     rule generate_interrupt_in_timer_mode;
       if(pwm_enable==0)
-        interrupt <= pwm_output;
-      else if(clear_int)
+        interrupt <= sync_pwm_output;
+      else if(reset_counter==1)
         interrupt <= 0;
       else
         interrupt <= 0;
     endrule
 
-    rule compare_and_generate_pwm(pwm_start==1);
+    // This rule performs the actual pwm and the timer functionality. if pwm_enable is 1 then the
+    // PWM mode is selected. Every time the counter value equals/crosses the period value it is
+    // reset and the output pwm_output signal is toggled. 
+    // The timer mode is selected when pwm_enable is 0. Here again 2 more modes are possible. if the
+    // continous_once bit is 0 then the timer is in one time. In this case once the counter reaches
+    // the period value it raises an interrupt and stops the counter. In the continuous mode
+    // however, when the counter reaches the period value the interrupt is raise, the counter is
+    // reset to 0 and continues counting. During continuous counting the interrupt can be cleared by
+    // the user but will be set back when the counter reaches the period value.
+    rule compare_and_generate_pwm(sync_pwm_start==1);
       let cntr = rg_counter+1;
-      if(pwm_enable==1)begin // PWM mode enabled
+      if(sync_pwm_enable==1)begin // PWM mode enabled
         if(rg_counter >= temp)
           rg_counter <= 0;
         else 
           rg_counter <= cntr;
-        if(rg_counter < duty_cycle)
+        if(rg_counter < sync_duty_cycle)
           pwm_output <= 1;
         else
           pwm_output <= 0;
       end
       else begin  // Timer mode enabled.
-        if(continous_once==0) begin // One time mode.
+        if(sync_continous_once==0) begin // One time mode.
           if(rg_counter >= temp)begin
               pwm_output <= 1;
           end
@@ -204,7 +238,7 @@ package pwm;
         case(addr[4:2])
           0: period <= truncate(data);
           1: duty_cycle <= truncate(data);
-          2: begin control <= truncate(data); if(data[7]==1) clear_int <= True; end
+          2: begin control <= truncate(data);end
           3: clock_divisor <= truncate(data);
           default: err = True;
         endcase
@@ -225,7 +259,7 @@ package pwm;
       endmethod
     endinterface;
     interface io = interface PWMIO
-      method pwm_o=pwm_output_enable==1?pwm_output:0;
+      method pwm_o=pwm_output_enable==1?pwm_signal:0;
     endinterface;
   endmodule
 
@@ -241,7 +275,7 @@ package pwm;
     endrule
     rule state2(rg_state==1);
       rg_state<=2;
-      let x <- pwm.user.write('d4,'d2);
+      let x <- pwm.user.write('d4,'d3);
     endrule
     rule state3(rg_state==2);
       rg_state<=3;
