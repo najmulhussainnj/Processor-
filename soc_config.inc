@@ -23,4 +23,5 @@ TCM=disable
 CLINT=enable
 VME=disable
 SYNTH=SIM
+PWM=disable
 FLASHMODEL=cypress
