@@ -105,7 +105,9 @@ package Soc;
 
 	endinterface
 	(*synthesize*)
-	module mkSoc #(Bit#(`VADDR) reset_vector, Clock slow_clock, Reset slow_reset, Clock uart_clock, Reset uart_reset, Clock clk0, Clock tck, Reset trst)(Ifc_Soc);
+	module mkSoc #(Bit#(`VADDR) reset_vector, Clock slow_clock, Reset slow_reset, Clock uart_clock, 
+                 Reset uart_reset, Clock clk0, Clock tck, Reset trst
+                 `ifdef PWM_AXI4Lite ,Clock ext_pwm_clock `endif )(Ifc_Soc);
 		Clock core_clock <-exposeCurrentClock; // slow peripheral clock
 		Reset core_reset <-exposeCurrentReset; // slow peripheral reset
       `ifdef Debug 
@@ -138,7 +140,9 @@ package Soc;
 			`ifdef VME
 			Ifc_vme_top             vme             <-mkvme_top();
 			`endif	
-		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, core_reset, uart_clock, uart_reset, clocked_by slow_clock , reset_by slow_reset);	
+		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, core_reset, uart_clock, 
+          uart_reset, clocked_by slow_clock , reset_by slow_reset 
+          `ifdef PWM_AXI4Lite , ext_pwm_clock `endif );	
 
    	// Fabric
    	AXI4_Fabric_IFC #(Num_Masters, Num_Slaves, `PADDR, `Reg_width,`USERSPACE)

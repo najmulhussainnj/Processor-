@@ -34,49 +34,18 @@ package pwm;
   /*== Package imports ==*/
   import defined_types::*;
   `include "defined_parameters.bsv"
+  import ClockDiv::*;
   import ConcatReg::*;
+	import Semi_FIFOF::*;
+	import BUtils ::*;
+  `ifdef PWM_AXI4Lite
+  	import AXI4_Lite_Types::*;
+  `endif
+  `ifdef PWM_AXI4
+    import AXI4_Types::*;
+  `endif
   /*======================*/
 
-  // =========================== Clock divider module ================ //
-  interface ClockDiv;
-    interface Clock slowclock;
-    method Action divisor(Bit#(`PWMWIDTH) in);
-  endinterface
-
-  (*synthesize*)
-  module mkClockDiv(ClockDiv);
-    let defclock <- exposeCurrentClock;
-    Reg#(Bit#(1)) clk <- mkReg(0);
-    Reg#(Bit#(`PWMWIDTH)) rg_divisor <- mkReg(0);
-    Reg#(Bit#(`PWMWIDTH)) rg_counter <- mkReg(0);
-    MakeClockIfc#(Bit#(1)) new_clock <- mkUngatedClock(0);
-    MuxClkIfc clock_selector <- mkUngatedClockMux(new_clock.new_clk,defclock);
-    Bool clockmux_sel = rg_divisor!=0;
-    rule increment_counter;
-      if(rg_divisor!=0 && rg_counter >= rg_divisor)begin
-        rg_counter <= 0;
-        clk <= ~ clk;
-      end
-      else
-        rg_counter <= rg_counter + 1;
-    endrule
-
-    rule generate_clock;
-      new_clock.setClockValue(clk);
-    endrule
-
-    rule select_clock;
-      clock_selector.select(clockmux_sel);
-    endrule
-
-    method Action divisor(Bit#(`PWMWIDTH) in);
-      rg_divisor <= in != 0 ? in - 1 : 0;
-    endmethod
-
-    interface slowclock=clock_selector.clock_out;
-  endmodule
-  // ============================================================== //
-  
   interface UserInterface;
     method ActionValue#(Bool) write(Bit#(`PADDR) addr, Bit#(`Reg_width) data);
     method Tuple2#(Bool, Bit#(`Reg_width)) read(Bit#(`PADDR) addr);
@@ -91,13 +60,11 @@ package pwm;
     interface PWMIO io;
   endinterface
 
-
   (*synthesize*)
-  module mkpwm#(Clock ext_clock)(PWM);
+  module mkPWM#(Clock ext_clock)(PWM);
 
     let bus_clock <- exposeCurrentClock;
     let bus_reset <- exposeCurrentReset;
-    
 
     Reg#(Bit#(`PWMWIDTH)) period <- mkReg(0);
     Reg#(Bit#(`PWMWIDTH)) duty_cycle <- mkReg(0);
@@ -144,7 +111,7 @@ package pwm;
     // clock based on the value given in register divisor. Since the clock_divider works on a muxed
     // clock domain of the external clock or bus_clock, the divisor (which operates on the bus_clock
     // will have to be synchronized and sent to the divider
-    ClockDiv clock_divider <- mkClockDiv(clocked_by clock_selection.clock_out, 
+    Ifc_ClockDiv#(`PWMWIDTH) clock_divider <- mkClockDiv(clocked_by clock_selection.clock_out, 
                                          reset_by async_reset);
     let downclock = clock_divider.slowclock; 
     Reset downreset <- mkAsyncReset(0,overall_reset,downclock);
@@ -263,10 +230,78 @@ package pwm;
     endinterface;
   endmodule
 
+  `ifdef PWM_AXI4Lite
+    // the following interface and module will add the AXI4Lite interface to the PWM module
+    interface Ifc_PWM_bus;
+      interface PWMIO pwm_io;
+	    interface AXI4_Lite_Slave_IFC#(`PADDR, `Reg_width,`USERSPACE) axi4_slave;
+    endinterface
+
+    (*synthesize*)
+    module mkPWM_bus#(Clock ext_clock)(Ifc_PWM_bus);
+      PWM pwm <-mkPWM(ext_clock);
+	  	AXI4_Lite_Slave_Xactor_IFC#(`PADDR,`Reg_width,`USERSPACE) s_xactor<-mkAXI4_Lite_Slave_Xactor();
+
+      rule read_request;
+	  		let req <- pop_o (s_xactor.o_rd_addr);
+        let {err,data} = pwm.user.read(req.araddr);
+	  		let resp= AXI4_Lite_Rd_Data {rresp:err?AXI4_LITE_SLVERR:AXI4_LITE_OKAY, 
+                                     rdata:data, ruser: ?};
+	  		s_xactor.i_rd_data.enq(resp);
+      endrule
+
+      rule write_request;
+        let addreq <- pop_o(s_xactor.o_wr_addr);
+        let datareq <- pop_o(s_xactor.o_wr_data);
+        let err <- pwm.user.write(addreq.awaddr, datareq.wdata);
+        let resp = AXI4_Lite_Wr_Resp {bresp: err?AXI4_LITE_SLVERR:AXI4_LITE_OKAY, buser: ?};
+        s_xactor.i_wr_resp.enq(resp);
+      endrule
+
+      interface pwm_io = pwm.io;
+    endmodule
+  `endif
+
+  `ifdef PWM_AXI4
+    // the following interface and module will add the AXI4 interface to the PWM module
+    interface Ifc_PWM_bus;
+      interface PWMIO pwm_io;
+	    interface AXI4_Slave_IFC#(`PADDR, `Reg_width,`USERSPACE) axi4_slave;
+    endinterface
+
+    (*synthesize*)
+    module mkPWM_bus#(Clock ext_clock)(Ifc_PWM_bus);
+      PWM pwm <-mkPWM(ext_clock);
+	  	AXI4_Slave_Xactor_IFC#(`PADDR,`Reg_width,`USERSPACE) s_xactor<-mkAXI4_Slave_Xactor();
+
+      rule read_request;
+	  		let req <- pop_o (s_xactor.o_rd_addr);
+        let {err,data} = pwm.user.read(req.araddr);
+        if(!(req.arsize == 2 && req.arlen == 0))
+          err = True;
+	  		let resp= AXI4_Rd_Data {rresp:err?AXI4_SLVERR:AXI4_OKAY, 
+                                     rdata:data, ruser: ?, rid:req.arid, rlast: True};
+	  		s_xactor.i_rd_data.enq(resp);
+      endrule
+
+      rule write_request;
+        let addreq <- pop_o(s_xactor.o_wr_addr);
+        let datareq <- pop_o(s_xactor.o_wr_data);
+        let err <- pwm.user.write(addreq.awaddr, datareq.wdata);
+        if(!(addreq.awsize == 2 && addreq.awlen == 0))
+          err = True;
+        let resp = AXI4_Wr_Resp {bresp: err?AXI4_SLVERR:AXI4_OKAY, buser: ?, 
+                                      bid:datareq.wid};
+        s_xactor.i_wr_resp.enq(resp);
+      endrule
+
+      interface pwm_io = pwm.io;
+    endmodule
+  `endif
   (*synthesize*)
   module mkTb(Empty);
     let clk <- exposeCurrentClock;
-    PWM pwm <- mkpwm(clk);
+    PWM pwm <- mkPWM(clk);
     Reg#(Bit#(5)) rg_state <- mkReg(0);
     
     rule state1(rg_state==0);

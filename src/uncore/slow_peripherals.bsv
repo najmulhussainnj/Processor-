@@ -41,6 +41,9 @@ package slow_peripherals;
 	`ifdef AXIEXP
 		import axiexpansion	::*;
 	`endif
+  `ifdef PWM_AXI4Lite 
+    import pwm::*;
+  `endif
 	/*=====================================*/
 	
 	/*===== interface declaration =====*/
@@ -75,6 +78,9 @@ package slow_peripherals;
 			interface Get#(Bit#(67)) axiexp1_out;
 			interface Put#(Bit#(67)) axiexp1_in;
 		`endif
+    `ifdef PWM_AXI4Lite
+      interface PWMIO pwm_o;
+    `endif
 	endinterface
 	interface Ifc_slow_peripherals;
 		interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
@@ -145,11 +151,17 @@ package slow_peripherals;
 				return tuple2(True,fromInteger(valueOf(AxiExp1_slave_num)));
 			else
 		`endif
+    `ifdef PWM_AXI4Lite
+      if(addr>=`PWMBase && addr<=`PWMEnd)
+        return tuple2(True,fromInteger(valueOf(Pwm_slave_num)));
+      else
+    `endif
 		return tuple2(False,?);
 	endfunction
 
 	(*synthesize*)
-	module mkslow_peripherals#(Clock fast_clock, Reset fast_reset, Clock uart_clock, Reset uart_reset)(Ifc_slow_peripherals);
+	module mkslow_peripherals#(Clock fast_clock, Reset fast_reset, Clock uart_clock, Reset uart_reset
+  `ifdef PWM_AXI4Lite ,Clock ext_pwm_clock `endif )(Ifc_slow_peripherals);
 		Clock sp_clock <-exposeCurrentClock; // slow peripheral clock
 		Reset sp_reset <-exposeCurrentReset; // slow peripheral reset
 
@@ -184,41 +196,59 @@ package slow_peripherals;
 		`ifdef AXIEXP
 			Ifc_AxiExpansion		axiexp1			<- mkAxiExpansion();	
 		`endif
+    `ifdef PWM_AXI4Lite
+      Ifc_PWM_bus pwm_bus <- mkPWM_bus(ext_pwm_clock);
+    `endif
 		/*=======================================================*/
 
-   	AXI4_Lite_Fabric_IFC #(1, Num_Slow_Slaves, `PADDR, `Reg_width,`USERSPACE)	slow_fabric <- mkAXI4_Lite_Fabric(fn_address_mapping);
+   	AXI4_Lite_Fabric_IFC #(1, Num_Slow_Slaves, `PADDR, `Reg_width,`USERSPACE)	slow_fabric <- 
+                                                            mkAXI4_Lite_Fabric(fn_address_mapping);
 		Ifc_AXI4Lite_AXI4_Bridge bridge	<-mkAXI4Lite_AXI4_Bridge(fast_clock,fast_reset);
    	
 		mkConnection (bridge.axi4_lite_master,	slow_fabric.v_from_masters [0]);
 		/*======= Slave connections to AXI4Lite fabric =========*/
 		`ifdef UART0
-			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Uart0_slave_num))],	uart0.slave_axi_uart);  
+			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Uart0_slave_num))],	
+                    uart0.slave_axi_uart);  
 		`endif
 		`ifdef UART1
-	   	mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Uart1_slave_num))],	uart1.slave_axi_uart); 
+	   	mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Uart1_slave_num))],	
+                    uart1.slave_axi_uart); 
 		`endif
 		`ifdef CLINT
-			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(CLINT_slave_num))],clint.axi4_slave);
+			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(CLINT_slave_num))],
+                    clint.axi4_slave);
 		`endif
 		`ifdef PLIC
-			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Plic_slave_num))],	plic.axi4_slave_plic); //
-			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(GPIO_slave_num))],	gpio.axi_slave); //
+			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Plic_slave_num))],	
+                    plic.axi4_slave_plic); //
+			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(GPIO_slave_num))],	
+                    gpio.axi_slave); //
 		`endif
 		`ifdef I2C0
-   		mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(I2c0_slave_num))],		i2c0.slave_i2c_axi); 
+   		mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(I2c0_slave_num))],	
+                    i2c0.slave_i2c_axi); 
 		`endif
 		`ifdef I2C1
-   		mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(I2c1_slave_num))],		i2c1.slave_i2c_axi); // 
+   		mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(I2c1_slave_num))],		
+                    i2c1.slave_i2c_axi); // 
 		`endif
   		`ifdef QSPI0 
-			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Qspi0_slave_num))],	qspi0.slave); 
+			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Qspi0_slave_num))],	
+                    qspi0.slave); 
 		`endif
   		`ifdef QSPI1 
-			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Qspi1_slave_num))],	qspi1.slave); 
+			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Qspi1_slave_num))],	
+                    qspi1.slave); 
 		`endif
 		`ifdef AXIEXP
-   		mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(AxiExp1_slave_num))],	axiexp1.axi_slave); //
+   		mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(AxiExp1_slave_num))],	
+                    axiexp1.axi_slave); //
 		`endif
+    `ifdef PWM_AXI4Lite
+      mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Pwm_slave_num))],
+                    pwm_bus.axi4_slave);
+    `endif
 		/*=======================================================*/
 		/*=================== PLIC Connections ==================== */
 		`ifdef PLIC
@@ -423,6 +453,9 @@ package slow_peripherals;
 				interface axiexp1_out=axiexp1.slave_out;
 				interface axiexp1_in=axiexp1.slave_in;
 			`endif
+      `ifdef PWM_AXI4Lite
+        interface pwm_o = pwm_bus.pwm_io;
+      `endif
 		endinterface
 		/*===================================*/
 	endmodule

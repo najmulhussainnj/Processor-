@@ -114,8 +114,14 @@ endif
 ifeq ($(FLASHMODEL),micron)
   define_macros += -D micron=True
 endif
+ifeq ($(PWM),AXI4Lite)
+  define_macros += -D PWM=True -D PWM_AXI4Lite=True
+endif
+ifeq ($(PWM),AXI4)
+  define_macros += -D PWM=True -D PWM_AXI4=True
+endif
 
-PERIPHERALS:=src/peripherals/bootrom:src/peripherals/clint:./src/peripherals/vme:src/peripherals/plic:./src/peripherals/uart/:./src/peripherals/tcm/:./src/peripherals/jtagdtm:./src/peripherals/gpio:./src/peripherals/qspi:./src/peripherals/i2c/:./src/peripherals/sdram:./src/peripherals/axiexp:./src/peripherals/dma
+PERIPHERALS:=src/peripherals/bootrom:src/peripherals/clint:./src/peripherals/vme:src/peripherals/plic:./src/peripherals/uart/:./src/peripherals/tcm/:./src/peripherals/jtagdtm:./src/peripherals/gpio:./src/peripherals/qspi:./src/peripherals/i2c/:./src/peripherals/sdram:./src/peripherals/axiexp:./src/peripherals/dma:./src/peripherals/pwm
 UNCORE:=./src/uncore:./src/uncore/axi4:./src/uncore/debug:./src/uncore/axi4lite
 CORE:=./src/core/fpu:./src/core/
 TESTBENCH:=./src/testbench/

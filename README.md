@@ -70,6 +70,7 @@ The soc_config.inc file is used to configure the specs of the core and the Soc t
 |__TCM__|enable,disable|Instantiates a 128KB BRAM based tightly-coupled memory.|
 |__CLINT__|enable,disable|Instantiates a core-level interrupt.|
 |__SYNTH__|SIM, FPGA| controls whether the core is being generated for simulation or synthesis. <br/>* SIM: This will generate a core which will have some simulate-only features like file-io, etc.<br/>* FPGA: This will generate a core which will ignore the simulate-only features.
+|__PWM__|disable,AXI4Lite,AXI4| Instantiates a AXI4Lite or an AXI4 bus interface based PWM (Pulse width modulator) peripheral.|
 |__FLASHMODEL__|cypress,micron| instantiate either a cypress or a micron based FLASH BFM in the test-bench to be connected to the qspi.|
 
 ### Compiling the Core/SoC ###
