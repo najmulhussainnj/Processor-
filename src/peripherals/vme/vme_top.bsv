@@ -1,3 +1,19 @@
+/*
+Copyright (c) 2013, IIT Madras
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+*  Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+*  Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+*  Neither the name of IIT Madras  nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
+/*
+Transalates  AXI master request to VME master request
+*/
 `define PADDR   56
 package vme_top;
 
@@ -45,16 +61,13 @@ package vme_top;
 	module mkvme_top(Ifc_vme_top);
 		
 		AXI4_Slave_Xactor_IFC #(`PADDR,`Reg_width,`USERSPACE) s_xactor <- mkAXI4_Slave_Xactor;
-	        Vme_master proc_master         <-mkvmemaster;
+	        Vme_master proc_master <-mkvmemaster;
 		Reg#(Bit#(`Reg_width_vme_slave)) response_buff  <-mkReg(0);//To buffer multiple cycle transfers
                 FIFOF#(Bit#(4)) ff_id <-mkSizedFIFOF(2);//To store request address of instruction
                 FIFOF#(Bit#(`Reg_width_vme_slave)) ff_address <-mkSizedFIFOF(2);//To store request address of instruction
-		FIFOF#(Data_mode) ff_req                 <-mkFIFOF;//To keep track of last pending request
-                Reg#(Bit#(2)) port_count           <-mkReg(0);
-		Reg#(Bit#(32)) inst_rcvd           <-mkReg(0);
-		Wire#(Bit#(3))ipl		   <-mkDWire(0);//3 bit interrupt vector 
-//       		Vector#(`INTERRUPT_PINS, FIFO#(bit)) ff_gateway_queue <- replicateM(mkFIFO);
-//		Vector#(`INTERRUPT_PINS, Reg#(Bool)) rg_completed_interrupt <- replicateM(mkConfigReg(True));
+		FIFOF#(Data_mode) ff_req<-mkFIFOF;//To keep track of last pending request
+                Reg#(Bit#(2)) port_count <- mkReg(0);
+		Reg#(Bit#(32)) inst_rcvd <- mkReg(0);
 //.....................................................SEND_REQUEST_TO_MEMORY.........................................................................................................................//
 //....................................................................................................................................................................................................// 
 
@@ -62,33 +75,23 @@ package vme_top;
 		rule check_wr_request_to_memory;
     		let info<-pop_o(s_xactor.o_wr_addr);
 		let data<-pop_o(s_xactor.o_wr_data);
-		//let rq=((info.load_store==Store)?0:1);
 		let request=Req_vme{addr:truncate(info.awaddr),wr_data:truncate(data.wdata),mode:modeconv_vme(info.awsize),fun_code:3'b010,rd_req:0};
-//		if(info.address[27:0]==28'hFFFF_FFF)
-//		request.fun_code=3'b111;	
+		if(info.awaddr[27:0]==28'hFFFF_FFF)
+		request.fun_code=3'b111;	
 		proc_master.get_req(request);
     		ff_id.enq(info.awid);
 		$display("Enqueing request onto VME");
 		ff_address.enq(info.awaddr);
-//		if(request.rd_req==1)	
-		
-//			case(request.mode)
-//			2'b00 :ff_req.enq(DATA_MODE_32_READ);
-//			2'b01 :ff_req.enq(DATA_MODE_8_READ);
-//			2'b10 :ff_req.enq(DATA_MODE_16_READ);
-//			endcase
-		
-//		else
 			case(request.mode)
 			2'b00 :ff_req.enq(DATA_MODE_32_WRITE);
 			2'b01 :ff_req.enq(DATA_MODE_8_WRITE);
 			2'b10 :ff_req.enq(DATA_MODE_16_WRITE);
 			endcase
 
-       endrule
+       		endrule
 
 
-	rule check_read_request_to_memory;
+		rule check_read_request_to_memory;
     		let info<- pop_o(s_xactor.o_rd_addr);
     		ff_id.enq(info.arid);
 		ff_address.enq(info.araddr);
@@ -102,7 +105,7 @@ package vme_top;
 
 		proc_master.get_req(request);
 			
-        endrule
+        	endrule
 
 	(* preempts = "check_read_request_to_memory,check_wr_request_to_memory"*)
 
@@ -110,9 +113,9 @@ package vme_top;
 //
 // Data is retreived from a Big-Endian memory and sent back in little Endian format
 
-       
-
 	(* mutually_exclusive="send_read_response_from_memory_to_mem_stage_8,send_read_response_from_memory_to_mem_stage_16,send_read_response_from_memory_to_mem_stage_32,send_write_response_from_memory_to_mem_stage_8,send_write_response_from_memory_to_mem_stage_16,send_write_response_from_memory_to_mem_stage_32"*)
+
+
              	rule send_read_response_from_memory_to_mem_stage_8(ff_req.first==DATA_MODE_8_READ); 
 			let response <-proc_master.resp();
 			ff_req.deq();
@@ -446,43 +449,8 @@ package vme_top;
 					end
 			end
 		endrule				
-	//	Rules re_plic_rules = emptyRules;
-		//Rules to send interrupt request to PLIC
-	//	for(Integer i = 0; i < `INTERRUPT_PINS; i = i + 1) begin
-	//	Rules rs_frm_gateway = (rules
-	//		rule rl_forward_from_gateway(rg_completed_interrupt[i]);
-	//					ff_gateway_queue[i].deq;
-	//					rg_completed_interrupt[i] <= True;
-	//		endrule
-	//	endrules);
-	//	re_plic_rules = rJoinConflictFree(re_plic_rules,rs_frm_gateway);
-	//	end
-	//	Rules rs_update = (rules
-	//	rule rl_update_interrupt_completion;
-	//		if (!rg_completed_interrupt[id])	
-	//		rg_completed_interrupt[id] <= True;
-	//	endrule
-	//	endrules);
-	//	re_plic_rules = rJoinMutuallyExclusive(rs_update, re_plic_rules);
-	//	addRules(re_plic_rules);
-
-		//Rule to enqueue interrupt request upon recieving 3 bit interrupt vector
-	//	rule enq_request;
-	//	if(ipl!=3'b111)
-	//	begin
-	//	$display($time,"\t Enqueue interrupt request ");
-	//	ff_gateway_queue[~ipl].enq(1);
-	//	end
-	//	endrule	
-		
-		interface proc_ifc = proc_master.vme_interface;
-		interface proc_dbus= proc_master.data_bus;
-	        interface slave_axi_vme=s_xactor.axi_side;
-	
-        //        		method	Action rd_ipl(Bit#(3) ip);
-        //    	ipl<=ip;
-	//	endmethod
-
-
+		interface proc_ifc  = proc_master.vme_interface;
+		interface proc_dbus = proc_master.data_bus;
+	        interface slave_axi_vme = s_xactor.axi_side;
 endmodule
 endpackage
