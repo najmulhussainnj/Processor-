@@ -264,7 +264,14 @@ if ($filter) {
 }
 # run the tests 
 if ($submit) {
-  foreach my $line (@testList) {
+  my $totalTests = scalar @testList;
+  my $licenseCount = 50;
+  my @tempTests = @testList;
+  my $count = 0;
+  my $refreshCount = 0;
+
+  while (@tempTests) {
+    my $line = pop @tempTests;
     my @line = split(" ", $line);
     my $test = $line[0];
     my $tSuite = $line[1];
@@ -274,6 +281,11 @@ if ($submit) {
     }
     system("nohup perl -I $shaktiHome/verification/scripts $shaktiHome/verification/scripts/makeTest.pl --test=$test --suite=$tSuite --type=$pv --sim=$simulator &");
     print "$test\t\t\t$tSuite\t\t\t$pv\t\t\tRunning\n";
+    $refreshCount++;
+    if ($refreshCount == $licenseCount) {
+      sleep(60);
+      $refreshCount=0;
+    }
   }
 }
 elsif ($finalReport) { # waits till all the test results are there/timesout
@@ -366,22 +378,22 @@ else {
     my $result;
 
     if (-e $compile_fail) {
-      $result = sprintf("%30s %20s %5s    COMPILE_FAIL\n", $tSuite, $test, $pv);
+      $result = sprintf("%40s %40s %5s    COMPILE_FAIL\n", $tSuite, $test, $pv);
     }
     elsif (-e $model_fail) {
-      $result = sprintf("%30s %20s %5s    MODEL_FAIL\n", $tSuite, $test, $pv);
+      $result = sprintf("%40s %40s %5s    MODEL_FAIL\n", $tSuite, $test, $pv);
     }
     elsif (-e $rtl_fail) {
-      $result = sprintf("%30s %20s %5s    RTL_FAIL\n", $tSuite, $test, $pv);
+      $result = sprintf("%40s %40s %5s    RTL_FAIL\n", $tSuite, $test, $pv);
     }
     elsif (-e $fail) {
-      $result = sprintf("%30s %20s %5s    FAILED\n", $tSuite, $test, $pv);
+      $result = sprintf("%40s %40s %5s    FAILED\n", $tSuite, $test, $pv);
     }
     elsif (-e $pass) {
-      $result = sprintf("%30s %20s %5s    PASSED\n", $tSuite, $test, $pv);
+      $result = sprintf("%40s %40s %5s    PASSED\n", $tSuite, $test, $pv);
     }
     else {
-      $result = sprintf("%30s %20s %5s    NOT_RUN\n", $tSuite, $test, $pv);
+      $result = sprintf("%40s %40s %5s    NOT_RUN\n", $tSuite, $test, $pv);
     }
     push @regress_report, $result;
   }

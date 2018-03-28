@@ -147,10 +147,17 @@ if ($testType =~ /^v$/) {
 elsif ($testType =~ /^p$/) {
   if ($testSuite =~ /csmith-run/) {
     my $csmithInc = "$shaktiHome/verification/tools/csmith_run";
-      systemCmd("riscv64-unknown-elf-gcc -march=rv64imafd  -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf -D__ASSEMBLY__=1 -c -I /tools/csmith/runtime $csmithInc/crt.S -o crt.o");
-      systemCmd("riscv64-unknown-elf-gcc -march=rv64imafd  -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf  -c -I /tools/csmith/runtime $csmithInc/syscalls_shakti.c -o syscalls.o");
-      systemCmd("riscv64-unknown-elf-gcc -w -Os -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf  -c -I /tools/csmith/runtime $shaktiHome/verification/tests/$test_suite/$testName.c  -march=rv64imafd -o $testName.o");
-      systemCmd("riscv64-unknown-elf-gcc -T $csmithInc/link.ld -I /tools/csmith/runtime $testName.o syscalls.o crt.o -static -nostdlib -nostartfiles -lgcc -lm -o $testName.elf");
+    systemCmd("riscv64-unknown-elf-gcc -march=rv64imafd  -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf -D__ASSEMBLY__=1 -c -I /tools/csmith/runtime $csmithInc/crt.S -o crt.o");
+    systemCmd("riscv64-unknown-elf-gcc -march=rv64imafd  -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf  -c -I /tools/csmith/runtime $csmithInc/syscalls_shakti.c -o syscalls.o");
+    systemCmd("riscv64-unknown-elf-gcc -w -Os -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf  -c -I /tools/csmith/runtime $shaktiHome/verification/tests/$test_suite/$testName.c  -march=rv64imafd -o $testName.o");
+    systemCmd("riscv64-unknown-elf-gcc -T $csmithInc/link.ld -I /tools/csmith/runtime $testName.o syscalls.o crt.o -static -nostdlib -nostartfiles -lgcc -lm -o $testName.elf");
+  }
+  elsif ($testSuite =~ /peripherals/) {
+    my $periInc = "$shaktiHome/verification/tests/directed/peripherals";
+    systemCmd("riscv64-unknown-elf-gcc -march=rv64imafd  -mcmodel=medany -static -std=gnu99 -fno-common -fno-builtin-printf -D__ASSEMBLY__=1 -c $periInc/common/crt.S -o crt.o");
+    systemCmd("riscv64-unknown-elf-gcc -march=rv64imafd  -mcmodel=medany -static -std=gnu99 -fno-common -fno-builtin-printf  -c $periInc/common/syscalls.c -o syscalls.o");
+    systemCmd("riscv64-unknown-elf-gcc -w -mcmodel=medany -static -std=gnu99 -fno-builtin-printf -I $periInc/i2c/ -I $periInc/qspi/ -I $periInc/dma/ -I $periInc/plic/ -I $periInc/common/ -c $periInc/smoketests/smoke.c -o smoke.o -march=rv64imafd -lm -lgcc");
+    systemCmd("riscv64-unknown-elf-gcc -T $periInc/common/link.ld smoke.o syscalls.o crt.o -o smoke.elf -static -nostartfiles -lm -lgcc");
   }
   else {
     systemCmd("riscv64-unknown-elf-gcc -march=rv64g -mabi=lp64 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -I$riscvIncludeDir/env/p -I$riscvIncludeDir/isa/macros/scalar -T$riscvIncludeDir/env/p/link.ld $test -o $testName.elf");
@@ -164,10 +171,13 @@ systemFileCmd("riscv64-unknown-elf-objdump --disassemble-all --disassemble-zeroe
 systemFileCmd("elf2hex  8 524288 $testName.elf 2147483648","code.mem");
 systemFileCmd("cut -c1-8 code.mem", "code.mem.MSB");
 systemFileCmd("cut -c9-16 code.mem", "code.mem.LSB");
-if ($trace) {
-  systemFileCmd("spike -l --isa=RV64IMAFD $testName.elf 2>&1","$testName\_spike.trace");
+
+if ($testSuite !~ /peripherals/) {
+  if ($trace) {
+    systemFileCmd("spike -l --isa=RV64IMAFD $testName.elf 2>&1","$testName\_spike.trace");
+  }
+  systemCmd("spike -c --isa=RV64IMAFD $testName.elf");
 }
-systemCmd("spike -c --isa=RV64IMAFD $testName.elf");
 if ($simulator =~ /^bluespec$/) {
   systemCmd("ln -s $shaktiHome/bin/out.so    out.so");
 }

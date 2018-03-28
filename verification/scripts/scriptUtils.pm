@@ -25,14 +25,27 @@ sub checkSetup {
     doPrint("ERROR: SHAKTI_HOME not defined\n");
     exit(1);
   }
-  $workdir = "$shaktiHome/verification/workdir";
-  
+
   # create temporary directory where all outputs are generated
+  $workdir = "$shaktiHome/verification/workdir";
   unless (-e $workdir or mkdir $workdir) {
     doPrint("ERROR: Unable to create workdir!\n");
     exit(1);
   }
   appendLog("$workdir/$scriptLog.log");
+
+  my $out = "$shaktiHome/bin/out";
+  my $boot = "$shaktiHome/bin/boot.MSB";
+
+  unless (-e $out) {
+    doPrint("ERROR: bin/out not present! [option: make complile_bluesim; make link_bluesim\n");
+    exit(1);
+  }
+  
+  unless (-e $boot) {
+    doPrint("ERROR: Boot files not present! [option: make generate_boot_files]\n");
+    exit(1);
+  }
 }
 
 sub openLog {
