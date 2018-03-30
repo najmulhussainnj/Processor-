@@ -114,9 +114,12 @@ endif
 ifeq ($(FLASHMODEL),micron)
   define_macros += -D micron=True
 endif
+ifeq ($(TILELINK),enable)
+  define_macros += -D TILELINK=True
+endif
 
 PERIPHERALS:=src/peripherals/bootrom:src/peripherals/clint:./src/peripherals/vme:src/peripherals/plic:./src/peripherals/uart/:./src/peripherals/tcm/:./src/peripherals/jtagdtm:./src/peripherals/gpio:./src/peripherals/qspi:./src/peripherals/i2c/:./src/peripherals/sdram:./src/peripherals/axiexp:./src/peripherals/dma
-UNCORE:=./src/uncore:./src/uncore/axi4:./src/uncore/debug:./src/uncore/axi4lite
+UNCORE:=./src/uncore:./src/uncore/axi4:./src/uncore/debug:./src/uncore/axi4lite:./src/uncore/tilelink
 CORE:=./src/core/fpu:./src/core/
 TESTBENCH:=./src/testbench/
 LIB:=./src/lib/

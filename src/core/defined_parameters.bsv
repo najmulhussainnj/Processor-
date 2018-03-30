@@ -1,4 +1,6 @@
 `define RegFileSize 32 // describes the size of ht register file in the processor.
+
+`define LANE_WIDTH 8 //bus lane width in bytes
 `ifdef spfpu
 	`define FLEN 32
 `endif

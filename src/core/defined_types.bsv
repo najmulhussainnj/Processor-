@@ -526,7 +526,12 @@ typedef enum {
 deriving (Bits ,Eq, FShow);
 
 /*======= AXI4 master/slave numbers ======*/
-typedef 0 Sdram_slave_num;
+`ifdef TILELINK
+	typedef 0 Sdram_slave_num_rd;
+	typedef  TAdd#(Sdram_slave_num_rd	 ,`ifdef TILELINK	1 `else 0 `endif )		Sdram_slave_num;
+`else
+	typedef 0 Sdram_slave_num;
+`endif
 typedef  TAdd#(Sdram_slave_num	 ,`ifdef SDRAM		1 `else 0 `endif )		Sdram_cfg_slave_num;
 typedef	TAdd#(Sdram_cfg_slave_num,`ifdef BOOTROM	1 `else 0 `endif )		BootRom_slave_num	;
 typedef	TAdd#(BootRom_slave_num  ,`ifdef Debug		1 `else 0 `endif )		Debug_slave_num	;
@@ -535,8 +540,9 @@ typedef  TAdd#(TCM_slave_num	 ,`ifdef DMA			1 `else 0 `endif )	Dma_slave_num;
 typedef  TAdd#(Dma_slave_num	  ,1 )		SlowPeripheral_slave_num;
 typedef  TAdd#(SlowPeripheral_slave_num,`ifdef VME	1 `else 0 `endif )       VME_slave_num;
 typedef	TAdd#(VME_slave_num,1)						 Num_Slaves;
-typedef 0 Dmem_master_num;
-typedef 1 Imem_master_num;
+typedef 0 Dmem_master_num_rd;
+typedef 1 Dmem_master_num_wr;
+typedef 2 Imem_master_num;
 typedef TAdd#(Imem_master_num , `ifdef Debug 1 `else 0 `endif ) Debug_master_num;
 typedef TAdd#(Debug_master_num, `ifdef DMA 1 `else 0 `endif ) DMA_master_num;
 typedef TAdd#(DMA_master_num,1) Num_Masters;
@@ -557,20 +563,22 @@ typedef  TAdd#(Qspi1_slave_num		,`ifdef AXIEXP		1 `else 0 `endif )		AxiExp1_slav
 typedef	TAdd#(AxiExp1_slave_num,1)									Num_Slow_Slaves			;
 /*===========================================*/
 
-typedef Bit#(Num_masters) Master_route; // encoding -----> DMA, Debug, IMEM, DMEM   
-Master_route route_to_SDRAM				= truncate(4'b1101);
-Master_route route_to_TCM				= truncate(4'b1101);
-Master_route route_to_BOOTROM			= truncate(4'b1101);
-Master_route route_to_debug				= truncate(4'b1101);
-Master_route route_to_DMA				= truncate(4'b1101);
-Master_route route_to_slow_peripherals	= truncate(4'b1101);
-Master_route route_to_uart0  = truncate(4'b1101);
-Master_route route_to_uart1  = truncate(4'b1101);
-Master_route route_to_clint1 = truncate(4'b0101);
-Master_route route_to_PLIC   = truncate(4'b0101);
-Master_route route_to_I2C0   = truncate(4'b1101);
-Master_route route_to_I2C1   = truncate(4'b1101);
-Master_route route_to_QSPI0  = truncate(4'b1101);
-Master_route route_to_QSPI1  = truncate(4'b1101);
-Master_route route_to_AXIEXP = truncate(4'b1101);
+typedef Bit#(Num_Masters) Master_route; // encoding -----> DMA, Debug, IMEM, DMEM write, DMEM read  
+Master_route route_to_SDRAM_rd			= truncate(5'b11101);
+Master_route route_to_SDRAM_wr			= truncate(5'b11010);
+Master_route route_to_SDRAM_cfg			= truncate(5'b11011);
+Master_route route_to_TCM				= truncate(5'b11111);
+Master_route route_to_BOOTROM			= truncate(5'b11101);
+Master_route route_to_debug				= truncate(5'b11111);
+Master_route route_to_DMA				= truncate(5'b11011);
+Master_route route_to_slow_peripherals	= truncate(5'b11011);
+Master_route route_to_uart0  = truncate(5'b11011);
+Master_route route_to_uart1  = truncate(5'b11011);
+Master_route route_to_clint1 = truncate(5'b01011);
+Master_route route_to_PLIC   = truncate(5'b01011);
+Master_route route_to_I2C0   = truncate(5'b11011);
+Master_route route_to_I2C1   = truncate(5'b11011);
+Master_route route_to_QSPI0  = truncate(5'b11011);
+Master_route route_to_QSPI1  = truncate(5'b11011);
+Master_route route_to_AXIEXP = truncate(5'b11011);
 endpackage

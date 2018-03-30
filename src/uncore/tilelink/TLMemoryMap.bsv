@@ -11,36 +11,40 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 */
-package MemoryMap;
+package TLMemoryMap;
 	/*=== Project imports ==== */
 	import defined_types::*;
 	`include "defined_parameters.bsv"
 	/*========================= */
 
 
-function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Bit#(`PADDR) addr, Bit#(TLog#(Num_masters)) mj);
+function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Bit#(`PADDR) addr, Bit#(TLog#(Num_Masters)) mj);
 
-		if(addr>=`SDRAMMemBase && addr<=`SDRAMMemEnd)
-			return tuple2(pack(mj(route_to_SDRAM)),fromInteger(valueOf(Sdram_slave_num)));
+		if(addr>=`SDRAMMemBase && addr<=`SDRAMMemEnd) begin
+			if(mj[0]==0)
+				return tuple2(unpack(route_to_SDRAM_rd[mj]),fromInteger(valueOf(Sdram_slave_num_rd)));
+			else
+				return tuple2(unpack(route_to_SDRAM_wr[mj]),fromInteger(valueOf(Sdram_slave_num)));
+		end
 		else if(addr>=`DebugBase && addr<=`DebugEnd)
-			return tuple2(pack(mj(route_to_debug)),fromInteger(valueOf(Debug_slave_num)));
+			return tuple2(unpack(route_to_debug[mj]),fromInteger(valueOf(Debug_slave_num)));
 		`ifdef SDRAM
 			else if(addr>=`SDRAMCfgBase && addr<=`SDRAMCfgEnd )
 				return tuple2(True,fromInteger(valueOf(Sdram_cfg_slave_num)));
 		`endif
 		`ifdef BOOTROM
 			else if(addr>=`BootRomBase && addr<=`BootRomEnd)
-				return tuple2(pack(mj(route_to_BOOTROM)),fromInteger(valueOf(BootRom_slave_num)));
+				return tuple2(unpack(route_to_BOOTROM[mj]),fromInteger(valueOf(BootRom_slave_num)));
 		`endif
 			else if( (addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) || (addr>=`ClintBase && addr<=`ClintEnd) || (addr>=`PLICBase && addr<=`PLICEnd) || (addr>=`GPIOBase && addr<=`GPIOEnd) || (addr>=`I2C1Base && addr<=`I2C1End)|| (addr>=`I2C0Base && addr<=`I2C0End) || (addr>=`QSPI1CfgBase && addr<=`QSPI1CfgEnd) || (addr>=`QSPI1MemBase && addr<=`QSPI1MemEnd)|| (addr>=`QSPI0CfgBase && addr<=`QSPI0CfgEnd) || (addr>=`QSPI0MemBase && addr<=`QSPI0MemEnd) || (addr>=`AxiExp1Base && addr<=`AxiExp1End) )
-				return tuple2(pack(mj(route_to_slow_peripherals)),fromInteger(valueOf(SlowPeripheral_slave_num)));
+				return tuple2(unpack(route_to_slow_peripherals[mj]),fromInteger(valueOf(SlowPeripheral_slave_num)));
 		`ifdef DMA
 			else if(addr>=`DMABase && addr<=`DMAEnd)
-				return tuple2(pack(mj(route_to_DMA)),fromInteger(valueOf(Dma_slave_num)));
+				return tuple2(unpack(route_to_DMA[mj]),fromInteger(valueOf(Dma_slave_num)));
 		`endif
 		`ifdef TCMemory
 			else if(addr>=`TCMBase && addr<=`TCMEnd)
-				return tuple2(pack(mj(route_to_TCM)),fromInteger(valueOf(TCM_slave_num)));
+				return tuple2(unpack(route_to_TCM[mj]),fromInteger(valueOf(TCM_slave_num)));
 		`endif
 	else
 		return tuple2(False,?);
