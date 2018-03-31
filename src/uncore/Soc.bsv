@@ -181,8 +181,8 @@ package Soc;
 	   		mkConnection (fabric.v_to_slaves [fromInteger(valueOf(Sdram_cfg_slave_num))],	sdram.axi4_slave_cntrl_reg); // 
 			`else
 				`ifdef TILELINK
-					mkConnection(fabric.v_to_slaves[fromInteger(valueOf(Sdram_slave_num_rd))],main_memory.main_mem_rd_slave);
-					mkConnection(fabric.v_to_slaves[fromInteger(valueOf(Sdram_slave_num))],main_memory.main_mem_wr_slave);
+					mkConnection(fabric.v_to_slaves[fromInteger(valueOf(Sdram_slave_num))],main_memory.main_mem_rd_slave);
+					mkConnection(fabric.v_to_slaves[fromInteger(valueOf(Sdram_slave_num_wr))],main_memory.main_mem_wr_slave);
 				`else
 					mkConnection(fabric.v_to_slaves[fromInteger(valueOf(Sdram_slave_num))],main_memory.axi_slave);
 				`endif

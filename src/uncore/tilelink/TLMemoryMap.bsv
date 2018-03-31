@@ -14,30 +14,31 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 package TLMemoryMap;
 	/*=== Project imports ==== */
 	import defined_types::*;
+	import Tilelink_Types::*;
 	`include "defined_parameters.bsv"
 	/*========================= */
 
 
-function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Bit#(`PADDR) addr, Bit#(TLog#(Num_Masters)) mj);
+function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Opcode command, Bit#(`PADDR) addr, Bit#(TLog#(Num_Masters)) mj);
 
-		if(addr>=`SDRAMMemBase && addr<=`SDRAMMemEnd) begin
-			if(mj[0]==0)
-				return tuple2(unpack(route_to_SDRAM_rd[mj]),fromInteger(valueOf(Sdram_slave_num_rd)));
-			else
-				return tuple2(unpack(route_to_SDRAM_wr[mj]),fromInteger(valueOf(Sdram_slave_num)));
-		end
+		if(addr>=`SDRAMMemBase && addr<=`SDRAMMemEnd && (command==Get_data || command==GetWrap)) 
+				return tuple2(True,fromInteger(valueOf(Sdram_slave_num)));
+		else if(addr>=`SDRAMMemBase && addr<=`SDRAMMemEnd && (command==PutPartialData || command==PutFullData))
+				return tuple2(True,fromInteger(valueOf(Sdram_slave_num_wr)));
+		`ifdef DEBUG
 		else if(addr>=`DebugBase && addr<=`DebugEnd)
 			return tuple2(unpack(route_to_debug[mj]),fromInteger(valueOf(Debug_slave_num)));
+		`endif
 		`ifdef SDRAM
 			else if(addr>=`SDRAMCfgBase && addr<=`SDRAMCfgEnd )
 				return tuple2(True,fromInteger(valueOf(Sdram_cfg_slave_num)));
 		`endif
 		`ifdef BOOTROM
 			else if(addr>=`BootRomBase && addr<=`BootRomEnd)
-				return tuple2(unpack(route_to_BOOTROM[mj]),fromInteger(valueOf(BootRom_slave_num)));
+				return tuple2(True,fromInteger(valueOf(BootRom_slave_num)));
 		`endif
 			else if( (addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) || (addr>=`ClintBase && addr<=`ClintEnd) || (addr>=`PLICBase && addr<=`PLICEnd) || (addr>=`GPIOBase && addr<=`GPIOEnd) || (addr>=`I2C1Base && addr<=`I2C1End)|| (addr>=`I2C0Base && addr<=`I2C0End) || (addr>=`QSPI1CfgBase && addr<=`QSPI1CfgEnd) || (addr>=`QSPI1MemBase && addr<=`QSPI1MemEnd)|| (addr>=`QSPI0CfgBase && addr<=`QSPI0CfgEnd) || (addr>=`QSPI0MemBase && addr<=`QSPI0MemEnd) || (addr>=`AxiExp1Base && addr<=`AxiExp1End) )
-				return tuple2(unpack(route_to_slow_peripherals[mj]),fromInteger(valueOf(SlowPeripheral_slave_num)));
+				return tuple2(True,fromInteger(valueOf(SlowPeripheral_slave_num)));
 		`ifdef DMA
 			else if(addr>=`DMABase && addr<=`DMAEnd)
 				return tuple2(unpack(route_to_DMA[mj]),fromInteger(valueOf(Dma_slave_num)));

@@ -38,6 +38,27 @@ endinterface
 (*synthesize*)
 module mkTilelink(Tilelink_Fabric_IFC#(Num_Masters, Num_Slaves));
 
+Vector#(Num_Slaves, Bit#(Num_Masters)) master_route; // encoding -----> DMA, Debug, IMEM, DMEM write, DMEM read  
+Vector#(Num_Slaves, Bit#(Num_Masters)) master_slow_route;
+
+	master_route[valueOf(Sdram_slave_num)]        = truncate(5'b11101);
+	master_route[valueOf(Sdram_slave_num_wr)]           = truncate(5'b11010);
+	`ifdef SDRAM master_route[valueOf(Sdram_cfg_slave_num)]      = truncate(5'b11011); `endif
+	`ifdef TCM master_route[valueOf(TCM_slave_num)]              = truncate(5'b11111); `endif
+	`ifdef BOOTROM master_route[valueOf(BootRom_slave_num)]      = truncate(5'b11101); `endif
+	`ifdef DEBUG master_route[valueOf(Debug_slave_num)]          = truncate(5'b11111); `endif
+	`ifdef DMA master_route[valueOf(Dma_slave_num)]              = truncate(5'b11011); `endif
+	master_route[valueOf(SlowPeripheral_slave_num)]  = truncate(5'b11011);
+	master_slow_route[valueOf(Uart0_slave_num)]              = truncate(5'b11011);
+	master_slow_route[valueOf(Uart1_slave_num)]              = truncate(5'b11011);
+	master_slow_route[valueOf(CLINT_slave_num)]              = truncate(5'b01011);
+	master_slow_route[valueOf(Plic_slave_num)]               = truncate(5'b01011);
+	master_slow_route[valueOf(I2c0_slave_num)]               = truncate(5'b11011);
+	master_slow_route[valueOf(I2c1_slave_num)]               = truncate(5'b11011);
+	master_slow_route[valueOf(Qspi0_slave_num)]              = truncate(5'b11011);
+	master_slow_route[valueOf(Qspi1_slave_num)]              = truncate(5'b11011);
+	master_slow_route[valueOf(AxiExp1_slave_num)]            = truncate(5'b11011);
+
 	// Transactors facing masters
 	Vector #(Num_Masters,  Ifc_Master_tilelink)
 	   xactors_masters <- replicateM (mkMasterFabric);
@@ -48,7 +69,8 @@ module mkTilelink(Tilelink_Fabric_IFC#(Num_Masters, Num_Slaves));
 
 	function Bool fn_route_to_slave(Integer mj, Integer sj);
 		Bool route_legal = False;
-		let {legal, slave_num} = fn_addr_to_slave_num(xactors_masters[mj].fabric_side_request.fabric_a_channel.a_address, fromInteger(mj));
+		let {legal, slave_num} = fn_addr_to_slave_num(xactors_masters[mj].fabric_side_request.fabric_a_channel.a_opcode,
+											xactors_masters[mj].fabric_side_request.fabric_a_channel.a_address, fromInteger(mj));
 		if(legal && slave_num == fromInteger(sj))
 			route_legal = True;
 		return route_legal;
@@ -59,23 +81,19 @@ module mkTilelink(Tilelink_Fabric_IFC#(Num_Masters, Num_Slaves));
 
 	//The slave destination is determined by address map function
 	for(Integer s = 0; s < valueOf(Num_Slaves); s = s+1) begin
-		Rules rl_to_slave = emptyRules();
-		for(Integer m = 0; m < valueOf(Num_Masters); m = m+1) begin
-			Rules rs_to_slave = (rules 
-			rule rl_fabric_requests(fn_route_to_slave(m, s) && xactors_masters[m].fabric_side_request.fabric_a_channel_valid);
+		for(Integer m =0; m <valueOf(Num_Masters); m = m+1) begin
+		if(master_route[s][m]==1) begin
+			rule rl_fabric_requests(fn_route_to_slave(m, s) && xactors_masters[m].fabric_side_request.fabric_a_channel_valid
+															&& xactors_slaves[s].fabric_side_request.fabric_a_channel_ready);
 				let req = xactors_masters[m].fabric_side_request.fabric_a_channel; 
 				//let {valid, slave_id} = fn_addr_to_slave_num(req.a_address, fromInteger(m));            //address map function
-				if(xactors_slaves[s].fabric_side_request.fabric_a_channel_ready) begin
 					xactors_masters[m].fabric_side_request.fabric_a_channel_ready(True);
 					xactors_slaves[s].fabric_side_request.fabric_a_channel(req);
 					`ifdef verbose $display($time, "\tTILELINK : Beat exchanged from master %d to slave %d", m, s); `endif
-				end
 				//else if() //TODO send the slave error
 			endrule
-			endrules);
-			rl_to_slave = rJoinPreempts(rs_to_slave, rl_to_slave);
 		end
-		addRules(rl_to_slave);
+		end
 	end
 
 	//The master destination is determined by the signal in the D channel - d_source

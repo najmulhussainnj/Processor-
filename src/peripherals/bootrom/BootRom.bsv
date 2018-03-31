@@ -54,14 +54,15 @@ module mkBootRom (BootRom_IFC);
 
 	Reg#(Mem_state) rd_state <-mkReg(Idle);
 	Reg#(Mem_state) wr_state <-mkReg(Idle);
-	Reg#(Bit#(8)) rg_readburst_counter<-mkReg(0);
 
 
 	`ifdef TILELINK
 
 		Reg#(A_channel) rg_read_packet <-mkReg(?);
+		Reg#(Bit#(12)) rg_readburst_counter<-mkReg(0);
 	
 	`else
+		Reg#(Bit#(8)) rg_readburst_counter<-mkReg(0);
 	Reg#(AXI4_Rd_Addr	#(`PADDR,`USERSPACE)) rg_read_packet <-mkReg(?);
 	Reg#(AXI4_Wr_Resp	#(`USERSPACE)) rg_write_response <-mkReg(?);
 
@@ -90,6 +91,10 @@ module mkBootRom (BootRom_IFC);
 		`ifdef TILELINK
 			let ar<- s_xactor.core_side.xactor_request.get;
 			let address = ar.a_address;
+           	Data_size beat_blocks = ar.a_size - 3;
+            Bit#(12) burst_counter = 1;
+            burst_counter = burst_counter << beat_blocks;
+            rg_readburst_counter <= burst_counter-1;
 		`else
 			let ar<- pop_o(s_xactor.o_rd_addr);
 			let address = ar.araddr;
@@ -158,7 +163,7 @@ module mkBootRom (BootRom_IFC);
 		`ifdef TILELINK
 			 r.d_data = data0;
 			 s_xactor.core_side.xactor_response.put(r);
-	  		 Bit#(13) index_address=(address-`BootRomBase)[15:3];
+	  		 Bit#(13) index_address=(addr-`BootRomBase)[15:3];
              if(rg_readburst_counter==0)begin
                  rd_state<=Idle;
              end

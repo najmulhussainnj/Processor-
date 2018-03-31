@@ -1,7 +1,6 @@
 package Tilelink_Types;
 
 `include "defined_parameters.bsv"
-import TLMemoryMap ::*;
 import GetPut ::*;
 import FIFO ::*;
 import SpecialFIFOs ::*;

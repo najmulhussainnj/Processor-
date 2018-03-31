@@ -46,7 +46,7 @@ package fetch_stage;
 	(*conflict_free="enque_new_pc,prediction_response_put"*)
 	module mkfetch#(Bit#(`VADDR) reset_vector)(Ifc_fetch);
 		FIFOF#(Tuple3#(Bit#(2),Bit#(`VADDR), Bit#(`VADDR))) generate_pc<-mkLFIFOF();
-		Reg#(Bit#(`VADDR)) rg_programcounter[3]<-mkCReg(3,'h80000000);
+		Reg#(Bit#(`VADDR)) rg_programcounter[3]<-mkCReg(3,'h1000);
 		Reg#(Bit#(1)) eEpoch <-mkReg(0);
 		Reg#(Bit#(1)) wEpoch <-mkReg(0);
 		Reg#(Bit#(1)) iEpoch[2] <-mkCReg(2,0);
