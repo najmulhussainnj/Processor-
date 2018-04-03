@@ -175,8 +175,10 @@ package AXI4Lite_AXI4_Bridge;
 				AXI4_LITE_DECERR: AXI4_DECERR;
 				default: AXI4_SLVERR; endcase;
 			let b = AXI4_Wr_Resp {bresp: bresp, buser:0, bid:wr_id};
-      if(wr_response_counter == sync_wrburst_value)
+      if(wr_response_counter == sync_wrburst_value) begin
 			  ff_wr_resp.enq(b);
+        wr_response_counter <= 0;
+      end
       else
         wr_response_counter <= wr_response_counter + 1;
 		endrule
