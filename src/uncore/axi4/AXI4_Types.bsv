@@ -621,6 +621,7 @@ module mkAXI4_Slave_Xactor (AXI4_Slave_Xactor_IFC #(wd_addr, wd_data, wd_user));
 			      if (arvalid && f_rd_addr.notFull)
 				 f_rd_addr.enq (AXI4_Rd_Addr {araddr: araddr,
 									 arsize: arsize,
+                                     aruser: aruser,
 									 arlen : arlen,
 									 arburst:arburst,
 									 arid:arid});
