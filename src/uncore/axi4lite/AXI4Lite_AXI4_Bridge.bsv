@@ -42,8 +42,10 @@ package AXI4Lite_AXI4_Bridge;
 		Reg#(Bit#(4)) rd_id<-mkReg(0);
 		Reg#(Bit#(4)) wr_id<-mkReg(0);
 		Reg#(Bit#(8)) request_counter<-mkReg(0,clocked_by fast_clock, reset_by fast_reset);
-		Reg#(Bit#(8)) response_counter<-mkReg(0);
+		Reg#(Bit#(8)) rd_response_counter<-mkReg(0);
+    Reg#(Bit#(8)) wr_response_counter <- mkReg(0);
 		Reg#(Bit#(8)) sync_rdburst_value <-mkSyncRegToCC(0,fast_clock,fast_reset);
+    Reg#(Bit#(8)) sync_wrburst_value <-mkSyncRegToCC(0,fast_clock,fast_reset);
 		Reg#(AXI4_Rd_Addr	#(`PADDR,`USERSPACE)) rg_read_packet <-mkReg(?,clocked_by fast_clock , reset_by fast_reset);
 		Reg#(AXI4_Wr_Addr	#(`PADDR,`USERSPACE)) rg_write_packet<-mkReg(?,clocked_by fast_clock , reset_by fast_reset);
 
@@ -103,6 +105,7 @@ package AXI4Lite_AXI4_Bridge;
 			ff_wr_addr.enq(wr_addr_req);
 			ff_wr_data.enq(wr_data_req);
 			rg_write_packet<=wr_addr_req;
+      sync_wrburst_value <= wr_addr_req.awlen;
 			if(wr_addr_req.awlen!=0) begin
 				wr_state<=BurstReq;
 			end
@@ -136,7 +139,7 @@ package AXI4Lite_AXI4_Bridge;
 	      let wr_data_req  = ff_wr_data.first;
 			ff_wr_data.deq;
 			ff_wr_addr.deq;
-			let aw = AXI4_Lite_Wr_Addr {awaddr: wr_addr_req.awaddr, awuser:0}; // arburst: 00-FIXED 01-INCR 10-WRAP
+			let aw = AXI4_Lite_Wr_Addr {awaddr: wr_addr_req.awaddr, awuser:0, awsize: wr_addr_req.awsize}; // arburst: 00-FIXED 01-INCR 10-WRAP
 			let w  = AXI4_Lite_Wr_Data {wdata:  wr_data_req.wdata, wstrb: wr_data_req.wstrb};
 			m_xactor.i_wr_addr.enq(aw);
 			m_xactor.i_wr_data.enq(w);
@@ -152,11 +155,11 @@ package AXI4Lite_AXI4_Bridge;
 				AXI4_LITE_SLVERR: AXI4_SLVERR;
 				AXI4_LITE_DECERR: AXI4_DECERR;
 				default: AXI4_SLVERR; endcase;
-			AXI4_Rd_Data#(`Reg_width,0) r = AXI4_Rd_Data {rresp: rresp, rdata: response.rdata ,rlast:response_counter==sync_rdburst_value, ruser: 0, rid:rd_id};
-			if(response_counter==sync_rdburst_value)
-				response_counter<=0;
+			AXI4_Rd_Data#(`Reg_width,0) r = AXI4_Rd_Data {rresp: rresp, rdata: response.rdata ,rlast:rd_response_counter==sync_rdburst_value, ruser: 0, rid:rd_id};
+			if(rd_response_counter==sync_rdburst_value)
+				rd_response_counter<=0;
 			else
-				response_counter<=response_counter+1;
+				rd_response_counter<=rd_response_counter+1;
 			ff_rd_resp.enq(r);
 		endrule
 		rule send_read_response_on_fast_bus;
@@ -172,7 +175,10 @@ package AXI4Lite_AXI4_Bridge;
 				AXI4_LITE_DECERR: AXI4_DECERR;
 				default: AXI4_SLVERR; endcase;
 			let b = AXI4_Wr_Resp {bresp: bresp, buser:0, bid:wr_id};
-			ff_wr_resp.enq(b);
+      if(wr_response_counter == sync_wrburst_value)
+			  ff_wr_resp.enq(b);
+      else
+        wr_response_counter <= wr_response_counter + 1;
 		endrule
 		rule send_write_response_on_fast_bus;
 			ff_wr_resp.deq;
