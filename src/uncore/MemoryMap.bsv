@@ -17,39 +17,40 @@ package MemoryMap;
 	`include "defined_parameters.bsv"
 	/*========================= */
 
-
-function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Bit#(`PADDR) addr);
-
-		if(addr>=`SDRAMMemBase && addr<=`SDRAMMemEnd)
-			return tuple2(True,fromInteger(valueOf(Sdram_slave_num)));
-		else if(addr>=`DebugBase && addr<=`DebugEnd)
-			return tuple2(True,fromInteger(valueOf(Debug_slave_num)));
-		`ifdef SDRAM
-			else if(addr>=`SDRAMCfgBase && addr<=`SDRAMCfgEnd )
-				return tuple2(True,fromInteger(valueOf(Sdram_cfg_slave_num)));
-		`endif
-		`ifdef BOOTROM
-			else if(addr>=`BootRomBase && addr<=`BootRomEnd)
-				return tuple2(True,fromInteger(valueOf(BootRom_slave_num)));
-		`endif
-			else if( (addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) || (addr>=`ClintBase && addr<=`ClintEnd) || (addr>=`PLICBase && addr<=`PLICEnd) || (addr>=`GPIOBase && addr<=`GPIOEnd) || (addr>=`I2C1Base && addr<=`I2C1End)|| (addr>=`I2C0Base && addr<=`I2C0End) || (addr>=`QSPI1CfgBase && addr<=`QSPI1CfgEnd) || (addr>=`QSPI1MemBase && addr<=`QSPI1MemEnd)|| (addr>=`QSPI0CfgBase && addr<=`QSPI0CfgEnd) || (addr>=`QSPI0MemBase && addr<=`QSPI0MemEnd) || (addr>=`AxiExp1Base && addr<=`AxiExp1End) )
-				return tuple2(True,fromInteger(valueOf(SlowPeripheral_slave_num)));
-		`ifdef DMA
-			else if(addr>=`DMABase && addr<=`DMAEnd)
-				return tuple2(True,fromInteger(valueOf(Dma_slave_num)));
-		`endif
-		`ifdef VME
-			else if(addr>=`VMEBase && addr<=`VMEEnd)
-				return tuple2(True,fromInteger(valueOf(VME_slave_num)));
-		`endif
-
-		`ifdef TCMemory
-			else if(addr>=`TCMBase && addr<=`TCMEnd)
-				return tuple2(True,fromInteger(valueOf(TCM_slave_num)));
-		`endif
-	else
-		return tuple2(False,?);
-endfunction
+`ifndef TILELINK
+	function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Bit#(`PADDR) addr);
+	
+			if(addr>=`SDRAMMemBase && addr<=`SDRAMMemEnd)
+				return tuple2(True,fromInteger(valueOf(Sdram_slave_num)));
+			else if(addr>=`DebugBase && addr<=`DebugEnd)
+				return tuple2(True,fromInteger(valueOf(Debug_slave_num)));
+			`ifdef SDRAM
+				else if(addr>=`SDRAMCfgBase && addr<=`SDRAMCfgEnd )
+					return tuple2(True,fromInteger(valueOf(Sdram_cfg_slave_num)));
+			`endif
+			`ifdef BOOTROM
+				else if(addr>=`BootRomBase && addr<=`BootRomEnd)
+					return tuple2(True,fromInteger(valueOf(BootRom_slave_num)));
+			`endif
+				else if( (addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) || (addr>=`ClintBase && addr<=`ClintEnd) || (addr>=`PLICBase && addr<=`PLICEnd) || (addr>=`GPIOBase && addr<=`GPIOEnd) || (addr>=`I2C1Base && addr<=`I2C1End)|| (addr>=`I2C0Base && addr<=`I2C0End) || (addr>=`QSPI1CfgBase && addr<=`QSPI1CfgEnd) || (addr>=`QSPI1MemBase && addr<=`QSPI1MemEnd)|| (addr>=`QSPI0CfgBase && addr<=`QSPI0CfgEnd) || (addr>=`QSPI0MemBase && addr<=`QSPI0MemEnd) || (addr>=`AxiExp1Base && addr<=`AxiExp1End) )
+					return tuple2(True,fromInteger(valueOf(SlowPeripheral_slave_num)));
+			`ifdef DMA
+				else if(addr>=`DMABase && addr<=`DMAEnd)
+					return tuple2(True,fromInteger(valueOf(Dma_slave_num)));
+			`endif
+			`ifdef VME
+				else if(addr>=`VMEBase && addr<=`VMEEnd)
+					return tuple2(True,fromInteger(valueOf(VME_slave_num)));
+			`endif
+	
+			`ifdef TCMemory
+				else if(addr>=`TCMBase && addr<=`TCMEnd)
+					return tuple2(True,fromInteger(valueOf(TCM_slave_num)));
+			`endif
+		else
+			return tuple2(False,?);
+	endfunction
+`endif
 
 function Bool is_IO_Addr(Bit#(`PADDR) addr); // TODO Shuold be PADDR
 		if(addr>=`DebugBase && addr<=`DebugEnd)

@@ -22,14 +22,15 @@ package Tilelink_heavy_lite_bridge;
 	`include "defined_parameters.bsv"
 	/*======================*/
 	/*=== Package imports ===*/
+	import GetPut::*;
 	import Clocks::*;
 	/*=======================*/
 
 	interface Ifc_Tilelink_Heavy_Lite_bridge;
 		interface Ifc_fabric_side_slave_link slave_ifc_wr;
 		interface Ifc_fabric_side_slave_link slave_ifc_rd;
-		interface Ifc_fabric_side_master_link_lite rd_master_ifc;
-		interface Ifc_fabric_side_master_link_lite wr_master_ifc;
+		interface Ifc_fabric_side_master_link_lite master_ifc_rd;
+		interface Ifc_fabric_side_master_link_lite master_ifc_wr;
 	endinterface
 
 	typedef enum {RegularReq,BurstReq} BridgeState deriving (Bits,Eq,FShow);
@@ -43,8 +44,8 @@ package Tilelink_heavy_lite_bridge;
 
 		Reg#(BridgeState) rd_state <-mkReg(RegularReq,clocked_by fast_clock, reset_by fast_reset);
 		Reg#(BridgeState) wr_state <-mkReg(RegularReq,clocked_by fast_clock, reset_by fast_reset);
-		Reg#(Bit#(4)) rd_id<-mkReg(0);
-		Reg#(Bit#(4)) wr_id<-mkReg(0);
+		Reg#(Bit#(2)) rd_id<-mkReg(0);
+		Reg#(Bit#(2)) wr_id<-mkReg(0);
 		Reg#(Bit#(8)) rd_request_counter<-mkReg(0,clocked_by fast_clock, reset_by fast_reset);
 		Reg#(Bit#(8)) wr_request_counter<-mkReg(0,clocked_by fast_clock, reset_by fast_reset);
 		Reg#(Bit#(8)) response_counter<-mkReg(0);
@@ -68,17 +69,13 @@ package Tilelink_heavy_lite_bridge;
 			let request  <- rd_s_xactor.core_side.xactor_request.get;
 			ff_rd_addr.enq(request);
 			rg_read_packet<=request;
-			Data_size beat_blocks<= request.a_size-3;
+			Data_size beat_blocks= request.a_size-3;
 			Bit#(12) burst_counter = 1;
 			burst_counter = burst_counter << beat_blocks;
 			burst_counter = burst_counter-1;
 			if(request.a_size>3) begin
 				rd_state<=BurstReq;
-				sync_rdburst_value<=burst_counter;
-				rd_request_counter <= burst_counter;
-			end
-			else begin
-				sync_rdburst_value<=0;
+				rd_request_counter <= truncate(burst_counter);
 			end
 		endrule
 		// In case a read-burst request is received on the fast bus, then the bursts have to broken down into
@@ -90,8 +87,8 @@ package Tilelink_heavy_lite_bridge;
 		rule generate_bust_read_requests(rd_state==BurstReq);
 			let request=rg_read_packet;
 			let {transfer_size, address} = burst_address_generator(rg_read_packet.a_opcode, rg_read_packet.a_mask, 
-																	 	rg_read_pack.a_addres, rg_read_packet.a_size);
-			rg_read_packet.a_address = address;
+																	 	rg_read_packet.a_address, rg_read_packet.a_size);
+			request.a_address = address;
 			rg_read_packet<=request;
 			ff_rd_addr.enq(request);
 			if(rd_request_counter==0)begin
@@ -103,7 +100,7 @@ package Tilelink_heavy_lite_bridge;
 		rule send_read_request_on_slow_bus;
 			let request=ff_rd_addr.first;
 			ff_rd_addr.deq;
-		 	let lite_request = A_channel_lite {a_opcode : request.a_opcode, a_size :request.a_size, a_source : 0, 
+		 	let lite_request = A_channel_lite {a_opcode : unpack(truncate(pack(request.a_opcode))), a_size :request.a_size, a_source : 0, 
 													a_address : request.a_address, a_mask : request.a_mask, a_data : ?}; // arburst: 00-FIXED 01-INCR 10-WRAP
 			rd_m_xactor.core_side.master_request.put(lite_request);	
 			rd_id<=request.a_source;
@@ -115,18 +112,20 @@ package Tilelink_heavy_lite_bridge;
 			let request  <- wr_s_xactor.core_side.xactor_request.get;
 			ff_wr_addr.enq(request);
 			rg_write_packet<=request;
-			Data_size beat_blocks<= request.a_size-3;
+			Data_size beat_blocks= request.a_size-3;
 			Bit#(12) burst_counter = 1;
 			burst_counter = burst_counter << beat_blocks;
 			burst_counter = burst_counter-1;
 			if(request.a_size>3) begin
 				wr_state<=BurstReq;
-				//sync_rd_burst_value<=burst_counter; //TODO
-				wr_request_counter <= burst_counter;
+				sync_rdburst_value<=truncate(burst_counter); 
+				wr_request_counter <= truncate(burst_counter);
 			end
-			`ifdef verbose $display($time,"\tAXIBRIDGE: Write Request"); `endif
-			`ifdef verbose $display($time,"\tAddress Channel :",fshow(wr_addr_req)); `endif
-			`ifdef verbose $display($time,"\tData Channel :",fshow(wr_data_req)); `endif
+			else begin
+				sync_rdburst_value<=0;
+			end
+			`ifdef verbose $display($time,"\tTILELINK bridge: Write Request"); `endif
+			`ifdef verbose $display($time,"\tAddress Channel :",fshow(request)); `endif
 		endrule
 		// In case a write-burst request is received on the fast bus, then the bursts have to broken down into
 		// individual slow-bus write requests. 
@@ -138,8 +137,8 @@ package Tilelink_heavy_lite_bridge;
 		rule generate_bust_write_requests(wr_state==BurstReq);
 			let request=rg_write_packet;
 			let {transfer_size, address} = burst_address_generator(rg_read_packet.a_opcode, rg_read_packet.a_mask, 
-																	 	rg_read_pack.a_addres, rg_read_packet.a_size);
-			rg_write_packet.a_address = address;
+																	 	rg_read_packet.a_address, rg_read_packet.a_size);
+			request.a_address = address;
 			rg_write_packet<=request;
 			ff_wr_addr.enq(request);
 			if(rd_request_counter==0)begin
@@ -147,28 +146,25 @@ package Tilelink_heavy_lite_bridge;
 			end
 			else
 				wr_request_counter<=wr_request_counter-1;
-			`ifdef verbose $display($time,"\tAXIBRIDGE: Burst Write Request"); `endif
-			`ifdef verbose $display($time,"\tAddress Channel :",fshow(rg_write_packet)); `endif
-			`ifdef verbose $display($time,"\tData Channel :",fshow(wr_data_req)); `endif
+			`ifdef verbose $display($time,"\tTILELINK bridge: Burst Write Request"); `endif
+			`ifdef verbose $display($time,"\tAddress Channel :",fshow(request)); `endif
 		endrule
 		rule send_write_request_on_slow_bus;
 			let request  = ff_wr_addr.first;
-		 	let request = A_channel_lite {a_opcode : request.a_opcode, a_size :request.a_size, a_source : 1, 
-													a_address : request.a_address, a_mask : request.a_mask, a_data : request.a_data}; // arburst: 00-FIXED 01-INCR 10-WRAP
-			wr_m_xactor.core_side.master_request.put(request);	
+		 	let request_lite = A_channel_lite {a_opcode : unpack(truncate(pack(request.a_opcode))), a_size :request.a_size, a_source : 1, 
+													a_address : request.a_address, a_mask : request.a_mask, a_data : request.a_data}; 
+			wr_m_xactor.core_side.master_request.put(request_lite);	
 			ff_wr_addr.deq;
 			wr_id<=request.a_source;
+			`ifdef verbose $display($time,"\tTILELINK bridge: Packet now on the slow bus"); `endif
+			`ifdef verbose $display($time,"\tAddress Channel :",fshow(request)); `endif
 		endrule
 
-		// This rule forwards the read response from the AXI4Lite to the AXI4 fabric.
+		// This rule forwards the read response from the tilelink_lite to the tilelink fabric.
 		rule capture_read_responses;
-			let response <- rd_m_xactor_rd.core_side.master_response.get;
-			D_channel r = D_channel {d_opcode: response.d_opcode, d_param : ? , d_size : response.d_size,
+			let response <- rd_m_xactor.core_side.master_response.get;
+			D_channel r = D_channel {d_opcode: unpack(zeroExtend(pack(response.d_opcode))), d_param : ? , d_size : response.d_size,
 														d_source : rd_id, d_sink : ?, d_data : response.d_data, d_error : response.d_error};
-			//if(response_counter==sync_rdburst_value)
-			//	response_counter<=0;
-			//else
-			//	response_counter<=response_counter+1;
 			ff_rd_resp.enq(r);
 		endrule
 		rule send_read_response_on_fast_bus;
@@ -176,24 +172,25 @@ package Tilelink_heavy_lite_bridge;
 			rd_s_xactor.core_side.xactor_response.put(ff_rd_resp.first);
 		endrule
 		rule capture_write_responses;
-			let response <- wr_m_xactor_rd.core_side.master_response.get;
-			D_channel b = D_channel {d_opcode: response.d_opcode, d_param : ? , d_size : response.d_size,
-														d_source : rd_id, d_sink : ?, d_data : response.d_data, d_error : response.d_error};
-			if(response_counter==sync_burst_value) begin
+			let response <- wr_m_xactor.core_side.master_response.get;
+			D_channel b = D_channel {d_opcode: unpack(zeroExtend(pack(response.d_opcode))), d_param : ? , d_size : response.d_size,
+														d_source : wr_id, d_sink : ?, d_data : response.d_data, d_error : response.d_error};
+			if(response_counter==sync_rdburst_value) begin
 				response_counter<=0;
 				ff_wr_resp.enq(b);
 			end
 			else
 				response_counter<=response_counter+1;
-			ff_wr_resp.enq(b);
+			`ifdef verbose $display($time,"\tTILELINK bridge: Burst Write Resopnse"); `endif
+			`ifdef verbose $display($time,"\tAddress Channel :",fshow(response)); `endif
 		endrule
 		rule send_write_response_on_fast_bus;
 			ff_wr_resp.deq;
-			wr_s_xactor.i_wr_resp.enq(ff_wr_resp.first);
+			wr_s_xactor.core_side.xactor_response.put(ff_wr_resp.first);
 		endrule
 		interface slave_ifc_wr=wr_s_xactor.fabric_side;
 		interface slave_ifc_rd=rd_s_xactor.fabric_side;
 		interface master_ifc_rd=rd_m_xactor.fabric_side;
-		interface master_ifc_wr=rd_m_xactor.fabric_side;
+		interface master_ifc_wr=wr_m_xactor.fabric_side;
 	endmodule
 endpackage

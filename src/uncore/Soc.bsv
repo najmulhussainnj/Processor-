@@ -148,21 +148,21 @@ package Soc;
 			`ifdef VME
 			Ifc_vme_top             vme             <-mkvme_top();
 			`endif	
-		//Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, core_reset, uart_clock, uart_reset, clocked_by slow_clock , reset_by slow_reset);	
+		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, core_reset, uart_clock, uart_reset, clocked_by slow_clock , reset_by slow_reset);	
 
 	`ifdef TILELINK
-		Tilelink_Fabric_IFC#(Num_Masters, Num_Slaves) fabric <- mkTilelink;
+		Tilelink_Fabric_IFC#(Num_Masters, Num_Slaves, 0) fabric <- mkTilelink(fn_addr_to_slave_num);
    		mkConnection (core.dmem_master_rd,	fabric.v_from_masters [fromInteger(valueOf(Dmem_master_num_rd))]);
-   		mkConnection (core.dmem_master_wr,	fabric.v_from_masters [fromInteger(valueOf(Dmem_master_num_wr))]);
+   		mkConnection (core.dmem_master_wr,	fabric.v_from_masters [fromInteger(valueOf(Dmem_master_num))]);
    		mkConnection (core.imem_master,	fabric.v_from_masters [fromInteger(valueOf(Imem_master_num))]);
 	`else
-   	// Fabric
-   	AXI4_Fabric_IFC #(Num_Masters, Num_Slaves, `PADDR, `Reg_width,`USERSPACE)
-		 		fabric <- mkAXI4_Fabric(fn_addr_to_slave_num);
+   		// Fabric
+   		AXI4_Fabric_IFC #(Num_Masters, Num_Slaves, `PADDR, `Reg_width,`USERSPACE)
+			 		fabric <- mkAXI4_Fabric(fn_addr_to_slave_num);
 
-   	// Connect traffic generators to fabric
-   	mkConnection (core.dmem_master,	fabric.v_from_masters [fromInteger(valueOf(Dmem_master_num))]);
-   	mkConnection (core.imem_master,	fabric.v_from_masters [fromInteger(valueOf(Imem_master_num))]);
+   		// Connect traffic generators to fabric
+   		mkConnection (core.dmem_master,	fabric.v_from_masters [fromInteger(valueOf(Dmem_master_num))]);
+   		mkConnection (core.imem_master,	fabric.v_from_masters [fromInteger(valueOf(Imem_master_num))]);
 	`endif
 		`ifdef Debug
 			mkConnection (core.debug_master, fabric.v_from_masters [fromInteger(valueOf(Debug_master_num))]);
@@ -196,7 +196,12 @@ package Soc;
 			`ifdef TCMemory
 				mkConnection (fabric.v_to_slaves [fromInteger(valueOf(TCM_slave_num))],tcm.axi_slave);
 			`endif
-			//mkConnection(fabric.v_to_slaves [fromInteger(valueOf(SlowPeripheral_slave_num))],slow_peripherals.axi_slave); //TODO need to uncomment this one
+			`ifdef TILELINK
+				mkConnection(fabric.v_to_slaves [fromInteger(valueOf(SlowPeripheral_slave_num_rd))],slow_peripherals.slave_ifc_rd); 
+				mkConnection(fabric.v_to_slaves [fromInteger(valueOf(SlowPeripheral_slave_num_wr))],slow_peripherals.slave_ifc_wr); 
+			`else
+				mkConnection(fabric.v_to_slaves [fromInteger(valueOf(SlowPeripheral_slave_num))],slow_peripherals.axi_slave); 
+			`endif
 			`ifdef VME
 				mkConnection (fabric.v_to_slaves[fromInteger(valueOf(VME_slave_num))],vme.slave_axi_vme);
 			`endif
@@ -311,7 +316,7 @@ package Soc;
 			method Bit#(1) tdo=tap.tdo;
 			method Bit#(1) tdo_oe=tap.tdo_oe;
 		`endif
-		//interface slow_ios=slow_peripherals.slow_ios; //TODO uncomment this too
+		interface slow_ios=slow_peripherals.slow_ios; 
 
 	endmodule
 endpackage

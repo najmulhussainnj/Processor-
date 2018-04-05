@@ -19,7 +19,7 @@ package TLMemoryMap;
 	/*========================= */
 
 
-function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Opcode command, Bit#(`PADDR) addr, Bit#(TLog#(Num_Masters)) mj);
+function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Opcode command, Bit#(`PADDR) addr);
 
 		if(addr>=`SDRAMMemBase && addr<=`SDRAMMemEnd && (command==Get_data || command==GetWrap)) 
 				return tuple2(True,fromInteger(valueOf(Sdram_slave_num)));
@@ -27,7 +27,7 @@ function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Opcode c
 				return tuple2(True,fromInteger(valueOf(Sdram_slave_num_wr)));
 		`ifdef DEBUG
 		else if(addr>=`DebugBase && addr<=`DebugEnd)
-			return tuple2(unpack(route_to_debug[mj]),fromInteger(valueOf(Debug_slave_num)));
+			return tuple2(True,fromInteger(valueOf(Debug_slave_num)));
 		`endif
 		`ifdef SDRAM
 			else if(addr>=`SDRAMCfgBase && addr<=`SDRAMCfgEnd )
@@ -37,19 +37,77 @@ function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Opcode c
 			else if(addr>=`BootRomBase && addr<=`BootRomEnd)
 				return tuple2(True,fromInteger(valueOf(BootRom_slave_num)));
 		`endif
-			else if( (addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) || (addr>=`ClintBase && addr<=`ClintEnd) || (addr>=`PLICBase && addr<=`PLICEnd) || (addr>=`GPIOBase && addr<=`GPIOEnd) || (addr>=`I2C1Base && addr<=`I2C1End)|| (addr>=`I2C0Base && addr<=`I2C0End) || (addr>=`QSPI1CfgBase && addr<=`QSPI1CfgEnd) || (addr>=`QSPI1MemBase && addr<=`QSPI1MemEnd)|| (addr>=`QSPI0CfgBase && addr<=`QSPI0CfgEnd) || (addr>=`QSPI0MemBase && addr<=`QSPI0MemEnd) || (addr>=`AxiExp1Base && addr<=`AxiExp1End) )
-				return tuple2(True,fromInteger(valueOf(SlowPeripheral_slave_num)));
+			else if( ((addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) || (addr>=`ClintBase && addr<=`ClintEnd) || (addr>=`PLICBase && addr<=`PLICEnd) || (addr>=`GPIOBase && addr<=`GPIOEnd) || (addr>=`I2C1Base && addr<=`I2C1End)|| (addr>=`I2C0Base && addr<=`I2C0End) || (addr>=`QSPI1CfgBase && addr<=`QSPI1CfgEnd) || (addr>=`QSPI1MemBase && addr<=`QSPI1MemEnd)|| (addr>=`QSPI0CfgBase && addr<=`QSPI0CfgEnd) || (addr>=`QSPI0MemBase && addr<=`QSPI0MemEnd) || (addr>=`AxiExp1Base && addr<=`AxiExp1End)) && (command==PutPartialData || command==PutFullData))
+				return tuple2(True,fromInteger(valueOf(SlowPeripheral_slave_num_wr)));
+			else if( ((addr>=`UART0Base && addr<=`UART0End) || (addr>=`UART1Base && addr<=`UART1End) || (addr>=`ClintBase && addr<=`ClintEnd) || (addr>=`PLICBase && addr<=`PLICEnd) || (addr>=`GPIOBase && addr<=`GPIOEnd) || (addr>=`I2C1Base && addr<=`I2C1End)|| (addr>=`I2C0Base && addr<=`I2C0End) || (addr>=`QSPI1CfgBase && addr<=`QSPI1CfgEnd) || (addr>=`QSPI1MemBase && addr<=`QSPI1MemEnd)|| (addr>=`QSPI0CfgBase && addr<=`QSPI0CfgEnd) || (addr>=`QSPI0MemBase && addr<=`QSPI0MemEnd) || (addr>=`AxiExp1Base && addr<=`AxiExp1End)) && (command==Get_data || command==GetWrap))
+				return tuple2(True,fromInteger(valueOf(SlowPeripheral_slave_num_rd)));
 		`ifdef DMA
 			else if(addr>=`DMABase && addr<=`DMAEnd)
-				return tuple2(unpack(route_to_DMA[mj]),fromInteger(valueOf(Dma_slave_num)));
+				return tuple2(True,fromInteger(valueOf(Dma_slave_num)));
 		`endif
 		`ifdef TCMemory
 			else if(addr>=`TCMBase && addr<=`TCMEnd)
-				return tuple2(unpack(route_to_TCM[mj]),fromInteger(valueOf(TCM_slave_num)));
+				return tuple2(True,fromInteger(valueOf(TCM_slave_num)));
 		`endif
 	else
 		return tuple2(False,?);
 endfunction
+
+function Tuple2#(Bool, Bit#(TLog#(Num_Slow_Slaves))) fn_address_mapping_slow_perif (Bit#(`PADDR) addr);
+    `ifdef UART0
+        if(addr>=`UART0Base && addr<=`UART0End)
+            return tuple2(True,fromInteger(valueOf(Uart0_slave_num)));
+        else
+    `endif
+    `ifdef UART1
+        if(addr>=`UART1Base && addr<=`UART1End)
+            return tuple2(True,fromInteger(valueOf(Uart1_slave_num)));
+        else
+    `endif
+    `ifdef CLINT
+        if(addr>=`ClintBase && addr<=`ClintEnd)
+            return tuple2(True,fromInteger(valueOf(CLINT_slave_num)));
+        else
+    `endif
+    `ifdef PLIC
+        if(addr>=`PLICBase && addr<=`PLICEnd)
+            return tuple2(True,fromInteger(valueOf(Plic_slave_num)));
+        else if(addr>=`GPIOBase && addr<=`GPIOEnd)
+            return tuple2(True,fromInteger(valueOf(GPIO_slave_num)));
+        else
+    `endif
+    `ifdef I2C0
+        if(addr>=`I2C0Base && addr<=`I2C0End)   
+            return tuple2(True,fromInteger(valueOf(I2c0_slave_num)));
+        else
+    `endif
+    `ifdef I2C1
+        if(addr>=`I2C1Base && addr<=`I2C1End)
+            return tuple2(True,fromInteger(valueOf(I2c1_slave_num)));
+        else
+    `endif
+    `ifdef QSPI0
+        if(addr>=`QSPI0CfgBase && addr<=`QSPI0CfgEnd)
+            return tuple2(True,fromInteger(valueOf(Qspi0_slave_num)));
+        else if(addr>=`QSPI0MemBase && addr<=`QSPI0MemEnd)
+            return tuple2(True,fromInteger(valueOf(Qspi0_slave_num)));
+        else
+    `endif
+    `ifdef QSPI1
+        if(addr>=`QSPI1CfgBase && addr<=`QSPI1CfgEnd)
+            return tuple2(True,fromInteger(valueOf(Qspi1_slave_num)));
+        else if(addr>=`QSPI1MemBase && addr<=`QSPI1MemEnd)
+            return tuple2(True,fromInteger(valueOf(Qspi1_slave_num)));
+        else
+    `endif
+    `ifdef AXIEXP
+        if(addr>=`AxiExp1Base && addr<=`AxiExp1End)
+            return tuple2(True,fromInteger(valueOf(AxiExp1_slave_num)));
+        else
+    `endif
+    return tuple2(False,?);
+endfunction
+
 
 function Bool is_IO_Addr(Bit#(`PADDR) addr); // TODO Shuold be PADDR
 		if(addr>=`DebugBase && addr<=`DebugEnd)

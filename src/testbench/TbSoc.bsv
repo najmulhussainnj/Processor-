@@ -417,10 +417,10 @@ rule connect_boot;
 			rule connect_sin;
 				soc.slow_ios.uart1_coe.sin(uart.rs232.sout);
 	   	endrule
-	/*		rule connect_sout;
+			rule connect_sout;
 				uart.rs232.sin(soc.slow_ios.uart1_coe.sout);
 	   	endrule
-	*/
+	
 		`endif
 `ifdef VME		
 //Connection b/w vme_controller and slave	

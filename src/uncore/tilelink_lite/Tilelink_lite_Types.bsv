@@ -1,3 +1,17 @@
+/*
+Copyright (c) 2013, IIT Madras
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+*  Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+*  Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+*  Neither the name of IIT Madras  nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
+
 package Tilelink_lite_Types;
 
 `include "defined_parameters.bsv"
@@ -17,40 +31,12 @@ typedef enum {	Get_data
 				,GetWrap
 				,PutPartialData
 				,PutFullData
-`ifdef TILEUH
-				,ArithmeticData
-				,LogicalData
-				,Intent				
-`endif
-`ifdef TILEUC
-				,Acquire
-`endif
 } Opcode_lite deriving(Bits, Eq, FShow);			
 			
 typedef enum {	AccessAck
 				,AccessAckData
-`ifdef TILEUH
-				,HintAck
-`endif
-`ifdef TILEUC
-				,Grant
-				,GrantData
-`endif
 } D_Opcode_lite deriving(Bits, Eq, FShow);			
 
-typedef enum { Min,
-			   Max,
-			   MinU,
-			   MaxU,
-			   ADD 
-} Param_arith deriving(Bits, Eq, FShow);
-
-typedef enum { Min,
-			   Max,
-			   MinU,
-			   MaxU,
-			   ADD 
-} Param_logical deriving(Bits, Eq, FShow);
 
 typedef Bit#(3) Param;
 typedef Bit#(4) Data_size; //In bytes
@@ -66,9 +52,6 @@ where it receives the request has the channel A intact.
 */
 typedef struct { 
 		Opcode_lite 			     a_opcode;                 //The opcode specifies if write or read requests
-`ifdef TILEUH
-		Param  			     a_param;                  //Has the encodings for atomic transfers
-`endif
 		Data_size			 a_size;                   //The transfer size in 2^a_size bytes. The burst is calculated from here. if this is >3 then its a burst
 		M_source 		     a_source;                 //Master ID
 		Address_width		 a_address;                //Address for the request
@@ -81,9 +64,6 @@ typedef struct {
 
 typedef struct { 
 		Opcode_lite 	     a_opcode;
-`ifdef TILEUH
-		Param  			     a_param;
-`endif
 		Data_size			 a_size;
 		M_source 		     a_source;
 		Address_width		 a_address;
@@ -103,7 +83,7 @@ typedef struct {
 
 interface Ifc_core_side_master_link_lite;
 
-	//Towards the master
+	//Towards the core
 	interface Put#(A_channel_lite) master_request;
 	interface Get#(D_channel_lite) master_response;
 
@@ -131,10 +111,10 @@ of the xactor should be exposed out of the core*/
 module mkMasterXactorLite#(Bool xactor_guarded, Bool fabric_guarded)(Ifc_Master_link_lite);
 
 //Created a pipelined version that will have a critical path all along the bus. If we want to break the path we can 
-//make the bus stall-less 
+//use the 2-sized fifo which is trade-off for area over head 
 `ifdef TILELINK_LIGHT
-	FIFOF#(A_channel_lite) ff_xactor_request <- mkGFIFOF(xactor_guarded, fabric_guarded, 2);   //data split of A-channel
-	FIFOF#(D_channel_lite) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded, 2); //response channel D-channel exposed out
+	FIFOF#(A_channel_lite) ff_xactor_request <- mkGFIFOF(xactor_guarded, fabric_guarded);   //data split of A-channel
+	FIFOF#(D_channel_lite) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded); //response channel D-channel exposed out
 `else
 	FIFO#(A_channel_lite) ff_xactor_request <- mkSizedFIFO(2);
 	FIFO#(D_channel_lite) ff_xactor_response <- mkSizedFIFO(2);
@@ -157,11 +137,13 @@ endmodule
 
 //------------------------------------------------------Slave Xactor------------------------------------------------//
 
+	//To be connected on the slave side
 interface Ifc_core_side_slave_link_lite;
 	interface Get#(A_channel_lite) xactor_request;
 	interface Put#(D_channel_lite) xactor_response;
 endinterface
 
+	//To be connected on the fabric side
 interface Ifc_fabric_side_slave_link_lite;
 	interface Put#(A_channel_lite) fabric_request;
 	interface Get#(D_channel_lite) fabric_response;
@@ -174,25 +156,15 @@ endinterface
 
 module mkSlaveXactorLite#(Bool xactor_guarded, Bool fabric_guarded)(Ifc_Slave_link_lite);
 
+//FIFOs to be selected for trade of timing or area like master xactor
+
 `ifdef TILELINK_LIGHT
-	FIFOF#(A_channel_lite) ff_xactor_request <- mkGFIFOF(xactor_guarded, fabric_guarded, 2);
-	FIFOF#(D_channel_lite) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded, 2);
+	FIFOF#(A_channel_lite) ff_xactor_request <- mkGFIFOF(xactor_guarded, fabric_guarded);
+	FIFOF#(D_channel_lite) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded);
 `else
 	FIFO#(A_channel_lite) ff_xactor_request <- mkSizedFIFO(2);
 	FIFO#(D_channel_lite) ff_xactor_response <- mkSizedFIFO(2);
 `endif
-
-	//rule rl_xactor_to_fabric(!isValid(rg_d_channel));
-	//	let lv_response = ff_xactor_response.first;
-	//	rg_d_channel <= tagged Valid lv_response;
-	//	ff_xactor_response.deq;
-	//endrule
-
-	//rule rl_fabric_to_xactor(rg_a_channel matches tagged Valid .req);
-	//	let lv_req = req;
-	//	ff_xactor_request.enq(req);
-	//	rg_a_channel <= tagged Invalid
-	//endrule
 
 interface core_side = interface Ifc_core_side_slave_link_lite;
 	interface xactor_request = toGet(ff_xactor_request);
@@ -248,7 +220,7 @@ module mkMasterFabricLite(Ifc_Master_tilelink_lite);
 		interface xactor_request = interface Put
 												method Action put(A_channel_lite req_data);
 													rg_a_channel[0] <= tagged Valid req_data;
-													`ifdef verbose $display($time, "\tTILELINK : Request from Xactor data signals", fshow(req_data)); `endif
+													`ifdef verbose $display($time, "\tTILELINK LITE: Request from Xactor data signals", fshow(req_data)); `endif
 												endmethod
 										endinterface;
 												
@@ -256,7 +228,7 @@ module mkMasterFabricLite(Ifc_Master_tilelink_lite);
 												method ActionValue#(D_channel_lite) get if(isValid(rg_d_channel[1]));
 													let resp = validValue(rg_d_channel[1]);
 													rg_d_channel[1] <= tagged Invalid;
-													`ifdef verbose $display($time, "\tTILELINK : Response to Xactor data signals", fshow(resp)); `endif
+													`ifdef verbose $display($time, "\tTILELINK LITE: Response to Xactor data signals", fshow(resp)); `endif
 													return resp;
 												endmethod
 										endinterface;
@@ -332,14 +304,14 @@ module mkSlaveFabricLite(Ifc_Slave_tilelink_lite);
 												method ActionValue#(A_channel_lite) get if(isValid(rg_a_channel[1]));
 													let req = validValue(rg_a_channel[1]);
 													rg_a_channel[1] <= tagged Invalid;
-													`ifdef verbose $display($time, "\tTILELINK : Slave side request to Xactor ", fshow(req)); `endif
+													`ifdef verbose $display($time, "\tTILELINK LITE: Slave side request to Xactor ", fshow(req)); `endif
 													return req;
 												endmethod
 										   endinterface;
 
 		interface xactor_response = interface Put
 												method Action put(D_channel_lite resp) if(!isValid(rg_d_channel[0]));
-													`ifdef verbose $display($time, "\tTILELINK : Slave side response from Xactor ", fshow(resp)); `endif
+													`ifdef verbose $display($time, "\tTILELINK LITE: Slave side response from Xactor ", fshow(resp)); `endif
 													rg_d_channel[0] <= tagged Valid resp;
 												endmethod
 										   endinterface;
@@ -372,7 +344,7 @@ module mkSlaveFabricLite(Ifc_Slave_tilelink_lite);
 endmodule
 
 instance Connectable#(Ifc_fabric_side_master_link_lite, Ifc_master_tilelink_core_side_lite);
-	
+	//connectables between master transactors and master side of fabric	
 	module mkConnection#(Ifc_fabric_side_master_link_lite xactor, Ifc_master_tilelink_core_side_lite fabric)(Empty);
 		
 		rule rl_connect_control_request;
@@ -388,7 +360,7 @@ instance Connectable#(Ifc_fabric_side_master_link_lite, Ifc_master_tilelink_core
 endinstance
 
 instance Connectable#( Ifc_slave_tilelink_core_side_lite, Ifc_fabric_side_slave_link_lite);
-	
+	//connectables between slave transactors and slave side of fabric	
 	module mkConnection#(Ifc_slave_tilelink_core_side_lite fabric, Ifc_fabric_side_slave_link_lite xactor)(Empty);
 		
 		rule rl_connect_request;

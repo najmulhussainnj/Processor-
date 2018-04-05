@@ -1,3 +1,17 @@
+/*
+Copyright (c) 2013, IIT Madras
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+*  Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+*  Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+*  Neither the name of IIT Madras  nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
+
 package Tilelink_Types;
 
 `include "defined_parameters.bsv"
@@ -6,24 +20,21 @@ import FIFO ::*;
 import SpecialFIFOs ::*;
 import Connectable ::*;
 
-//`ifdef TILEUH
-//`define LANE_WIDTH 8
-//`define XLEN 8
 `define TILEUH
 
 Integer v_lane_width = valueOf(`LANE_WIDTH);
 
-typedef enum {	Get_data
-				,GetWrap
-				,PutPartialData
-				,PutFullData
+typedef enum {	Get_data=0
+				,GetWrap=1
+				,PutPartialData=2
+				,PutFullData=3
 `ifdef TILEUH
-				,ArithmeticData
-				,LogicalData
-				,Intent				
+				,ArithmeticData=4
+				,LogicalData=5
+				,Intent=6				
 `endif
 `ifdef TILEUC
-				,Acquire
+				,Acquire=7
 `endif
 } Opcode deriving(Bits, Eq, FShow);			
 			
@@ -160,11 +171,11 @@ of the xactor should be exposed out of the core*/
 module mkMasterXactor#(Bool xactor_guarded, Bool fabric_guarded)(Ifc_Master_link);
 
 //Created a pipelined version that will have a critical path all along the bus. If we want to break the path we can 
-//make the bus stall-less 
+//we should trade if off with area using the 2-sized FIFO 
 `ifdef TILELINK_LIGHT
-	FIFOF#(A_channel_control) ff_xactor_request_c <- mkGFIFOF(xactor_guarded, fabric_guarded, 2); //control split of A-channel
-	FIFOF#(A_channel_data) ff_xactor_request_d <- mkGFIFOF(xactor_guarded, fabric_guarded, 2);   //data split of A-channel
-	FIFOF#(D_channel) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded, 2); //response channel D-channel exposed out
+	FIFOF#(A_channel_control) ff_xactor_request_c <- mkGFIFOF(xactor_guarded, fabric_guarded); //control split of A-channel
+	FIFOF#(A_channel_data) ff_xactor_request_d <- mkGFIFOF(xactor_guarded, fabric_guarded);   //data split of A-channel
+	FIFOF#(D_channel) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded); //response channel D-channel exposed out
 `else
 	FIFO#(A_channel_control) ff_xactor_request_c <- mkSizedFIFO(2);
 	FIFO#(A_channel_data) ff_xactor_request_d <- mkSizedFIFO(2);
@@ -174,8 +185,8 @@ module mkMasterXactor#(Bool xactor_guarded, Bool fabric_guarded)(Ifc_Master_link
 	Reg#(Data_size) rg_burst_counter <- mkReg(0);
 	Reg#(Bool) rg_burst[2] <- mkCReg(2,False);
 
-// If it is a burst dont ask for address again. This rule about calculating the burst and telling the control split of A-channel to keep
-//quite till the burst finishes.
+// If it is a burst dont ask for address again. This rule about calculating the burst and control split of A-channel remains 
+//constant till the burst finishes.
 	rule rl_xactor_to_fabric_data;
 		let req_addr = ff_xactor_request_c.first;
 		Data_size burst_size = 1;										  //The total number of bursts
@@ -203,8 +214,8 @@ module mkMasterXactor#(Bool xactor_guarded, Bool fabric_guarded)(Ifc_Master_link
 	endinterface;
 
 	interface fabric_side = interface Ifc_fabric_side_master_link 
-		interface fabric_request_control = interface Get
-											 method ActionValue#(A_channel_control) get;        //Deque the control split of a channel if only burst is finished 
+		interface fabric_request_control = interface Get    //Deque the control split of a channel if only burst is finished 
+											 method ActionValue#(A_channel_control) get;  
 												A_channel_control req_addr = ff_xactor_request_c.first;
 												if(!rg_burst[1])
 													ff_xactor_request_c.deq;
@@ -222,12 +233,15 @@ endmodule
 
 //------------------------------------------------------Slave Xactor------------------------------------------------//
 
+//To be connected to slave side 
 interface Ifc_core_side_slave_link;
 	interface Get#(A_channel) xactor_request;
 	interface Put#(D_channel) xactor_response;
 endinterface
 
+//To be connected to fabric side
 interface Ifc_fabric_side_slave_link;
+	//Doesn't need to have control and data signals separated as slaves get A_channel packet intact
 	interface Put#(A_channel) fabric_request;
 	interface Get#(D_channel) fabric_response;
 endinterface
@@ -239,25 +253,14 @@ endinterface
 
 module mkSlaveXactor#(Bool xactor_guarded, Bool fabric_guarded)(Ifc_Slave_link);
 
+//Can choose between 2-sized FIFO and pipeline FIFO just like the master xactor
 `ifdef TILELINK_LIGHT
-	FIFOF#(A_channel) ff_xactor_request <- mkGFIFOF(xactor_guarded, fabric_guarded, 2);
-	FIFOF#(D_channel) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded, 2);
+	FIFOF#(A_channel) ff_xactor_request <- mkGFIFOF(xactor_guarded, fabric_guarded);
+	FIFOF#(D_channel) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded);
 `else
 	FIFO#(A_channel) ff_xactor_request <- mkSizedFIFO(2);
 	FIFO#(D_channel) ff_xactor_response <- mkSizedFIFO(2);
 `endif
-
-	//rule rl_xactor_to_fabric(!isValid(rg_d_channel));
-	//	let lv_response = ff_xactor_response.first;
-	//	rg_d_channel <= tagged Valid lv_response;
-	//	ff_xactor_response.deq;
-	//endrule
-
-	//rule rl_fabric_to_xactor(rg_a_channel matches tagged Valid .req);
-	//	let lv_req = req;
-	//	ff_xactor_request.enq(req);
-	//	rg_a_channel <= tagged Invalid
-	//endrule
 
 interface core_side = interface Ifc_core_side_slave_link;
 	interface xactor_request = toGet(ff_xactor_request);
@@ -457,9 +460,8 @@ module mkSlaveFabric(Ifc_Slave_tilelink);
 endmodule
 
 instance Connectable#(Ifc_fabric_side_master_link, Ifc_master_tilelink_core_side);
-	
+	//connectables between master transactors and master side of fabric	
 	module mkConnection#(Ifc_fabric_side_master_link xactor, Ifc_master_tilelink_core_side fabric)(Empty);
-		
 		rule rl_connect_control_request;
 			let x <-  xactor.fabric_request_control.get;
 			fabric.xactor_request_control.put(x); 
@@ -477,7 +479,7 @@ instance Connectable#(Ifc_fabric_side_master_link, Ifc_master_tilelink_core_side
 endinstance
 
 instance Connectable#( Ifc_slave_tilelink_core_side, Ifc_fabric_side_slave_link);
-	
+	//connectables between slave transactors and slave side of fabric	
 	module mkConnection#(Ifc_slave_tilelink_core_side fabric, Ifc_fabric_side_slave_link xactor)(Empty);
 		
 		rule rl_connect_request;

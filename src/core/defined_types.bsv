@@ -526,33 +526,34 @@ typedef enum {
 deriving (Bits ,Eq, FShow);
 
 /*======= AXI4 master/slave numbers ======*/
-`ifdef TILELINK
-	typedef 0 Sdram_slave_num_wr;
-	typedef  TAdd#(Sdram_slave_num_wr ,1)		Sdram_slave_num;
-`else
-	typedef 0 Sdram_slave_num;
-`endif
+
+typedef 0 Sdram_slave_num_wr;
+typedef  TAdd#(Sdram_slave_num_wr ,`ifdef TILELINK 1 `else 0 `endif )		Sdram_slave_num;
 typedef  TAdd#(Sdram_slave_num	 ,`ifdef SDRAM		1 `else 0 `endif )		Sdram_cfg_slave_num;
 typedef	TAdd#(Sdram_cfg_slave_num,`ifdef BOOTROM	1 `else 0 `endif )		BootRom_slave_num	;
 typedef	TAdd#(BootRom_slave_num  ,`ifdef Debug		1 `else 0 `endif )		Debug_slave_num	;
 typedef  TAdd#(Debug_slave_num	 , `ifdef TCMemory	1 `else 0 `endif )		TCM_slave_num;
 typedef  TAdd#(TCM_slave_num	 ,`ifdef DMA			1 `else 0 `endif )	Dma_slave_num;
-typedef  TAdd#(Dma_slave_num	  ,1 )		SlowPeripheral_slave_num;
-typedef  TAdd#(SlowPeripheral_slave_num,`ifdef VME	1 `else 0 `endif )       VME_slave_num;
+typedef  TAdd#(Dma_slave_num	  ,1 )		SlowPeripheral_slave_num_rd;
+typedef  TAdd#(SlowPeripheral_slave_num_rd,		1 )       SlowPeripheral_slave_num_wr;
+typedef  TAdd#(SlowPeripheral_slave_num_wr,	`ifdef VME 1 `else 0 `endif )       VME_slave_num;
 typedef	TAdd#(VME_slave_num,1)						 Num_Slaves;
 typedef 0 Dmem_master_num_rd;
-typedef 1 Dmem_master_num_wr;
-typedef 2 Imem_master_num;
+typedef TAdd#(Dmem_master_num_rd, `ifdef TILELINK 1 `else 0 `endif ) Dmem_master_num;
+typedef TAdd#(Dmem_master_num,1) Imem_master_num;
 typedef TAdd#(Imem_master_num , `ifdef Debug 1 `else 0 `endif ) Debug_master_num;
 typedef TAdd#(Debug_master_num, `ifdef DMA 1 `else 0 `endif ) DMA_master_num;
 typedef TAdd#(DMA_master_num,1) Num_Masters;
 
 /*=============================================================================== */
 /*====== AXI4 Lite slave declarations =======*/
-typedef  0	SlowMaster; 
-typedef	0	Uart0_slave_num	;
-typedef	 TAdd#(Uart0_slave_num		,`ifdef UART1 		1 `else 0 `endif )		Uart1_slave_num	;
-typedef  TAdd#(Uart1_slave_num		,`ifdef CLINT		1 `else 0 `endif )		CLINT_slave_num;
+
+typedef  0	SlowMaster_rd; 
+typedef  1  SlowMaster_wr;
+typedef  2  Num_Slow_Masters;
+typedef	0	Uart1_slave_num	;
+typedef	 TAdd#(Uart1_slave_num		,`ifdef UART0 		1 `else 0 `endif )		Uart0_slave_num	;
+typedef  TAdd#(Uart0_slave_num		,`ifdef CLINT		1 `else 0 `endif )		CLINT_slave_num;
 typedef	 TAdd#(CLINT_slave_num		,`ifdef PLIC		1 `else 0 `endif )		Plic_slave_num		;
 typedef  TAdd#(Plic_slave_num			,`ifdef PLIC 		1 `else 0 `endif )		GPIO_slave_num   ;
 typedef  TAdd#(GPIO_slave_num			,`ifdef I2C0 		1 `else 0 `endif )		I2c0_slave_num   ;

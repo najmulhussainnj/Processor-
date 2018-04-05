@@ -1,12 +1,35 @@
+/*
+Copyright (c) 2013, IIT Madras
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+*  Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+*  Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+*  Neither the name of IIT Madras  nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
+
 package slow_peripherals;
 	/*===== Project imports =====*/
 	import defined_types::*;
-	import AXI4_Lite_Fabric::*;
-	import AXI4_Lite_Types::*;
-	import AXI4_Fabric::*;
-	import AXI4_Types::*;
-	import Semi_FIFOF::*;
-	import AXI4Lite_AXI4_Bridge::*;
+	`ifdef TILELINK
+    	import Tilelink_lite_Types::*;
+    	import Tilelink_Types::*;
+    	import Tilelink::*;
+    	import Tilelink_lite ::*;
+    	import tilelink_addr_generator ::*;
+    	import Tilelink_heavy_lite_bridge ::*;
+	`else
+		import AXI4_Lite_Fabric::*;
+		import AXI4_Lite_Types::*;
+		import AXI4_Fabric::*;
+		import AXI4_Types::*;
+		import Semi_FIFOF::*;
+		import AXI4Lite_AXI4_Bridge::*;
+	`endif
 	`include "defined_parameters.bsv"
 	/*===========================*/
 	/*=== package imports ===*/
@@ -77,7 +100,12 @@ package slow_peripherals;
 		`endif
 	endinterface
 	interface Ifc_slow_peripherals;
-		interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
+		`ifdef TILELINK
+			interface Ifc_fabric_side_slave_link slave_ifc_wr;
+			interface Ifc_fabric_side_slave_link slave_ifc_rd;
+		`else
+			interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
+		`endif
 		interface SP_ios slow_ios;
 		`ifdef CLINT
 			method Bit#(1) msip_int;
@@ -93,7 +121,7 @@ package slow_peripherals;
 	endinterface
 	/*================================*/
 
-	function Tuple2#(Bool, Bit#(TLog#(Num_Slow_Slaves))) fn_address_mapping (Bit#(`PADDR) addr);
+	function Tuple2#(Bool, Bit#(TLog#(Num_Slow_Slaves))) fn_address_mapping (Opcode_lite command, Bit#(`PADDR) addr);
 		`ifdef UART0
 			if(addr>=`UART0Base && addr<=`UART0End)
 				return tuple2(True,fromInteger(valueOf(Uart0_slave_num)));
@@ -186,16 +214,22 @@ package slow_peripherals;
 		`endif
 		/*=======================================================*/
 
-   	AXI4_Lite_Fabric_IFC #(1, Num_Slow_Slaves, `PADDR, `Reg_width,`USERSPACE)	slow_fabric <- mkAXI4_Lite_Fabric(fn_address_mapping);
-		Ifc_AXI4Lite_AXI4_Bridge bridge	<-mkAXI4Lite_AXI4_Bridge(fast_clock,fast_reset);
-   	
-		mkConnection (bridge.axi4_lite_master,	slow_fabric.v_from_masters [0]);
+		`ifdef TILELINK
+			Tilelink_Fabric_IFC_lite#(Num_Slow_Masters, Num_Slow_Slaves,1) slow_fabric <- mkTilelinkLite(fn_address_mapping);
+			Ifc_Tilelink_Heavy_Lite_bridge bridge	<-mkTilelink_heavy_lite_bridge(fast_clock,fast_reset);
+			mkConnection (bridge.master_ifc_rd,	slow_fabric.v_from_masters [SlowMaster_rd]);
+			mkConnection (bridge.master_ifc_wr,	slow_fabric.v_from_masters [SlowMaster_wr]);
+		`else
+   			AXI4_Lite_Fabric_IFC #(1, Num_Slow_Slaves, `PADDR, `Reg_width,`USERSPACE)	slow_fabric <- mkAXI4_Lite_Fabric(fn_address_mapping);
+			Ifc_AXI4Lite_AXI4_Bridge bridge	<-mkAXI4Lite_AXI4_Bridge(fast_clock,fast_reset);
+			mkConnection (bridge.axi4_lite_master,	slow_fabric.v_from_masters [0]);
+		`endif
 		/*======= Slave connections to AXI4Lite fabric =========*/
 		`ifdef UART0
 			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Uart0_slave_num))],	uart0.slave_axi_uart);  
 		`endif
 		`ifdef UART1
-	   	mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Uart1_slave_num))],	uart1.slave_axi_uart); 
+	   	mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(Uart1_slave_num))],	uart1.slave_ifc); 
 		`endif
 		`ifdef CLINT
 			mkConnection (slow_fabric.v_to_slaves [fromInteger(valueOf(CLINT_slave_num))],clint.axi4_slave);
@@ -379,7 +413,12 @@ package slow_peripherals;
 			/*======================================================= */
 
 		/* ===== interface definition =======*/
-		interface axi_slave=bridge.axi_slave;
+		`ifdef TILELINK
+			interface  slave_ifc_wr=bridge.slave_ifc_wr;
+			interface  slave_ifc_rd=bridge.slave_ifc_rd;
+		`else
+			interface axi_slave=bridge.axi_slave;
+		`endif
 		`ifdef PLIC method intrpt_note = plic.intrpt_note; `endif
 		`ifdef CLINT
 			method msip_int=clint.msip_int;
