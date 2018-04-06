@@ -66,7 +66,8 @@ interface FlexBus_Master_IFC;
    // AD inout bus separate for now in BSV
    (* always_ready, result="AD"       *)  method Bit #(32)   m_AD;                                // out
 
-   (* always_ready, always_enabled    *)  method Action m_din ((* port="din" *) Bit #(32) din);   // in
+   //(* always_ready, always_enabled    *)  method Action m_din ((* port="din" *) Bit #(32) din);   // in
+   method Action m_din ((* port="din" *) Bit #(32) din);   // in
 
    (* always_ready, result="R_Wn"     *)  method Bit #(1)       m_R_Wn;                                   // out
    (* always_ready, result="TSIZ"     *)  method Bit #(2)       m_TSIZ;                                   // out
@@ -77,7 +78,8 @@ interface FlexBus_Master_IFC;
    (* always_ready, result="OEn"      *)  method Bit #(1)       m_OEn;                                    // out
 
    (* always_ready, result="ALE"      *)  method Bit #(1)       m_ALE;                                    // out
-   (* always_ready, always_enabled    *)  method Action m_TAn ((* port="TAn" *) Bit #(1) tAn);            // in
+   //(* always_ready, always_enabled    *)  method Action m_TAn ((* port="TAn" *) Bit #(1) tAn);            // in
+   method Action m_TAn ((* port="TAn" *) Bit #(1) tAn);            // in
 
 endinterface: FlexBus_Master_IFC
 

@@ -147,7 +147,7 @@ package Soc;
 			Ifc_vme_top             vme             <-mkvme_top();
 			`endif	
         `ifdef FlexBus
-            AXI4_Slave_to_FlexBus_Master_Xactor_IFC #(56, 64,10)
+            AXI4_Slave_to_FlexBus_Master_Xactor_IFC #(32, 64,0)
                                             flexbus <- mkAXI4_Slave_to_FlexBus_Master_Xactor;
         `endif
 		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, core_reset, uart_clock, 
@@ -253,11 +253,11 @@ package Soc;
 		`endif
 		/*======================================================================= */
 	
-        `ifdef Flexbus
-            rule drive_flexbus_inputs;
-               //flexbus_out.m_TAn(1'b1);
-               //flexbus_out.m_din(32'haaaaaaaa);
-            endrule
+        `ifdef FlexBus
+            //rule drive_flexbus_inputs;
+               //flexbus.flexbus_side.m_TAn(1'b1);
+               //flexbus.flexbus_side.m_din(32'haaaaaaaa);
+            //endrule
          `endif
 
 		`ifdef CLINT
