@@ -252,7 +252,7 @@ interface ifc_prog_reg = interface Ifc_program_registers;
 									end
 								end
 								//else if(address < 'h0C002000) begin
-								  else if(address<`PLICBase+2000)begin
+								  else if(address<`PLICBase+'h2000)begin
 									if(mem_req.ld_st == Load) begin
 										source_id = address[v_msb_priority:0];
 										source_id = source_id << 3;
@@ -269,7 +269,7 @@ interface ifc_prog_reg = interface Ifc_program_registers;
 									end
 								end
 								//else if(address < 'h0C020000) begin
-								  else if(address < `PLICBase+20000)begin
+								  else if(address < `PLICBase+'h20000)begin
 									if(mem_req.ld_st == Load) begin
 										source_id = address[v_msb_priority:0];
 										source_id = source_id << 3;
@@ -287,7 +287,7 @@ interface ifc_prog_reg = interface Ifc_program_registers;
 									end
 								end
 						//		else if(address == 'hC200000) begin
-								else if(address ==`PLICBase+200000)begin
+								else if(address ==`PLICBase+'h200000)begin
 									if(mem_req.ld_st == Load) begin
 										data_return = zeroExtend(rg_priority_threshold); 
 									end
@@ -295,7 +295,7 @@ interface ifc_prog_reg = interface Ifc_program_registers;
 										rg_priority_threshold <= mem_req.write_data[v_msb_priority:0];
 								end
 		 				//		else if(address == 'hC200004) begin
-								else if(address == `PLICBase+200004)begin
+								else if(address == `PLICBase+'h200004)begin
 									if(mem_req.ld_st == Load) begin
 										data_return = zeroExtend(rg_interrupt_id); 
 										rg_ip[rg_interrupt_id][1] <= False;
