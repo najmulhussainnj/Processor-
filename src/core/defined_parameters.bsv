@@ -431,6 +431,8 @@
 	`define TCMEnd			'h00040000 // 128KB
   `define VMEBase	'h40000000	
 	`define  VMEEnd  'h4FFFFFFF // 1GB
+    `define FlexBusBase 'h50000000
+    `define FlexBusEnd 'h5FFFFFFF
 	`define ClintBase		'h02000000
 	`define ClintEnd		'h020BFFFF 
 	`define SDRAMMemBase	'h80000000	

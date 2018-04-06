@@ -534,7 +534,8 @@ typedef  TAdd#(Debug_slave_num	 , `ifdef TCMemory	1 `else 0 `endif )		TCM_slave_
 typedef  TAdd#(TCM_slave_num	 ,`ifdef DMA			1 `else 0 `endif )	Dma_slave_num;
 typedef  TAdd#(Dma_slave_num	  ,1 )		SlowPeripheral_slave_num;
 typedef  TAdd#(SlowPeripheral_slave_num,`ifdef VME	1 `else 0 `endif )       VME_slave_num;
-typedef	TAdd#(VME_slave_num,1)						 Num_Slaves;
+typedef  TAdd#(VME_slave_num,`ifdef FlexBus	1 `else 0 `endif )              FlexBus_slave_num;
+typedef	TAdd#(FlexBus_slave_num,1)						 Num_Slaves;
 typedef 0 Dmem_master_num;
 typedef 1 Imem_master_num;
 typedef TAdd#(Imem_master_num , `ifdef Debug 1 `else 0 `endif ) Debug_master_num;

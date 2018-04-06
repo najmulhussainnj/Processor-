@@ -121,6 +121,13 @@ rule connect_boot;
 		endrule
 	`endif
 
+//	`ifdef Flexbus
+//		rule drive_flexbus_inputs;
+//           soc.flexbus_out.m_TAn(1'b1);
+//           soc.flexbus_out.m_din(32'haaaaaaaa);
+//		endrule
+//    `endif
+
 		`ifdef AXIEXP
 			mkConnection(soc.slow_ios.axiexp1_out,axiexpslave.from_slave);
 			mkConnection(axiexpslave.to_slave,soc.slow_ios.axiexp1_in);

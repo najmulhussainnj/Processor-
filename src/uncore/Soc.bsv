@@ -59,6 +59,9 @@ package Soc;
 `ifdef VME
 			import vme_master::*;
 `endif
+`ifdef FlexBus
+            import FlexBus_Types::*;
+`endif
 
 	/*========================= */
 	interface Ifc_Soc;
@@ -102,6 +105,9 @@ package Soc;
         		interface Vme_out  proc_ifc;
 			interface Data_bus_inf proc_dbus;
 		`endif
+        `ifdef FlexBus
+            interface FlexBus_Master_IFC flexbus_out;
+        `endif
 
 	endinterface
 	(*synthesize*)
@@ -140,6 +146,10 @@ package Soc;
 			`ifdef VME
 			Ifc_vme_top             vme             <-mkvme_top();
 			`endif	
+        `ifdef FlexBus
+            AXI4_Slave_to_FlexBus_Master_Xactor_IFC #(56, 64,10)
+                                            flexbus <- mkAXI4_Slave_to_FlexBus_Master_Xactor;
+        `endif
 		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, core_reset, uart_clock, 
           uart_reset, clocked_by slow_clock , reset_by slow_reset 
           `ifdef PWM_AXI4Lite , ext_pwm_clock `endif );	
@@ -181,6 +191,9 @@ package Soc;
 			mkConnection(fabric.v_to_slaves [fromInteger(valueOf(SlowPeripheral_slave_num))],slow_peripherals.axi_slave);
 			`ifdef VME
 				mkConnection (fabric.v_to_slaves[fromInteger(valueOf(VME_slave_num))],vme.slave_axi_vme);
+			`endif
+			`ifdef FlexBus
+				mkConnection (fabric.v_to_slaves[fromInteger(valueOf(FlexBus_slave_num))],flexbus.axi_side);
 			`endif
 			`ifdef DMA
 			//rule to connect all interrupt lines to the DMA
@@ -240,6 +253,13 @@ package Soc;
 		`endif
 		/*======================================================================= */
 	
+        `ifdef Flexbus
+            rule drive_flexbus_inputs;
+               //flexbus_out.m_TAn(1'b1);
+               //flexbus_out.m_din(32'haaaaaaaa);
+            endrule
+         `endif
+
 		`ifdef CLINT
 			SyncBitIfc#(Bit#(1)) clint_mtip_int <-mkSyncBitToCC(slow_clock,slow_reset);
 			SyncBitIfc#(Bit#(1)) clint_msip_int <-mkSyncBitToCC(slow_clock,slow_reset);
@@ -269,6 +289,9 @@ package Soc;
 		`ifdef VME
 			interface  proc_ifc = vme.proc_ifc;
 			interface   proc_dbus = vme.proc_dbus;
+		`endif 
+		`ifdef FlexBus
+            interface flexbus_out = flexbus.flexbus_side;
 		`endif 
       method Action boot_sequence(Bit#(1) bootseq) = core.boot_sequence(bootseq);
 		`ifdef SDRAM
