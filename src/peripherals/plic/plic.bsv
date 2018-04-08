@@ -13,6 +13,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 package plic;
 	import Vector::*;
+	import defined_parameters::*;
 	import defined_types::*;
 	import ConfigReg::*;
 	import Semi_FIFOF::*;
@@ -230,7 +231,8 @@ interface ifc_prog_reg = interface Ifc_program_registers;
 								let address = mem_req.address;
 								Bit#(priority_bits) source_id=0;
 								Bit#(data_width) data_return = 0;
-								if(address < 'h0C001000) begin
+//								if(address < 'h0C001000) begin
+								if (address < `PLICBase + 'h1000)begin
 									address = address >> 2;
 									if(mem_req.ld_st == Load) begin
 										source_id = address[v_msb_priority:0];
@@ -249,7 +251,8 @@ interface ifc_prog_reg = interface Ifc_program_registers;
 										rg_priority[source_id] <= store_data;
 									end
 								end
-								else if(address < 'h0C002000) begin
+								//else if(address < 'h0C002000) begin
+								  else if(address<`PLICBase+'h2000)begin
 									if(mem_req.ld_st == Load) begin
 										source_id = address[v_msb_priority:0];
 										source_id = source_id << 3;
@@ -265,7 +268,8 @@ interface ifc_prog_reg = interface Ifc_program_registers;
 										end
 									end
 								end
-								else if(address < 'h0C020000) begin
+								//else if(address < 'h0C020000) begin
+								  else if(address < `PLICBase+'h20000)begin
 									if(mem_req.ld_st == Load) begin
 										source_id = address[v_msb_priority:0];
 										source_id = source_id << 3;
@@ -282,14 +286,16 @@ interface ifc_prog_reg = interface Ifc_program_registers;
 										end
 									end
 								end
-								else if(address == 'hC200000) begin
+						//		else if(address == 'hC200000) begin
+								else if(address ==`PLICBase+'h200000)begin
 									if(mem_req.ld_st == Load) begin
 										data_return = zeroExtend(rg_priority_threshold); 
 									end
 									else if(mem_req.ld_st == Store)
 										rg_priority_threshold <= mem_req.write_data[v_msb_priority:0];
 								end
-								else if(address == 'hC200004) begin
+		 				//		else if(address == 'hC200004) begin
+								else if(address == `PLICBase+'h200004)begin
 									if(mem_req.ld_st == Load) begin
 										data_return = zeroExtend(rg_interrupt_id); 
 										rg_ip[rg_interrupt_id][1] <= False;
