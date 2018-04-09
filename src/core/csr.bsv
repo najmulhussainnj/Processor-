@@ -1010,10 +1010,10 @@ endfunction
     	      tagged Interrupt .interruptCause: (((csr_mideleg >> pack(interruptCause)) & 1) != 0);
     	   endcase);
 			if(delegToS)begin
-				if(exception matches tagged Exception .ex)
-					if(ex==Inst_addr_misaligned || ex==Inst_access_fault || ex==Inst_pagefault || ex==Illegal_inst 
-															|| ex==Load_access_fault || ex==Load_addr_misaligned || ex==Load_pagefault
-																			|| ex==Store_addr_misaligned || ex==Store_access_fault || ex==Store_pagefault)
+				//if(exception matches tagged Exception .ex)
+				//	if(ex==Inst_addr_misaligned || ex==Inst_access_fault || ex==Inst_pagefault || ex==Illegal_inst 
+				//											|| ex==Load_access_fault || ex==Load_addr_misaligned || ex==Load_pagefault
+				//															|| ex==Store_addr_misaligned || ex==Store_access_fault || ex==Store_pagefault)
 				csr_stval<=zeroExtend(badaddr);
 				csr_sepc<=signExtend(pc);
 				csr_scause<=cause;
