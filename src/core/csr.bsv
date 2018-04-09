@@ -956,7 +956,10 @@ endfunction
 				badaddr=pc;
 			else if(ex==Illegal_inst)
 				badaddr=0;
+      else badaddr=0;
 		end
+    else
+      badaddr=0;
 		`ifdef verbose $display($time,"\tTrap Type: ",fshow(exception)," debugcause: %d",lv_debugcause," BaddAddr: %h",badaddr);  `endif
 		`ifdef Debug
 		if(exception matches tagged Interrupt .in &&& in==DebugResume)begin
