@@ -1,14 +1,9 @@
-group_path -name INPUT  -from [remove_from_collection [all_inputs] CLK]  -to [all_registers]
-group_path -name IN2OUT -from [remove_from_collection [all_inputs] CLK]  -to [all_outputs]
-group_path -critical_range 500 -name OUTPUT -from [all_registers] -to [all_outputs]
-group_path -critical_range 500 -name REG2REG -weight 4 -from  [all_registers] -to   [all_registers]
-group_path -critical_range 500 -name REG2MEM -weight 4 \
-    -from [filter_collection [all_registers] "is_hard_macro != true"] \
-    -to   [filter_collection [all_registers] "is_hard_macro == true"]
-group_path -critical_range 500 -name MEM2REG -weight 4 \
-   -from [filter_collection [all_registers] "is_hard_macro == true"] \
-    -to   [filter_collection [all_registers] "is_hard_macro != true"]
-group_path -critical_range 500 -name MEM2MEM -weight 5 \
-    -from [filter_collection [all_registers] "is_hard_macro == true"] \
-   -to   [filter_collection [all_registers] "is_hard_macro == true"]
-
+set unq_input_list [all_inputs]
+foreach_in_collection unq_clock_element [all_clocks] {
+     set unq_clock_name [get_port  $unq_clock_element]
+     set unq_input_list [remove_from_collection $unq_input_list $unq_clock_name]
+}
+group_path -name f2f -from [all_registers]  -to [all_registers] -critical_range 0.7
+group_path -name i2f -from $unq_input_list -to [all_registers] -critical_range 0.7
+group_path -name f2o -from [all_registers]  -to [all_outputs]   -critical_range 0.7
+group_path -name i2o -from $unq_input_list -to [all_outputs]   -critical_range 0.7

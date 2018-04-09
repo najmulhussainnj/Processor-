@@ -4,7 +4,7 @@
 set compile_slack_driven_buffering true
 set_wire_load_mode enclosed
 #set compile_delete_unloaded_sequential_cells true
-#set compile_seqmap_propagate_constants true
+set compile_seqmap_propagate_constants true
 set dont_bind_unused_pins_to_logic_constant true
 set synlib_model_map_effort high
 set hdlin_enable_presto true
