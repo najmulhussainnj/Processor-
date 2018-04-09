@@ -707,9 +707,9 @@ module mkUART_transmitter(UART_transmitter_ifc);
   
   rule monitor_state_for_debug(last_tstate != tstate);
    
-    $write("%05t: UART TX state change ", $time);
-    $write(fshow(last_tstate));
-    $write(" -> ");
+    `ifdef verbose $write("%05t: UART TX state change ", $time); `endif
+    `ifdef verbose $write(fshow(last_tstate)); `endif
+    `ifdef verbose $write(" -> "); `endif
     `ifdef verbose $display(fshow(tstate)); `endif
     
     last_tstate <= tstate;
@@ -879,9 +879,9 @@ module mkUART_receiver(UART_receiver_ifc);
   
   rule monitor_state_for_debug(last_rstate != rstate);
     
-     $write("%05t: UART RX state change ", $time);
-    $write(fshow(last_rstate));
-    $write(" -> ");
+    `ifdef verbose $write("%05t: UART RX state change ", $time); `endif
+    `ifdef verbose $write(fshow(last_rstate)); `endif
+    `ifdef verbose $write(" -> "); `endif
     `ifdef verbose $display(fshow(rstate)); `endif
     
     last_rstate <= rstate;

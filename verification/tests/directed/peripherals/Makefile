@@ -42,6 +42,7 @@ smoketests.riscv: crt.o syscalls.shakti create_dir
 	@elf2hex 8 65536 $(SMOKE_OUT)/smoke.shakti 2147483648 > $(SMOKE_OUT)/code.mem
 	@cut -c1-8 $(SMOKE_OUT)/code.mem > $(SMOKE_OUT)/code.mem.MSB
 	@cut -c9-16 $(SMOKE_OUT)/code.mem > $(SMOKE_OUT)/code.mem.LSB
+	@echo "53" > ../../../../bin/i2c.mem
 
 
 i2c.riscv: crt.o syscalls.shakti create_dir

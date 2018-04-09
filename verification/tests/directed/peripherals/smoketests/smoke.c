@@ -10,6 +10,7 @@
 #include <unistd.h>
 #define DMA_INTERRUPTS (DMA_CCR_TEIE|DMA_CCR_HTIE|DMA_CCR_TCIE|DMA_CCR_EN)
 #define readbytes 2
+#define UART0
 void wait_for_dma_interrupt()
 {
     printf("\t Waiting for DMA interrupt ISR value: %08x\n",*dma_isr);
@@ -37,7 +38,7 @@ int main(){
 //------------------------------------------------------------------
     char writebuf1[2] = {0,0};
     char readbuf[readbytes];
-	int slaveaddr = 160; 
+  int slaveaddr = 160; 
     if(shakti_init_i2c())	
     { 
         printf("\tInitialization Failed\n"); 
@@ -55,22 +56,22 @@ int main(){
     { 
         printf("\twaiting for pin\n");
     } 
-	if(shakti_sendbytes(writebuf1, 2, 0,0)!=2) 
+  if(shakti_sendbytes(writebuf1, 2, 0,0)!=2) 
     { 
         printf("\tSomething wrong in sending bytes to write -- Diagnose\n"); 
         return 0;
     }
-	while(wait_for_pin(&status)) 
+  while(wait_for_pin(&status)) 
     { 
         printf("\twaiting for pin-2\n");
     } 
-	set_i2c_shakti(i2c_data,slaveaddr + 1); //After repeated start
+  set_i2c_shakti(i2c_data,slaveaddr + 1); //After repeated start
     
-	while(wait_for_pin(&status)) 
+  while(wait_for_pin(&status)) 
     { 
         printf("\twaiting for pin-3\n");
     } 			
-	if(shakti_readbytes(readbuf, readbytes, 1)!= readbytes) 
+  if(shakti_readbytes(readbuf, readbytes, 1)!= readbytes) 
     { 
         printf("\tSomething wrong in reading bytes\n -- Diagnose"); 
         return 0;
@@ -81,8 +82,9 @@ int main(){
 // Test-2 QSPI Single R/W
 //------------------------------------------------------------------
     int i = 0, write_address = 0x0, ar_read = 0;
-    char write_data[4] = {'T','E','S','T'};
-    char read_data;
+    //char write_data[4] = {'T','E','S','T'};
+    int write_data[4] = {0x05050505,0x00FFFF00,0x012F2F01,0x12343412};
+    int read_data;
     qspi_init(27,0,3,1,15);
     waitfor(500);
     if(cypressflashIdentification()){
@@ -93,14 +95,14 @@ int main(){
     else
        printf("\t Erase Completed Successfully \n");
     
-    CypressPageProgram(write_data[3], write_data[2], write_data[1], write_data[0], write_address); 
+    CypressPageProgram(write_data[0], write_data[1], write_data[2], write_data[3], write_address); 
 
     for(i=0;i<4;++i){
         read_data = CypressReadSingleSPI(ar_read, 0x4);
         waitfor(100);
         ar_read+=4;
         if(read_data != write_data[i])
-            printf("\tQSPI test Failed\n");
+            printf("\tQSPI test Failed %08x\n", read_data);
     }
 //------------------------------------------------------------------
 // Test-3 DMA Simple Transaction test
@@ -113,9 +115,9 @@ int main(){
         *(a+i)=dma_data[i];
     }
     __asm__("fence\n\t");
-	*dma_cndtr3= 0x0A;
-	*dma_cmar3= a;
-	*dma_cpar3= b;
+  	*dma_cndtr3= 0x0A;
+  	*dma_cmar3= a;
+  	*dma_cpar3= b;
     *dma_ccr3= (DMA_CCR_BURST_LEN(10)|DMA_CCR_MEM2MEM|DMA_CCR_PL(2)|DMA_CCR_MSIZE(DMA_FOURBYTE)|DMA_CCR_PSIZE(DMA_FOURBYTE)|DMA_CCR_MINC|DMA_CCR_PINC|DMA_CCR_DIR|DMA_INTERRUPTS);
     printf("\t DMA_CCR3 value: %08x\n",*dma_ccr3);
     wait_for_dma_interrupt();
