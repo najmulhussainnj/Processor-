@@ -32,9 +32,9 @@ package BootRom;
 
 interface BootRom_IFC;
 	`ifdef TILELINK
-		interface Ifc_fabric_side_slave_link slave_ifc;
+		interface Ifc_fabric_side_slave_link#(`PADDR,`Reg_width, 4) slave_ifc;
 	`else
-		interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) slave_ifc;
+		interface AXI4_Slave_IFC#(`paddr,`reg_width,`userspace) slave_ifc;
 	`endif
 endinterface
 typedef enum{Idle,HandleBurst} Mem_state deriving(Bits,Eq);
@@ -47,7 +47,7 @@ module mkBootRom (BootRom_IFC);
 	BRAM_PORT#(Bit#(13),Bit#(32)) dmemLSB <- mkBRAMCore1Load(valueOf(TExp#(13)),False,"boot.LSB",False);
 
 	`ifdef TILELINK
-		Ifc_Slave_link s_xactor <- mkSlaveXactor(True, True);
+		Ifc_Slave_link#(`PADDR,`Reg_width, 4) s_xactor <- mkSlaveXactor(True, True);
 	`else
 		AXI4_Slave_Xactor_IFC #(`PADDR, `Reg_width, `USERSPACE)  s_xactor <- mkAXI4_Slave_Xactor;
 	`endif
@@ -58,7 +58,7 @@ module mkBootRom (BootRom_IFC);
 
 	`ifdef TILELINK
 
-		Reg#(A_channel) rg_read_packet <-mkReg(?);
+		Reg#(A_channel#(`PADDR,`Reg_width, 4)) rg_read_packet <-mkReg(?);
 		Reg#(Bit#(12)) rg_readburst_counter<-mkReg(0);
 	
 	`else
@@ -114,7 +114,7 @@ module mkBootRom (BootRom_IFC);
 			let address = rg_read_packet.a_address;
 			let mask = rg_read_packet.a_mask;
 			let {transfer_size, addr} = burst_address_generator(ar.a_opcode, mask, address, ar.a_size);	
-				D_channel r = D_channel {d_opcode : AccessAckData, d_param : 0, d_size: transfer_size, d_source : ar.a_source,
+			let r = D_channel {d_opcode : AccessAckData, d_param : 0, d_size: transfer_size, d_source : ar.a_source,
 				                                                                         d_data : data0,  d_error: False}; 
         	Bit#(TMul#(`LANE_WIDTH,2)) mask_double = zeroExtend(mask);
         	mask_double = mask_double << transfer_size;

@@ -22,6 +22,7 @@ package slow_peripherals;
     	import Tilelink_lite ::*;
     	import tilelink_addr_generator ::*;
     	import Tilelink_heavy_lite_bridge ::*;
+		import TLMemoryMap ::*;
 	`else
 		import AXI4_Lite_Fabric::*;
 		import AXI4_Lite_Types::*;
@@ -101,8 +102,8 @@ package slow_peripherals;
 	endinterface
 	interface Ifc_slow_peripherals;
 		`ifdef TILELINK
-			interface Ifc_fabric_side_slave_link slave_ifc_wr;
-			interface Ifc_fabric_side_slave_link slave_ifc_rd;
+			interface Ifc_fabric_side_slave_link#(`PADDR, `Reg_width, 4) slave_ifc_wr;
+			interface Ifc_fabric_side_slave_link#(`PADDR, `Reg_width, 4) slave_ifc_rd;
 		`else
 			interface AXI4_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) axi_slave;
 		`endif
@@ -120,61 +121,6 @@ package slow_peripherals;
 		`ifdef UART0 method Bit#(1) uart0_intr; `endif
 	endinterface
 	/*================================*/
-
-	function Tuple2#(Bool, Bit#(TLog#(Num_Slow_Slaves))) fn_address_mapping (Opcode_lite command, Bit#(`PADDR) addr);
-		`ifdef UART0
-			if(addr>=`UART0Base && addr<=`UART0End)
-				return tuple2(True,fromInteger(valueOf(Uart0_slave_num)));
-			else
-		`endif
-		`ifdef UART1
-			if(addr>=`UART1Base && addr<=`UART1End)
-				return tuple2(True,fromInteger(valueOf(Uart1_slave_num)));
-			else
-		`endif
-		`ifdef CLINT
-			if(addr>=`ClintBase && addr<=`ClintEnd)
-				return tuple2(True,fromInteger(valueOf(CLINT_slave_num)));
-			else
-		`endif
-		`ifdef PLIC
-			if(addr>=`PLICBase && addr<=`PLICEnd)
-				return tuple2(True,fromInteger(valueOf(Plic_slave_num)));
-			else if(addr>=`GPIOBase && addr<=`GPIOEnd)
-				return tuple2(True,fromInteger(valueOf(GPIO_slave_num)));
-			else
-		`endif
-		`ifdef I2C0
-			if(addr>=`I2C0Base && addr<=`I2C0End)	
-				return tuple2(True,fromInteger(valueOf(I2c0_slave_num)));
-			else
-		`endif
-		`ifdef I2C1
-			if(addr>=`I2C1Base && addr<=`I2C1End)
-				return tuple2(True,fromInteger(valueOf(I2c1_slave_num)));
-			else
-		`endif
-		`ifdef QSPI0
-			if(addr>=`QSPI0CfgBase && addr<=`QSPI0CfgEnd)
-				return tuple2(True,fromInteger(valueOf(Qspi0_slave_num)));
-			else if(addr>=`QSPI0MemBase && addr<=`QSPI0MemEnd)
-				return tuple2(True,fromInteger(valueOf(Qspi0_slave_num)));
-			else
-		`endif
-		`ifdef QSPI1
-			if(addr>=`QSPI1CfgBase && addr<=`QSPI1CfgEnd)
-				return tuple2(True,fromInteger(valueOf(Qspi1_slave_num)));
-			else if(addr>=`QSPI1MemBase && addr<=`QSPI1MemEnd)
-				return tuple2(True,fromInteger(valueOf(Qspi1_slave_num)));
-			else
-		`endif
-		`ifdef AXIEXP
-			if(addr>=`AxiExp1Base && addr<=`AxiExp1End)
-				return tuple2(True,fromInteger(valueOf(AxiExp1_slave_num)));
-			else
-		`endif
-		return tuple2(False,?);
-	endfunction
 
 	(*synthesize*)
 	module mkslow_peripherals#(Clock fast_clock, Reset fast_reset, Clock uart_clock, Reset uart_reset)(Ifc_slow_peripherals);
@@ -215,10 +161,22 @@ package slow_peripherals;
 		/*=======================================================*/
 
 		`ifdef TILELINK
-			Tilelink_Fabric_IFC_lite#(Num_Slow_Masters, Num_Slow_Slaves,1) slow_fabric <- mkTilelinkLite(fn_address_mapping);
+			Vector#(Num_Slow_Slaves, Bit#(Num_Slow_Masters)) master_route;
+			master_route[valueOf(Uart0_slave_num)]                           = truncate(5'b11011);
+			`ifdef UART0 master_route[valueOf(Uart1_slave_num)]              = truncate(5'b11011); 	`endif
+			`ifdef CLINT master_route[valueOf(CLINT_slave_num)]              = truncate(5'b01011);  `endif
+			`ifdef PLIC  master_route[valueOf(Plic_slave_num)]               = truncate(5'b01011);  `endif
+			`ifdef I2C0  master_route[valueOf(I2c0_slave_num)]               = truncate(5'b11011);  `endif
+			`ifdef I2C1  master_route[valueOf(I2c1_slave_num)]               = truncate(5'b11011);  `endif
+			`ifdef QSPI0 master_route[valueOf(Qspi0_slave_num)]              = truncate(5'b11011);  `endif
+			`ifdef QSPI1 master_route[valueOf(Qspi1_slave_num)]              = truncate(5'b11011);  `endif
+			`ifdef AXIEXP master_route[valueOf(AxiExp1_slave_num)]           = truncate(5'b11011);  `endif
+
+			Tilelink_Fabric_IFC_lite#(Num_Slow_Masters, Num_Slow_Slaves, `PADDR, `Reg_width, 2) 
+										slow_fabric <- mkTilelinkLite(fn_address_mapping, master_route);
 			Ifc_Tilelink_Heavy_Lite_bridge bridge	<-mkTilelink_heavy_lite_bridge(fast_clock,fast_reset);
-			mkConnection (bridge.master_ifc_rd,	slow_fabric.v_from_masters [SlowMaster_rd]);
-			mkConnection (bridge.master_ifc_wr,	slow_fabric.v_from_masters [SlowMaster_wr]);
+			mkConnection (bridge.master_ifc_rd,	slow_fabric.v_from_masters [valueOf(SlowMaster_rd)]);
+			mkConnection (bridge.master_ifc_wr,	slow_fabric.v_from_masters [valueOf(SlowMaster_wr)]);
 		`else
    			AXI4_Lite_Fabric_IFC #(1, Num_Slow_Slaves, `PADDR, `Reg_width,`USERSPACE)	slow_fabric <- mkAXI4_Lite_Fabric(fn_address_mapping);
 			Ifc_AXI4Lite_AXI4_Bridge bridge	<-mkAXI4Lite_AXI4_Bridge(fast_clock,fast_reset);

@@ -14,7 +14,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 package Tilelink;
 
 import Tilelink_Types ::*;
-import defined_types ::*;
+//import defined_types ::*;
 import Vector ::*;
 import GetPut ::*;
 
@@ -22,70 +22,48 @@ import GetPut ::*;
 
 
 
-interface Ifc_Master_tile;
-   interface Put#(A_channel_control) xactor_request_c_master;
-   interface Put#(A_channel_data) xactor_request_d_master;
-   interface Get#(D_channel) xactor_response_master;
+interface Ifc_Master_tile#(numeric type a, numeric type w, numeric type z);
+   interface Put#(A_channel_control#(a,z)) xactor_request_c_master;
+   interface Put#(A_channel_data#(w)) xactor_request_d_master;
+   interface Get#(D_channel#(w,z)) xactor_response_master;
 endinterface
 
-interface Ifc_Slave_tile;
-   interface Get#(A_channel) xactor_request_to_slave;
-   interface Put#(D_channel) xactor_response_to_slave;
+interface Ifc_Slave_tile#(numeric type a, numeric type w, numeric type z);
+   interface Get#(A_channel#(a,w,z)) xactor_request_to_slave;
+   interface Put#(D_channel#(w,z)) xactor_response_to_slave;
 endinterface
 
 // ================================================================
 // The interface for the fabric module
 
 interface Tilelink_Fabric_IFC #(numeric type num_masters,
-				 numeric type num_slaves, numeric type route);
+				 				numeric type num_slaves, 
+								numeric type a,
+								numeric type w,
+								numeric type z);
 				 
    method Action reset;
    method Action set_verbosity (Bit #(4) verbosity);
 
    // From masters
-   interface Vector #(num_masters, Ifc_master_tilelink_core_side)  v_from_masters;
+   interface Vector #(num_masters, Ifc_master_tilelink_core_side#(a,w,z))  v_from_masters;
 
    // To slaves
-   interface Vector #(num_slaves,  Ifc_slave_tilelink_core_side) v_to_slaves;
+   interface Vector #(num_slaves,  Ifc_slave_tilelink_core_side#(a,w,z)) v_to_slaves;
 endinterface
 
-module mkTilelink#(function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) 
-				fn_addr_to_slave_num(Opcode command, Bit#(`PADDR) addr))(Tilelink_Fabric_IFC#(Num_Masters, Num_Slaves, route));
+module mkTilelink#(function Tuple2 #(Bool, Bit#(TLog#(num_slaves))) 
+				fn_addr_to_slave_num(Opcode command, Bit#(a) addr), 
+				   Vector#(num_slaves, Bit#(num_masters)) master_route)
+				(Tilelink_Fabric_IFC#(num_masters, num_slaves, a, w, z));
 
-Vector#(Num_Slaves, Bit#(Num_Masters)) master_route; 
-//The "master_route" variable indicates a matrix where columns are the masters and rows are slaves. 
-													// encoding -----> DMA[4], Debug[3], IMEM[2], DMEM write[1], DMEM read[0]  
-
-if(valueOf(route)==0) begin
-	master_route[valueOf(Sdram_slave_num)]        			  	 = truncate(5'b11101);
-	master_route[valueOf(Sdram_slave_num_wr)]           		 = truncate(5'b11010);
-	`ifdef SDRAM master_route[valueOf(Sdram_cfg_slave_num)]      = truncate(5'b11011); `endif
-	`ifdef TCM master_route[valueOf(TCM_slave_num)]              = truncate(5'b11111); `endif
-	`ifdef BOOTROM master_route[valueOf(BootRom_slave_num)]      = truncate(5'b11101); `endif
-	`ifdef DEBUG master_route[valueOf(Debug_slave_num)]          = truncate(5'b11111); `endif
-	`ifdef DMA master_route[valueOf(Dma_slave_num)]              = truncate(5'b11011); `endif
-     master_route[valueOf(SlowPeripheral_slave_num_rd)]  		 = truncate(5'b11101);
-     master_route[valueOf(SlowPeripheral_slave_num_wr)]  		 = truncate(5'b11010);
-
-end
-else begin
-	master_route[valueOf(Uart0_slave_num)]                           = truncate(5'b11011);
-	`ifdef UART0 master_route[valueOf(Uart1_slave_num)]              = truncate(5'b11011); 	`endif
-	`ifdef CLINT master_route[valueOf(CLINT_slave_num)]              = truncate(5'b01011);  `endif
-	`ifdef PLIC  master_route[valueOf(Plic_slave_num)]               = truncate(5'b01011);  `endif
-	`ifdef I2C0  master_route[valueOf(I2c0_slave_num)]               = truncate(5'b11011);  `endif
-	`ifdef I2C1  master_route[valueOf(I2c1_slave_num)]               = truncate(5'b11011);  `endif
-	`ifdef QSPI0 master_route[valueOf(Qspi0_slave_num)]              = truncate(5'b11011);  `endif
-	`ifdef QSPI1 master_route[valueOf(Qspi1_slave_num)]              = truncate(5'b11011);  `endif
-	`ifdef AXIEXP master_route[valueOf(AxiExp1_slave_num)]           = truncate(5'b11011);  `endif
-end
 
 	// Transactors facing masters
-	Vector #(Num_Masters,  Ifc_Master_tilelink)
+	Vector #(num_masters,  Ifc_Master_tilelink#(a,w,z))
 	   xactors_masters <- replicateM (mkMasterFabric);
 
 	// Transactors facing slaves
-	Vector #(Num_Slaves,   Ifc_Slave_tilelink)
+	Vector #(num_slaves,   Ifc_Slave_tilelink#(a,w,z))
 	    xactors_slaves    <- replicateM (mkSlaveFabric);
 
 	function Bool fn_route_to_slave(Integer mj, Integer sj);
@@ -101,9 +79,9 @@ end
 	//the packet is exchanged. In addition the route must valid. 
 
 	//The slave destination is determined by address map function
-	for(Integer s = 0; s < valueOf(Num_Slaves); s = s+1) begin
-		for(Integer m =0; m <valueOf(Num_Masters); m = m+1) begin
-		if(master_route[s][m]==1) begin
+	for(Integer s = 0; s < valueOf(num_slaves); s = s+1) begin
+		for(Integer m =0; m <valueOf(num_masters); m = m+1) begin
+		if(unpack(master_route[s][m])) begin
 			rule rl_fabric_requests(fn_route_to_slave(m, s) && xactors_masters[m].fabric_side_request.fabric_a_channel_valid
 															&& xactors_slaves[s].fabric_side_request.fabric_a_channel_ready);
 				let req = xactors_masters[m].fabric_side_request.fabric_a_channel; 
@@ -117,9 +95,9 @@ end
 	end
 
 	//The master destination is determined by the signal in the D channel - d_source
-	for(Integer m = 0; m < valueOf(Num_Masters); m = m+1) begin
+	for(Integer m = 0; m < valueOf(num_masters); m = m+1) begin
 		Rules rl_to_master = emptyRules();
-		for(Integer s = 0; s < valueOf(Num_Slaves); s = s+1) begin
+		for(Integer s = 0; s < valueOf(num_slaves); s = s+1) begin
 			Rules rs_to_master = (rules
 			rule rl_fabric_responses(xactors_slaves[s].fabric_side_response.fabric_d_channel.d_source==fromInteger(m)
 									 	&&	xactors_slaves[s].fabric_side_response.fabric_d_channel_valid);
@@ -137,17 +115,17 @@ end
 		addRules(rl_to_master);
 	end
 
-   Vector #(num_masters, Ifc_master_tilelink_core_side)  temp_v_from_masters;
+   Vector #(num_masters, Ifc_master_tilelink_core_side#(a,w,z))  temp_v_from_masters;
 
-   Vector #(num_slaves,  Ifc_slave_tilelink_core_side) temp_v_to_slaves;
+   Vector #(num_slaves,  Ifc_slave_tilelink_core_side#(a,w,z)) temp_v_to_slaves;
 
-	for(Integer m=0; m < valueOf(Num_Masters); m=m+1) begin 
+	for(Integer m=0; m < valueOf(num_masters); m=m+1) begin 
 
 		temp_v_from_masters[m] = xactors_masters[m].v_from_masters;
 
 	end
 
-	for(Integer s=0; s < valueOf(Num_Slaves); s=s+1) begin
+	for(Integer s=0; s < valueOf(num_slaves); s=s+1) begin
 
 		temp_v_to_slaves[s] = xactors_slaves[s].v_to_slaves;
 

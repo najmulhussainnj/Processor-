@@ -15,6 +15,8 @@ package TLMemoryMap;
 	/*=== Project imports ==== */
 	import defined_types::*;
 	import Tilelink_Types::*;
+	import Tilelink_lite_Types ::*;
+	import Vector :: *;
 	`include "defined_parameters.bsv"
 	/*========================= */
 
@@ -53,7 +55,7 @@ function Tuple2 #(Bool, Bit#(TLog#(Num_Slaves))) fn_addr_to_slave_num  (Opcode c
 		return tuple2(False,?);
 endfunction
 
-function Tuple2#(Bool, Bit#(TLog#(Num_Slow_Slaves))) fn_address_mapping_slow_perif (Bit#(`PADDR) addr);
+function Tuple2#(Bool, Bit#(TLog#(Num_Slow_Slaves))) fn_address_mapping (Opcode_lite command, Bit#(`PADDR) addr);
     `ifdef UART0
         if(addr>=`UART0Base && addr<=`UART0End)
             return tuple2(True,fromInteger(valueOf(Uart0_slave_num)));
@@ -126,5 +128,4 @@ function Bool is_IO_Addr(Bit#(`PADDR) addr); // TODO Shuold be PADDR
 			return True;
 endfunction
 
-	
 endpackage

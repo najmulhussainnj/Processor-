@@ -151,7 +151,18 @@ package Soc;
 		Ifc_slow_peripherals slow_peripherals <-mkslow_peripherals(core_clock, core_reset, uart_clock, uart_reset, clocked_by slow_clock , reset_by slow_reset);	
 
 	`ifdef TILELINK
-		Tilelink_Fabric_IFC#(Num_Masters, Num_Slaves, 0) fabric <- mkTilelink(fn_addr_to_slave_num);
+		Vector#(Num_Slaves, Bit#(Num_Masters)) master_route;
+		master_route[valueOf(Sdram_slave_num)]        			  	 = truncate(5'b11101);
+		master_route[valueOf(Sdram_slave_num_wr)]           		 = truncate(5'b11010);
+		`ifdef SDRAM master_route[valueOf(Sdram_cfg_slave_num)]      = truncate(5'b11011); `endif
+		`ifdef TCM master_route[valueOf(TCM_slave_num)]              = truncate(5'b11111); `endif
+		`ifdef BOOTROM master_route[valueOf(BootRom_slave_num)]      = truncate(5'b11101); `endif
+		`ifdef DEBUG master_route[valueOf(Debug_slave_num)]          = truncate(5'b11111); `endif
+		`ifdef DMA master_route[valueOf(Dma_slave_num)]              = truncate(5'b11011); `endif
+	    master_route[valueOf(SlowPeripheral_slave_num_rd)]  		 = truncate(5'b11101);
+	    master_route[valueOf(SlowPeripheral_slave_num_wr)]  		 = truncate(5'b11010);
+	
+		Tilelink_Fabric_IFC#(Num_Masters, Num_Slaves, `PADDR, `Reg_width, 4) fabric <- mkTilelink(fn_addr_to_slave_num, master_route);
    		mkConnection (core.dmem_master_rd,	fabric.v_from_masters [fromInteger(valueOf(Dmem_master_num_rd))]);
    		mkConnection (core.dmem_master_wr,	fabric.v_from_masters [fromInteger(valueOf(Dmem_master_num))]);
    		mkConnection (core.imem_master,	fabric.v_from_masters [fromInteger(valueOf(Imem_master_num))]);

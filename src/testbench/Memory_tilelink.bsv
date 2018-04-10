@@ -34,8 +34,8 @@ package Memory_tilelink;
 	//	interface  Get#(D_channel) rd_mem_slave_xactor_resp;
 	//endinterface
 	interface Memory_IFC#(numeric type base_address, numeric type mem_size);
-		interface Ifc_fabric_side_slave_link main_mem_wr_slave;
-		interface Ifc_fabric_side_slave_link main_mem_rd_slave;
+		interface Ifc_fabric_side_slave_link#(`PADDR, `Reg_width, 4) main_mem_wr_slave;
+		interface Ifc_fabric_side_slave_link#(`PADDR, `Reg_width, 4) main_mem_rd_slave;
 	endinterface
 	typedef enum{Idle,HandleBurst} Mem_state deriving(Bits,Eq);
 	module mkMemory #(parameter String mem_init_file1 `ifdef RV64 , parameter String mem_init_file2 `endif  ,parameter String module_name) (Memory_IFC#(base_address,mem_size));
@@ -43,14 +43,14 @@ package Memory_tilelink;
 		BRAM_DUAL_PORT_BE#(Bit#(TSub#(mem_size,2)),Bit#(32),4) dmemMSB <- mkBRAMCore2BELoad(valueOf(TExp#(TSub#(mem_size,2))),False,mem_init_file1,False);
 		BRAM_DUAL_PORT_BE#(Bit#(TSub#(mem_size,2)),Bit#(32),4) dmemLSB <- mkBRAMCore2BELoad(valueOf(TExp#(TSub#(mem_size,2))),False,mem_init_file2,False);
 	
-		Ifc_Slave_link  wr_s_xactor <- mkSlaveXactor(True, True);
-		Ifc_Slave_link  rd_s_xactor <- mkSlaveXactor(True, True);
+		Ifc_Slave_link#(`PADDR, `Reg_width, 4)  wr_s_xactor <- mkSlaveXactor(True, True);
+		Ifc_Slave_link#(`PADDR, `Reg_width, 4)  rd_s_xactor <- mkSlaveXactor(True, True);
 	
 		Reg#(Mem_state) rd_state <-mkReg(Idle);
 		Reg#(Mem_state) wr_state <-mkReg(Idle);
 		Reg#(Bit#(12)) rg_readburst_counter<-mkReg(0);
 		Reg#(Bit#(12)) rg_wr_burst_counter<-mkReg(0);
-		Reg#(A_channel) rg_read_packet <-mkReg(?);														   // hold the read packet during bursts
+		Reg#(A_channel#(`PADDR, `Reg_width, 4)) rg_read_packet <-mkReg(?);														   // hold the read packet during bursts
 		Reg#(Bit#(`PADDR)) rg_write_packet<-mkReg(?); // hold the write packer during bursts
 	
 		rule rl_wr_respond(wr_state==Idle);
@@ -115,7 +115,7 @@ package Memory_tilelink;
 			let mask = ar.a_mask;
 			let addr = ar.a_address;
 			let {size, address} = burst_address_generator(ar.a_opcode, mask, addr, ar.a_size);	
-	       	D_channel r = D_channel {d_opcode : AccessAckData, d_param : 0, d_size: size, d_source : ar.a_source, 
+	       	let r = D_channel {d_opcode : AccessAckData, d_param : 0, d_size: size, d_source : ar.a_source, 
 																		d_data : data0,  d_error: False};
 			Bit#(TMul#(`LANE_WIDTH,2)) mask_double = zeroExtend(mask);
 			mask_double = mask_double << size;

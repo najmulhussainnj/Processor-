@@ -36,7 +36,7 @@ package Uart_bs;
 
 	interface Ifc_Uart_bs;
 		`ifdef TILELINK
-			interface Ifc_fabric_side_slave_link_lite slave_ifc;
+			interface Ifc_fabric_side_slave_link_lite#(`PADDR,`Reg_width, 2) slave_ifc;
 		`else
   			interface AXI4_Lite_Slave_IFC#(`PADDR,`Reg_width,`USERSPACE) slave_ifc;
 		`endif
@@ -52,9 +52,9 @@ package Uart_bs;
 		Reg#(Bit#(4)) rg_status <-mkReg(0);		//This register keeps track of whether some data
 		UART#(`Depth) uart <-mkUART(8,NONE,STOP_1,baud_value); // charasize,Parity,Stop Bits,BaudDIV
 		`ifdef TILELINK
-			Ifc_Slave_link_lite  s_xactor <- mkSlaveXactorLite(True, True, clocked_by core_clock, reset_by core_reset);
-			SyncFIFOIfc#(A_channel_lite)		ff_addr <-	mkSyncFIFOToCC(1,core_clock,core_reset);
-			SyncFIFOIfc#(D_channel_lite)	ff_resp <-	mkSyncFIFOFromCC(1,core_clock);
+			Ifc_Slave_link_lite#(`PADDR,`Reg_width, 2)  s_xactor <- mkSlaveXactorLite(True, True, clocked_by core_clock, reset_by core_reset);
+			SyncFIFOIfc#(A_channel_lite#(`PADDR,`Reg_width, 2))		ff_addr <-	mkSyncFIFOToCC(1,core_clock,core_reset);
+			SyncFIFOIfc#(D_channel_lite#(`Reg_width, 2))	ff_resp <-	mkSyncFIFOFromCC(1,core_clock);
 		`else
 			AXI4_Lite_Slave_Xactor_IFC #(`PADDR,`Reg_width,`USERSPACE)  s_xactor <- mkAXI4_Lite_Slave_Xactor(clocked_by core_clock, reset_by core_reset);
 			SyncFIFOIfc#(AXI4_Lite_Rd_Addr	#(`PADDR,`USERSPACE))		ff_rd_addr <-	mkSyncFIFOToCC(1,core_clock,core_reset);
@@ -73,7 +73,7 @@ package Uart_bs;
 
 			//Address 'h11304 is uart read data
 			rule rl_handle_uart_read(ff_addr.notEmpty && ff_addr.first.a_address[3:2]=='d1 &&
-															(ff_addr.first.a_opcode==GetWrap || ff_addr.first.a_opcode==Get_data));
+															(ff_addr.first.a_opcode==Get_data));
 				let req = ff_addr.first;
 				ff_addr.deq;
 				`ifdef verbose $display($time,"\tReq: RD_ADDR %h", req.a_address); `endif
@@ -86,7 +86,7 @@ package Uart_bs;
 
 			//Address 'b11308 is uart read status
 			rule rl_handle_uart_status(ff_addr.notEmpty && ff_addr.first.a_address[3:2]!='d1 &&
-															(ff_addr.first.a_opcode==GetWrap || ff_addr.first.a_opcode==Get_data));
+															(ff_addr.first.a_opcode==Get_data));
 				let req =ff_addr.first;
 				ff_addr.deq;
 				`ifdef verbose $display($time,"\tReq: RD_ADDR %h", req.a_address); `endif

@@ -27,20 +27,20 @@ package Tilelink_heavy_lite_bridge;
 	/*=======================*/
 
 	interface Ifc_Tilelink_Heavy_Lite_bridge;
-		interface Ifc_fabric_side_slave_link slave_ifc_wr;
-		interface Ifc_fabric_side_slave_link slave_ifc_rd;
-		interface Ifc_fabric_side_master_link_lite master_ifc_rd;
-		interface Ifc_fabric_side_master_link_lite master_ifc_wr;
+		interface Ifc_fabric_side_slave_link#(`PADDR, `Reg_width, 4) slave_ifc_wr;
+		interface Ifc_fabric_side_slave_link#(`PADDR, `Reg_width, 4) slave_ifc_rd;
+		interface Ifc_fabric_side_master_link_lite#(`PADDR, `Reg_width, 2) master_ifc_rd;
+		interface Ifc_fabric_side_master_link_lite#(`PADDR, `Reg_width, 2) master_ifc_wr;
 	endinterface
 
 	typedef enum {RegularReq,BurstReq} BridgeState deriving (Bits,Eq,FShow);
 
 	(*synthesize*)
 	module mkTilelink_heavy_lite_bridge#(Clock fast_clock, Reset fast_reset)(Ifc_Tilelink_Heavy_Lite_bridge);
-		Ifc_Slave_link  wr_s_xactor <- mkSlaveXactor(clocked_by fast_clock, reset_by fast_reset, True, True);
-        Ifc_Slave_link  rd_s_xactor <- mkSlaveXactor(clocked_by fast_clock, reset_by fast_reset, True, True);
-        Ifc_Master_link_lite rd_m_xactor <- mkMasterXactorLite(True, True);
-        Ifc_Master_link_lite wr_m_xactor <- mkMasterXactorLite(True, True);
+		Ifc_Slave_link#(`PADDR, `Reg_width, 4)  wr_s_xactor <- mkSlaveXactor(clocked_by fast_clock, reset_by fast_reset, True, True);
+        Ifc_Slave_link#(`PADDR, `Reg_width, 4) rd_s_xactor <- mkSlaveXactor(clocked_by fast_clock, reset_by fast_reset, True, True);
+        Ifc_Master_link_lite#(`PADDR, `Reg_width, 2) rd_m_xactor <- mkMasterXactorLite(True, True);
+        Ifc_Master_link_lite#(`PADDR, `Reg_width, 2) wr_m_xactor <- mkMasterXactorLite(True, True);
 
 		Reg#(BridgeState) rd_state <-mkReg(RegularReq,clocked_by fast_clock, reset_by fast_reset);
 		Reg#(BridgeState) wr_state <-mkReg(RegularReq,clocked_by fast_clock, reset_by fast_reset);
@@ -50,15 +50,15 @@ package Tilelink_heavy_lite_bridge;
 		Reg#(Bit#(8)) wr_request_counter<-mkReg(0,clocked_by fast_clock, reset_by fast_reset);
 		Reg#(Bit#(8)) response_counter<-mkReg(0);
 		Reg#(Bit#(8)) sync_rdburst_value <-mkSyncRegToCC(0,fast_clock,fast_reset);
-		Reg#(A_channel) rg_read_packet <-mkReg(?,clocked_by fast_clock , reset_by fast_reset); //TODO
-		Reg#(A_channel) rg_write_packet<-mkReg(?,clocked_by fast_clock , reset_by fast_reset);
+		Reg#(A_channel#(`PADDR, `Reg_width, 4)) rg_read_packet <-mkReg(?,clocked_by fast_clock , reset_by fast_reset); //TODO
+		Reg#(A_channel#(`PADDR, `Reg_width, 4)) rg_write_packet<-mkReg(?,clocked_by fast_clock , reset_by fast_reset);
 
 		/*=== FIFOs to synchronize data between the two clock domains ====*/
-		SyncFIFOIfc#(A_channel)		ff_rd_addr <-	mkSyncFIFOToCC(1,fast_clock,fast_reset);
-		SyncFIFOIfc#(A_channel)		ff_wr_addr <-	mkSyncFIFOToCC(1,fast_clock,fast_reset);
+		SyncFIFOIfc#(A_channel#(`PADDR, `Reg_width, 4))		ff_rd_addr <-	mkSyncFIFOToCC(1,fast_clock,fast_reset);
+		SyncFIFOIfc#(A_channel#(`PADDR, `Reg_width, 4))		ff_wr_addr <-	mkSyncFIFOToCC(1,fast_clock,fast_reset);
 
-		SyncFIFOIfc#(D_channel)	ff_rd_resp <-	mkSyncFIFOFromCC(1,fast_clock);
-		SyncFIFOIfc#(D_channel) ff_wr_resp <-	mkSyncFIFOFromCC(1,fast_clock);
+		SyncFIFOIfc#(D_channel#(`Reg_width, 4))	ff_rd_resp <-	mkSyncFIFOFromCC(1,fast_clock);
+		SyncFIFOIfc#(D_channel#(`Reg_width, 4)) ff_wr_resp <-	mkSyncFIFOFromCC(1,fast_clock);
 		/*=================================================================*/
 
 
@@ -100,7 +100,7 @@ package Tilelink_heavy_lite_bridge;
 		rule send_read_request_on_slow_bus;
 			let request=ff_rd_addr.first;
 			ff_rd_addr.deq;
-		 	let lite_request = A_channel_lite {a_opcode : unpack(truncate(pack(request.a_opcode))), a_size :request.a_size, a_source : 0, 
+		 	let lite_request = A_channel_lite {a_opcode : unpack(truncate(pack(request.a_opcode))), a_size :truncate(request.a_size), a_source : 0, 
 													a_address : request.a_address, a_mask : request.a_mask, a_data : ?}; // arburst: 00-FIXED 01-INCR 10-WRAP
 			rd_m_xactor.core_side.master_request.put(lite_request);	
 			rd_id<=request.a_source;
@@ -112,7 +112,7 @@ package Tilelink_heavy_lite_bridge;
 			let request  <- wr_s_xactor.core_side.xactor_request.get;
 			ff_wr_addr.enq(request);
 			rg_write_packet<=request;
-			Data_size beat_blocks= request.a_size-3;
+			let beat_blocks= request.a_size-3;
 			Bit#(12) burst_counter = 1;
 			burst_counter = burst_counter << beat_blocks;
 			burst_counter = burst_counter-1;
@@ -151,7 +151,7 @@ package Tilelink_heavy_lite_bridge;
 		endrule
 		rule send_write_request_on_slow_bus;
 			let request  = ff_wr_addr.first;
-		 	let request_lite = A_channel_lite {a_opcode : unpack(truncate(pack(request.a_opcode))), a_size :request.a_size, a_source : 1, 
+		 	let request_lite = A_channel_lite {a_opcode : unpack(truncate(pack(request.a_opcode))), a_size :truncate(request.a_size), a_source : 1, 
 													a_address : request.a_address, a_mask : request.a_mask, a_data : request.a_data}; 
 			wr_m_xactor.core_side.master_request.put(request_lite);	
 			ff_wr_addr.deq;
@@ -163,7 +163,7 @@ package Tilelink_heavy_lite_bridge;
 		// This rule forwards the read response from the tilelink_lite to the tilelink fabric.
 		rule capture_read_responses;
 			let response <- rd_m_xactor.core_side.master_response.get;
-			D_channel r = D_channel {d_opcode: unpack(zeroExtend(pack(response.d_opcode))), d_param : ? , d_size : response.d_size,
+			let r = D_channel {d_opcode: unpack(zeroExtend(pack(response.d_opcode))), d_param : ? , d_size : zeroExtend(response.d_size),
 														d_source : rd_id, d_sink : ?, d_data : response.d_data, d_error : response.d_error};
 			ff_rd_resp.enq(r);
 		endrule
@@ -173,7 +173,7 @@ package Tilelink_heavy_lite_bridge;
 		endrule
 		rule capture_write_responses;
 			let response <- wr_m_xactor.core_side.master_response.get;
-			D_channel b = D_channel {d_opcode: unpack(zeroExtend(pack(response.d_opcode))), d_param : ? , d_size : response.d_size,
+			let b = D_channel {d_opcode: unpack(zeroExtend(pack(response.d_opcode))), d_param : ? , d_size : zeroExtend(response.d_size),
 														d_source : wr_id, d_sink : ?, d_data : response.d_data, d_error : response.d_error};
 			if(response_counter==sync_rdburst_value) begin
 				response_counter<=0;

@@ -46,9 +46,9 @@ package core;
 
 	interface Ifc_core_AXI4;
 		`ifdef TILELINK
-			interface Ifc_fabric_side_master_link imem_master;
-			interface Ifc_fabric_side_master_link dmem_master_wr;
-			interface Ifc_fabric_side_master_link dmem_master_rd;
+			interface Ifc_fabric_side_master_link#(`PADDR, `Reg_width, 4) imem_master;
+			interface Ifc_fabric_side_master_link#(`PADDR, `Reg_width, 4) dmem_master_wr;
+			interface Ifc_fabric_side_master_link#(`PADDR, `Reg_width, 4) dmem_master_rd;
 		`else
 			interface AXI4_Master_IFC#(`PADDR, `Reg_width, `USERSPACE) imem_master;
 			interface AXI4_Master_IFC#(`PADDR, `Reg_width, `USERSPACE) dmem_master;
@@ -87,9 +87,9 @@ package core;
 	module mkcore_AXI4#(Bit#(`VADDR) reset_vector)(Ifc_core_AXI4);
 	  	Ifc_riscv riscv <-mkriscv(reset_vector);
 		`ifdef TILELINK
-			Ifc_Master_link imem_xactor <- mkMasterXactor(True, True);
-			Ifc_Master_link dmem_xactor_rd <- mkMasterXactor(True, True);
-			Ifc_Master_link dmem_xactor_wr <- mkMasterXactor(True, True);
+			Ifc_Master_link#(`PADDR, `Reg_width, 4) imem_xactor <- mkMasterXactor(True, True);
+			Ifc_Master_link#(`PADDR, `Reg_width, 4) dmem_xactor_rd <- mkMasterXactor(True, True);
+			Ifc_Master_link#(`PADDR, `Reg_width, 4) dmem_xactor_wr <- mkMasterXactor(True, True);
 			Reg#(Data_size) rg_burst_counter_d <- mkReg(0);
 			Reg#(Data_size) rg_burst_counter_i <- mkReg(0);
 		`else
@@ -226,7 +226,7 @@ package core;
 				if(info.transfer_size!=3)
 					put_type = PutPartialData;
 				dmem_xactor_wr.core_side.master_request_control.put( A_channel_control { a_opcode : put_type, a_param : 0, 
-																		a_size : size, a_source : fromInteger(valueOf(Dmem_master_num_wr)),  a_address : info.address});
+																		a_size : size, a_source : fromInteger(valueOf(Dmem_master_num)),  a_address : info.address});
 				dmem_xactor_wr.core_side.master_request_data.put( A_channel_data { a_mask : mask, a_data : actual_data });
 			`else
 				/*=== Need to shift the data apprpriately while sending write requests===== */

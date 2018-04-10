@@ -28,11 +28,9 @@ typedef enum {	Get_data=0
 				,GetWrap=1
 				,PutPartialData=2
 				,PutFullData=3
-`ifdef TILEUH
 				,ArithmeticData=4
 				,LogicalData=5
 				,Intent=6				
-`endif
 `ifdef TILEUC
 				,Acquire=7
 `endif
@@ -40,9 +38,7 @@ typedef enum {	Get_data=0
 			
 typedef enum {	AccessAck
 				,AccessAckData
-`ifdef TILEUH
 				,HintAck
-`endif
 `ifdef TILEUC
 				,Grant
 				,GrantData
@@ -77,120 +73,116 @@ where it receives the request has the channel A intact.
 */
 typedef struct { 
 		Opcode 			     a_opcode;                 //The opcode specifies if write or read requests
-`ifdef TILEUH
 		Param  			     a_param;                  //Has the encodings for atomic transfers
-`endif
-		Data_size			 a_size;                   //The transfer size in 2^a_size bytes. The burst is calculated from here. if this is >3 then its a burst
+		Bit#(z) 			 a_size;                   //The transfer size in 2^a_size bytes. The burst is calculated from here. if this is >3 then its a burst
 		M_source 		     a_source;                 //Master ID
-		Address_width		 a_address;                //Address for the request
-} A_channel_control deriving(Bits, Eq, FShow);
+		Bit#(a)	 			 a_address;                //Address for the request
+} A_channel_control#(numeric type a, numeric type z)  deriving(Bits, Eq, FShow);
 		
 typedef struct { 
-		Mask						 a_mask;           //8x(bytes in data lane) 1 bit mask for each byte 
-		Data						 a_data;			//data for the request	
-} A_channel_data deriving(Bits, Eq, FShow);
+		Bit#(TDiv#(w,8)) 			 a_mask;           //8x(bytes in data lane) 1 bit mask for each byte 
+		Bit#(w)						 a_data;			//data for the request	
+} A_channel_data#(numeric type w) deriving(Bits, Eq, FShow);
 
 typedef struct { 
 		Opcode 			     a_opcode;
-`ifdef TILEUH
 		Param  			     a_param;
-`endif
-		Data_size			 a_size;
+		Bit#(z)				 a_size;
 		M_source 		     a_source;
-		Address_width		 a_address;
-		Mask				 a_mask;
-		Data				 a_data;	
-} A_channel deriving(Bits, Eq, FShow);
+		Bit#(a)				 a_address;
+		Bit#(TDiv#(w,8))	 a_mask;
+		Bit#(w)				 a_data;	
+} A_channel#(numeric type a, numeric type w, numeric type z) deriving(Bits, Eq, FShow);
 
 //cache-coherence channels
 typedef struct {                                        
 		Opcode 			     b_opcode;
 		Param  			     b_param;
-		Data_size			 b_size;
+		Bit#(z)				 b_size;
 		M_source 		     b_source;
-		Address_width		 b_address;
-		Mask				 b_mask;
-		Data				 b_data;	
-} B_channel deriving(Bits, Eq, FShow);
+		Bit#(a)				 b_address;
+		Bit#(TDiv#(w,8))	 b_mask;
+		Bit#(w)				 b_data;	
+} B_channel#(numeric type a, numeric type w, numeric type z) deriving(Bits, Eq, FShow);
 
 //cache-coherence channels
 typedef struct { 
 		Opcode 			     c_opcode;
 		Param  			     c_param;
-		Data_size			 c_size;
+		Bit#(z)				 c_size;
 		M_source 		     c_source;
-		Address_width		 c_address;
-		Data				 c_data;	
+		Bit#(a)				 c_address;
+		Bit#(w)				 c_data;	
 		Bool				 c_client_error;
-} C_channel deriving(Bits, Eq);
+} C_channel#(numeric type a, numeric type w, numeric type z) deriving(Bits, Eq);
 
 //The channel D is responsible for the slave responses. It has the master ids and slave ids carried through the channel
 typedef struct { 
-		D_Opcode 			d_opcode;                     //Opcode encodings for response with data or just ack
+		D_Opcode		d_opcode;                     //Opcode encodings for response with data or just ack
 		Param  			d_param;
-		Data_size		d_size;
+		Bit#(z)			d_size;
 		M_source 		d_source;
 		S_sink			d_sink;
-		Data			d_data;	
+		Bit#(w)			d_data;	
 		Bool			d_error;
-} D_channel deriving(Bits, Eq, FShow);
+} D_channel#(numeric type w, numeric type z) deriving(Bits, Eq, FShow);
 
 typedef struct { 
 		S_sink					 d_sink;
 } E_channel deriving(Bits, Eq);
 
-interface Ifc_core_side_master_link;
+interface Ifc_core_side_master_link#(numeric type a, numeric type w, numeric type z);
 
 	//Towards the master
-	interface Put#(A_channel_data) master_request_data;
-	interface Put#(A_channel_control) master_request_control;
-	interface Get#(D_channel) master_response;
+	interface Put#(A_channel_data#(w)) master_request_data;
+	interface Put#(A_channel_control#(a,z)) master_request_control;
+	interface Get#(D_channel#(w,z)) master_response;
 
 endinterface
 
-interface Ifc_fabric_side_master_link;
+interface Ifc_fabric_side_master_link#(numeric type a, numeric type w, numeric type z);
 
 	//Towards the fabric
-	interface Get#(A_channel_data) fabric_request_data;
-	interface Get#(A_channel_control) fabric_request_control;
-	interface Put#(D_channel) fabric_response;
+	interface Get#(A_channel_data#(w)) fabric_request_data;
+	interface Get#(A_channel_control#(a,z)) fabric_request_control;
+	interface Put#(D_channel#(w,z)) fabric_response;
 
 endinterface
 
 //--------------------------------------Master Xactor--------------------------------------//
 /* This is a xactor interface which connects core and master side of the fabric*/
-interface Ifc_Master_link;
+interface Ifc_Master_link#(numeric type a, numeric type w, numeric type z);
 
-interface Ifc_core_side_master_link core_side;
-interface Ifc_fabric_side_master_link fabric_side;
+interface Ifc_core_side_master_link#(a,w,z) core_side;
+interface Ifc_fabric_side_master_link#(a,w,z) fabric_side;
 
 endinterface
 
 /* Master transactor - should be instantiated in the core side and the fabric side interface of
 of the xactor should be exposed out of the core*/
-module mkMasterXactor#(Bool xactor_guarded, Bool fabric_guarded)(Ifc_Master_link);
+module mkMasterXactor#(Bool xactor_guarded, Bool fabric_guarded)(Ifc_Master_link#(a,w,z));
 
 //Created a pipelined version that will have a critical path all along the bus. If we want to break the path we can 
 //we should trade if off with area using the 2-sized FIFO 
 `ifdef TILELINK_LIGHT
-	FIFOF#(A_channel_control) ff_xactor_request_c <- mkGFIFOF(xactor_guarded, fabric_guarded); //control split of A-channel
-	FIFOF#(A_channel_data) ff_xactor_request_d <- mkGFIFOF(xactor_guarded, fabric_guarded);   //data split of A-channel
-	FIFOF#(D_channel) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded); //response channel D-channel exposed out
+	FIFOF#(A_channel_control#(a,z)) ff_xactor_request_c <- mkGFIFOF(xactor_guarded, fabric_guarded); //control split of A-channel
+	FIFOF#(A_channel_data#(w)) ff_xactor_request_d <- mkGFIFOF(xactor_guarded, fabric_guarded);   //data split of A-channel
+	FIFOF#(D_channel#(w,z)) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded); //response channel D-channel exposed out
 `else
-	FIFO#(A_channel_control) ff_xactor_request_c <- mkSizedFIFO(2);
-	FIFO#(A_channel_data) ff_xactor_request_d <- mkSizedFIFO(2);
-	FIFO#(D_channel) ff_xactor_response <- mkSizedFIFO(2);
+	FIFO#(A_channel_control#(a,z)) ff_xactor_request_c <- mkSizedFIFO(2);
+	FIFO#(A_channel_data#(w)) ff_xactor_request_d <- mkSizedFIFO(2);
+	FIFO#(D_channel#(w,z)) ff_xactor_response <- mkSizedFIFO(2);
 `endif
 
-	Reg#(Data_size) rg_burst_counter <- mkReg(0);
+	Reg#(Bit#(z)) rg_burst_counter <- mkReg(0);
 	Reg#(Bool) rg_burst[2] <- mkCReg(2,False);
 
 // If it is a burst dont ask for address again. This rule about calculating the burst and control split of A-channel remains 
 //constant till the burst finishes.
 	rule rl_xactor_to_fabric_data;
 		let req_addr = ff_xactor_request_c.first;
-		Data_size burst_size = 1;										  //The total number of bursts
-		Data_size transfer_size = req_addr.a_size;                        //This is the total transfer size including the bursts
+		Bit#(z) burst_size = 1;										  //The total number of bursts
+		Bit#(z) transfer_size = req_addr.a_size;                        //This is the total transfer size including the bursts
 		if(!rg_burst[0]) begin
 			if(transfer_size > 3) begin
 				rg_burst[0] <= True;
@@ -215,8 +207,8 @@ module mkMasterXactor#(Bool xactor_guarded, Bool fabric_guarded)(Ifc_Master_link
 
 	interface fabric_side = interface Ifc_fabric_side_master_link 
 		interface fabric_request_control = interface Get    //Deque the control split of a channel if only burst is finished 
-											 method ActionValue#(A_channel_control) get;  
-												A_channel_control req_addr = ff_xactor_request_c.first;
+											 method ActionValue#(A_channel_control#(a,z)) get;  
+												let req_addr = ff_xactor_request_c.first;
 												if(!rg_burst[1])
 													ff_xactor_request_c.deq;
 												return req_addr;
@@ -234,32 +226,32 @@ endmodule
 //------------------------------------------------------Slave Xactor------------------------------------------------//
 
 //To be connected to slave side 
-interface Ifc_core_side_slave_link;
-	interface Get#(A_channel) xactor_request;
-	interface Put#(D_channel) xactor_response;
+interface Ifc_core_side_slave_link#(numeric type a, numeric type w, numeric type z);
+	interface Get#(A_channel#(a,w,z)) xactor_request;
+	interface Put#(D_channel#(w,z)) xactor_response;
 endinterface
 
 //To be connected to fabric side
-interface Ifc_fabric_side_slave_link;
+interface Ifc_fabric_side_slave_link#(numeric type a, numeric type w, numeric type z);
 	//Doesn't need to have control and data signals separated as slaves get A_channel packet intact
-	interface Put#(A_channel) fabric_request;
-	interface Get#(D_channel) fabric_response;
+	interface Put#(A_channel#(a,w,z)) fabric_request;
+	interface Get#(D_channel#(w,z)) fabric_response;
 endinterface
 
-interface Ifc_Slave_link;
-	interface Ifc_core_side_slave_link core_side;
-	interface Ifc_fabric_side_slave_link fabric_side;
+interface Ifc_Slave_link#(numeric type a, numeric type w, numeric type z);
+	interface Ifc_core_side_slave_link#(a,w,z) core_side;
+	interface Ifc_fabric_side_slave_link#(a,w,z) fabric_side;
 endinterface
 
-module mkSlaveXactor#(Bool xactor_guarded, Bool fabric_guarded)(Ifc_Slave_link);
+module mkSlaveXactor#(Bool xactor_guarded, Bool fabric_guarded)(Ifc_Slave_link#(a,w,z));
 
 //Can choose between 2-sized FIFO and pipeline FIFO just like the master xactor
 `ifdef TILELINK_LIGHT
-	FIFOF#(A_channel) ff_xactor_request <- mkGFIFOF(xactor_guarded, fabric_guarded);
-	FIFOF#(D_channel) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded);
+	FIFOF#(A_channel#(a,w,z)) ff_xactor_request <- mkGFIFOF(xactor_guarded, fabric_guarded);
+	FIFOF#(D_channel#(w,z)) ff_xactor_response <- mkGFIFOF(xactor_guarded, fabric_guarded);
 `else
-	FIFO#(A_channel) ff_xactor_request <- mkSizedFIFO(2);
-	FIFO#(D_channel) ff_xactor_response <- mkSizedFIFO(2);
+	FIFO#(A_channel#(a,w,z)) ff_xactor_request <- mkSizedFIFO(2);
+	FIFO#(D_channel#(w,z)) ff_xactor_response <- mkSizedFIFO(2);
 `endif
 
 interface core_side = interface Ifc_core_side_slave_link;
@@ -276,65 +268,65 @@ endmodule
 
 //----------------------------------------------- Master Fabric -------------------------------------//
 
-interface Ifc_Master_fabric_side_a_channel;
+interface Ifc_Master_fabric_side_a_channel#(numeric type a, numeric type w, numeric type z);
 	(* always_ready *)
-	method A_channel fabric_a_channel;
+	method A_channel#(a,w,z) fabric_a_channel;
 	(* always_ready *)
 	method Bool fabric_a_channel_valid;
 	(* always_ready, always_enabled *)
 	method Action fabric_a_channel_ready(Bool req_ready);
 endinterface
 
-interface Ifc_Master_fabric_side_d_channel;
+interface Ifc_Master_fabric_side_d_channel#(numeric type w, numeric type z);
 	(* always_ready, always_enabled *)
-	method Action fabric_d_channel(D_channel resp);
+	method Action fabric_d_channel(D_channel#(w,z) resp);
 	(* always_ready *)
 	method Bool fabric_d_channel_ready;
 endinterface
 
 	//Communication with the xactor
-interface Ifc_master_tilelink_core_side;
-	interface Put#(A_channel_control) xactor_request_control;
-	interface Put#(A_channel_data) xactor_request_data;
-	interface Get#(D_channel) xactor_response;
+interface Ifc_master_tilelink_core_side#(numeric type a, numeric type w, numeric type z);
+	interface Put#(A_channel_control#(a,z)) xactor_request_control;
+	interface Put#(A_channel_data#(w)) xactor_request_data;
+	interface Get#(D_channel#(w,z)) xactor_response;
 endinterface
 
-interface Ifc_Master_tilelink;
+interface Ifc_Master_tilelink#(numeric type a, numeric type w, numeric type z);
 
-	interface Ifc_master_tilelink_core_side v_from_masters;
+	interface Ifc_master_tilelink_core_side#(a,w,z) v_from_masters;
 
 	//communication with the fabric
-	interface Ifc_Master_fabric_side_d_channel fabric_side_response;
-	interface Ifc_Master_fabric_side_a_channel fabric_side_request;
+	interface Ifc_Master_fabric_side_d_channel#(w,z) fabric_side_response;
+	interface Ifc_Master_fabric_side_a_channel#(a,w,z) fabric_side_request;
 endinterface
 
-module mkMasterFabric(Ifc_Master_tilelink);
+module mkMasterFabric(Ifc_Master_tilelink#(a,w,z));
 
-    Reg#(A_channel_control) rg_a_channel_c[3] <- mkCReg(3, A_channel_control { a_opcode : ?,
+    Reg#(A_channel_control#(a,z)) rg_a_channel_c[2] <- mkCReg(2, A_channel_control { a_opcode : ?,
 												`ifdef TILEUH	 a_param  : ?, `endif
 																 a_size : ?,
 																 a_source : ?,
 																 a_address :  ? });
-    Reg#(Maybe#(A_channel_data)) rg_a_channel_d[3] <- mkCReg(3, tagged Invalid);
-    Reg#(Maybe#(D_channel)) rg_d_channel[3] <- mkCReg(3, tagged Invalid);
+    Reg#(Maybe#(A_channel_data#(w))) rg_a_channel_d[2] <- mkCReg(2, tagged Invalid);
+    Reg#(Maybe#(D_channel#(w,z))) rg_d_channel[2] <- mkCReg(2, tagged Invalid);
 
 	interface v_from_masters = interface Ifc_master_tilelink_core_side
 		interface xactor_request_control = interface Put
-												method Action put(A_channel_control req_control);
+												method Action put(A_channel_control#(a,z) req_control);
 													rg_a_channel_c[0] <= req_control;
 													`ifdef verbose $display($time, "\tTILELINK : Request from Xactor control signals", fshow(req_control)); `endif
 												endmethod
 										   endinterface;
 
 		interface xactor_request_data = interface Put
-												method Action put(A_channel_data req_data);
+												method Action put(A_channel_data#(w) req_data);
 													rg_a_channel_d[0] <= tagged Valid req_data;
 													`ifdef verbose $display($time, "\tTILELINK : Request from Xactor data signals", fshow(req_data)); `endif
 												endmethod
 										endinterface;
 												
 		interface xactor_response = interface Get;
-												method ActionValue#(D_channel) get if(isValid(rg_d_channel[1]));
+												method ActionValue#(D_channel#(w,z)) get if(isValid(rg_d_channel[1]));
 													let resp = validValue(rg_d_channel[1]);
 													rg_d_channel[1] <= tagged Invalid;
 													`ifdef verbose $display($time, "\tTILELINK : Response to Xactor data signals", fshow(resp)); `endif
@@ -344,7 +336,7 @@ module mkMasterFabric(Ifc_Master_tilelink);
 	endinterface;
 												
 	interface fabric_side_response = interface Ifc_Master_fabric_side_d_channel
-										method Action fabric_d_channel(D_channel resp);
+										method Action fabric_d_channel(D_channel#(w,z) resp);
 											rg_d_channel[0] <= tagged Valid resp; 
 										endmethod
 										method Bool fabric_d_channel_ready;
@@ -354,8 +346,8 @@ module mkMasterFabric(Ifc_Master_tilelink);
 
 	//while sending it to the fabric the control section and the data section should be merged
 	interface fabric_side_request = interface Ifc_Master_fabric_side_a_channel
-										method A_channel fabric_a_channel;
-											A_channel req = A_channel {a_opcode : rg_a_channel_c[1].a_opcode,
+										method A_channel#(a,w,z) fabric_a_channel;
+											let req = A_channel {a_opcode : rg_a_channel_c[1].a_opcode,
 														`ifdef TILEUH	a_param : rg_a_channel_c[1].a_param, `endif
 																		a_size : rg_a_channel_c[1].a_size,
 																		a_source : rg_a_channel_c[1].a_source,
@@ -378,46 +370,46 @@ endmodule
 
 //----------------------------------------------- Slave Fabric -------------------------------------//
 
-interface Ifc_slave_tilelink_core_side;
+interface Ifc_slave_tilelink_core_side#(numeric type a, numeric type w, numeric type z);
 	//communication with the xactors
-	interface Get#(A_channel) xactor_request;
-	interface Put#(D_channel) xactor_response;
+	interface Get#(A_channel#(a,w,z)) xactor_request;
+	interface Put#(D_channel#(w,z)) xactor_response;
 endinterface
-interface Ifc_Slave_fabric_side_a_channel;
+interface Ifc_Slave_fabric_side_a_channel#(numeric type a, numeric type w, numeric type z);
 	(* always_ready, always_enabled *)
-	method Action fabric_a_channel(A_channel req);
+	method Action fabric_a_channel(A_channel#(a,w,z) req);
 	(* always_ready *)
 	method Bool fabric_a_channel_ready;
 endinterface
 
-interface Ifc_Slave_fabric_side_d_channel;
+interface Ifc_Slave_fabric_side_d_channel#(numeric type w, numeric type z);
 	(* always_ready *)
-	method D_channel fabric_d_channel;
+	method D_channel#(w,z) fabric_d_channel;
 	(* always_ready *)
 	method Bool fabric_d_channel_valid;
 	(* always_ready, always_enabled *)
 	method Action fabric_d_channel_ready(Bool req_ready);
 endinterface
 
-interface Ifc_Slave_tilelink;
+interface Ifc_Slave_tilelink#(numeric type a, numeric type w, numeric type z);
 
-	interface Ifc_slave_tilelink_core_side v_to_slaves;
+	interface Ifc_slave_tilelink_core_side#(a,w,z) v_to_slaves;
 
 	//communication with the fabric
-	interface Ifc_Slave_fabric_side_d_channel fabric_side_response;
-	interface Ifc_Slave_fabric_side_a_channel fabric_side_request;
+	interface Ifc_Slave_fabric_side_d_channel#(w,z) fabric_side_response;
+	interface Ifc_Slave_fabric_side_a_channel#(a,w,z) fabric_side_request;
 
 endinterface
 
-module mkSlaveFabric(Ifc_Slave_tilelink);
+module mkSlaveFabric(Ifc_Slave_tilelink#(a,w,z));
 
-    Reg#(Maybe#(A_channel)) rg_a_channel[3] <- mkCReg(3, tagged Invalid);
-    Reg#(Maybe#(D_channel)) rg_d_channel[3] <- mkCReg(3, tagged Invalid);
+    Reg#(Maybe#(A_channel#(a,w,z))) rg_a_channel[2] <- mkCReg(2, tagged Invalid);
+    Reg#(Maybe#(D_channel#(w,z))) rg_d_channel[2] <- mkCReg(2, tagged Invalid);
 
 
 	interface v_to_slaves = interface Ifc_slave_tilelink_core_side ;
 		interface xactor_request = interface Get
-												method ActionValue#(A_channel) get if(isValid(rg_a_channel[1]));
+												method ActionValue#(A_channel#(a,w,z)) get if(isValid(rg_a_channel[1]));
 													let req = validValue(rg_a_channel[1]);
 													rg_a_channel[1] <= tagged Invalid;
 													`ifdef verbose $display($time, "\tTILELINK : Slave side request to Xactor ", fshow(req)); `endif
@@ -426,7 +418,7 @@ module mkSlaveFabric(Ifc_Slave_tilelink);
 										   endinterface;
 
 		interface xactor_response = interface Put
-												method Action put(D_channel resp) if(!isValid(rg_d_channel[0]));
+												method Action put(D_channel#(w,z) resp) if(!isValid(rg_d_channel[0]));
 													`ifdef verbose $display($time, "\tTILELINK : Slave side response from Xactor ", fshow(resp)); `endif
 													rg_d_channel[0] <= tagged Valid resp;
 												endmethod
@@ -435,7 +427,7 @@ module mkSlaveFabric(Ifc_Slave_tilelink);
 												
 
 	interface fabric_side_response = interface Ifc_Slave_fabric_side_d_channel
-										method D_channel fabric_d_channel;
+										method D_channel#(w,z) fabric_d_channel;
 											return validValue(rg_d_channel[1]);
 										endmethod
 										method Bool fabric_d_channel_valid;
@@ -450,7 +442,7 @@ module mkSlaveFabric(Ifc_Slave_tilelink);
 
 	interface fabric_side_request = interface Ifc_Slave_fabric_side_a_channel
 					//if the beat has been exchanged the packet can be invalidated on the sending side	
-										method Action fabric_a_channel(A_channel req);
+										method Action fabric_a_channel(A_channel#(a,w,z) req);
 											rg_a_channel[0] <= tagged Valid req;
 										endmethod
 										method Bool fabric_a_channel_ready; 
@@ -459,9 +451,9 @@ module mkSlaveFabric(Ifc_Slave_tilelink);
 									endinterface;
 endmodule
 
-instance Connectable#(Ifc_fabric_side_master_link, Ifc_master_tilelink_core_side);
+instance Connectable#(Ifc_fabric_side_master_link#(a,w,z), Ifc_master_tilelink_core_side#(a,w,z));
 	//connectables between master transactors and master side of fabric	
-	module mkConnection#(Ifc_fabric_side_master_link xactor, Ifc_master_tilelink_core_side fabric)(Empty);
+	module mkConnection#(Ifc_fabric_side_master_link#(a,w,z) xactor, Ifc_master_tilelink_core_side#(a,w,z) fabric)(Empty);
 		rule rl_connect_control_request;
 			let x <-  xactor.fabric_request_control.get;
 			fabric.xactor_request_control.put(x); 
@@ -478,9 +470,9 @@ instance Connectable#(Ifc_fabric_side_master_link, Ifc_master_tilelink_core_side
 
 endinstance
 
-instance Connectable#( Ifc_slave_tilelink_core_side, Ifc_fabric_side_slave_link);
+instance Connectable#( Ifc_slave_tilelink_core_side#(a,w,z), Ifc_fabric_side_slave_link#(a,w,z));
 	//connectables between slave transactors and slave side of fabric	
-	module mkConnection#(Ifc_slave_tilelink_core_side fabric, Ifc_fabric_side_slave_link xactor)(Empty);
+	module mkConnection#(Ifc_slave_tilelink_core_side#(a,w,z) fabric, Ifc_fabric_side_slave_link#(a,w,z) xactor)(Empty);
 		
 		rule rl_connect_request;
 			let x <- fabric.xactor_request.get;
