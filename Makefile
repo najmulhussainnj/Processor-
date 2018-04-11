@@ -4,6 +4,8 @@
 include ./old_vars
 include soc_config.inc
 
+export SHAKTI_HOME=$$PWD
+
 TOP_MODULE:=mkTbSoc
 TOP_FILE:=TbSoc.bsv
 TOP_DIR:=./src/testbench/
@@ -247,6 +249,18 @@ linux_bsim: compile_bluesim link_bluesim generate_boot_files
 	@cut -c1-8  bbl.hex > $(BSVOUTDIR)/code.mem.MSB
 	@cut -c9-16 bbl.hex > $(BSVOUTDIR)/code.mem.LSB
 	@cd $(BSVOUTDIR) && ./out
+
+.PHONY: regress 
+regress: compile_bluesim link_bluesim generate_boot_files 
+	SHAKTI_HOME=$$PWD perl -I$(SHAKTI_HOME)/verification/scripts $(SHAKTI_HOME)/verification/scripts/makeRegress.pl $(opts)
+
+.PHONY: test
+test: compile_bluesim link_bluesim generate_boot_files 
+	SHAKTI_HOME=$$PWD perl -I$(SHAKTI_HOME)/verification/scripts $(SHAKTI_HOME)/verification/scripts/makeTest.pl $(opts)
+
+.PHONY: torture
+torture: compile_bluesim link_bluesim generate_boot_files 
+	SHAKTI_HOME=$$PWD perl -I$(SHAKTI_HOME)/verification/scripts $(SHAKTI_HOME)/verification/scripts/makeTorture.pl $(opts)
 
 .PHONY: clean
 clean:
