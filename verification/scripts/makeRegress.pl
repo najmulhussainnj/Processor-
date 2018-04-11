@@ -1,3 +1,31 @@
+# ------------------------------------------------------------------------------------------------- 
+# Copyright (c) 2018, IIT Madras All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without modification, are permitted
+# provided that the following conditions are met:
+# 
+# - Redistributions of source code must retain the below copyright notice, this list of conditions
+#   and the following disclaimer.  
+# - Redistributions in binary form must reproduce the above copyright notice, this list of 
+#   conditions and the following disclaimer in the documentation and/or other materials provided 
+#   with the distribution.  
+# - Neither the name of IIT Madras  nor the names of its contributors may be used to endorse or 
+#   promote products derived from this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS
+# OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
+# WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# -------------------------------------------------------------------------------------------------
+# Author: Lavanya J
+# Email id: lavanya.jagan@gmail.com
+# -------------------------------------------------------------------------------------------------
+#
 #!/usr/bin/perl
 
 #-----------------------------------------------------------
@@ -28,6 +56,7 @@ GetOptions(
           qw(suite=s)       => \my $test_suite,
           qw(filter=s)      => \my $test_filter,
           qw(test_count=s)  => \my $test_count,
+          qw(parallel)      => \my $parallel,
           qw(help)          => \my $help,
           qw(clean)         => \my $clean
 );
@@ -279,11 +308,22 @@ if ($submit) {
     unless (-e $workdir or mkdir -p $workdir/$tSuite) {
       die "ERROR: Unable to create workdir, check SHAKTI_HOME is set!\n";
     }
-    system("nohup perl -I $shaktiHome/verification/scripts $shaktiHome/verification/scripts/makeTest.pl --test=$test --suite=$tSuite --type=$pv --sim=$simulator &");
+    if ($parallel) {
+      system("nohup perl -I $shaktiHome/verification/scripts $shaktiHome/verification/scripts/makeTest.pl --test=$test --suite=$tSuite --type=$pv --sim=$simulator &");
+    }
+    else {
+      system("perl -I $shaktiHome/verification/scripts $shaktiHome/verification/scripts/makeTest.pl --test=$test --suite=$tSuite --type=$pv --sim=$simulator");
+      sleep(2);
+    }
     print "$test\t\t\t$tSuite\t\t\t$pv\t\t\tRunning\n";
     $refreshCount++;
     if ($refreshCount == $licenseCount) {
-      sleep(60);
+      if ($parallel) {
+        sleep(60);
+      }
+      else {
+        sleep(6);
+      }
       $refreshCount=0;
     }
   }
@@ -308,32 +348,37 @@ elsif ($finalReport) { # waits till all the test results are there/timesout
       my $compile_fail = "$workdir/$tSuite/$pv/$test/COMPILE_FAIL";
       my $model_fail = "$workdir/$tSuite/$pv/$test/MODEL_FAIL";
       my $rtl_fail = "$workdir/$tSuite/$pv/$test/RTL_FAIL";
+      my $rtl_timeout = "$workdir/$tSuite/$pv/$test/RTL_TIMEOUT";
       my $result;
       my $delete=0;
 
       if (-e $compile_fail) {
-        $result = sprintf("%30s %20s %5s    COMPILE_FAIL\n", $tSuite, $test, $pv);
+        $result = sprintf("%40s %40s %5s    COMPILE_FAIL\n", $tSuite, $test, $pv);
         $delete = 1;
       }
       elsif (-e $model_fail) {
-        $result = sprintf("%30s %20s %5s    MODEL_FAIL\n", $tSuite, $test, $pv);
+        $result = sprintf("%40s %40s %5s    MODEL_FAIL\n", $tSuite, $test, $pv);
         $delete = 1;
       }
       elsif (-e $rtl_fail) {
-        $result = sprintf("%30s %20s %5s    RTL_FAIL\n", $tSuite, $test, $pv);
+        $result = sprintf("%40s %40s %5s    RTL_FAIL\n", $tSuite, $test, $pv);
+        $delete = 1;
+      }
+      elsif (-e $rtl_timeout) {
+        $result = sprintf("%40s %40s %5s    RTL_TIMEOUT\n", $tSuite, $test, $pv);
         $delete = 1;
       }
       elsif (-e $fail) {
-        $result = sprintf("%30s %20s %5s    FAILED\n", $tSuite, $test, $pv);
+        $result = sprintf("%40s %40s %5s    FAILED\n", $tSuite, $test, $pv);
         $delete = 1;
       }
       elsif (-e $pass) {
-        $result = sprintf("%30s %20s %5s    PASSED\n", $tSuite, $test, $pv);
+        $result = sprintf("%40s %40s %5s    PASSED\n", $tSuite, $test, $pv);
         $delete = 1;
         $passCount++;
       }
       else {
-        $result = sprintf("%30s %20s %5s    NOT_RUN\n", $tSuite, $test, $pv);
+        $result = sprintf("%40s %40s %5s    NOT_RUN\n", $tSuite, $test, $pv);
         $delete = 0;
       }
       if ($delete) {
@@ -375,6 +420,7 @@ else {
     my $compile_fail = "$workdir/$tSuite/$pv/$test/COMPILE_FAIL";
     my $model_fail = "$workdir/$tSuite/$pv/$test/MODEL_FAIL";
     my $rtl_fail = "$workdir/$tSuite/$pv/$test/RTL_FAIL";
+    my $rtl_timeout = "$workdir/$tSuite/$pv/$test/RTL_TIMEOUT";
     my $result;
 
     if (-e $compile_fail) {
@@ -385,6 +431,9 @@ else {
     }
     elsif (-e $rtl_fail) {
       $result = sprintf("%40s %40s %5s    RTL_FAIL\n", $tSuite, $test, $pv);
+    }
+    elsif (-e $rtl_timeout) {
+      $result = sprintf("%40s %40s %5s    RTL_TIMEOUT\n", $tSuite, $test, $pv);
     }
     elsif (-e $fail) {
       $result = sprintf("%40s %40s %5s    FAILED\n", $tSuite, $test, $pv);
