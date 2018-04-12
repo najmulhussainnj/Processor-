@@ -251,7 +251,7 @@ linux_bsim: compile_bluesim link_bluesim generate_boot_files
 	@cd $(BSVOUTDIR) && ./out
 
 .PHONY: regress 
-regress: compile_bluesim link_bluesim generate_boot_files 
+regress:  
 	SHAKTI_HOME=$$PWD perl -I$(SHAKTI_HOME)/verification/scripts $(SHAKTI_HOME)/verification/scripts/makeRegress.pl $(opts)
 
 .PHONY: test
