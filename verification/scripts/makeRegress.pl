@@ -57,12 +57,12 @@ GetOptions(
           qw(filter=s)      => \my $test_filter,
           qw(test_count=s)  => \my $test_count,
           qw(parallel)      => \my $parallel,
+          qw(report)        => \my $report,
           qw(help)          => \my $help,
           qw(clean)         => \my $clean
 );
 
 my $submit;
-my $report;
 my $testSuite;
 my $testCount;
 my $generate;
@@ -451,5 +451,14 @@ else {
   }
   else {
     print @regress_report;
+  }
+  if ($report) {
+    open REPORT, ">$shaktiHome/verification/workdir/regress_report.log" or die "[$scriptLog.pl] ERROR opening file $!\n";
+    print REPORT @regress_report;
+    print REPORT "\n------------------------------------------------------------------------------------------------";
+    print REPORT "\n Total tests: ", scalar(@regress_report);
+    print REPORT "\n Pass percentage: ", sprintf("%.2f\%", (scalar(grep /PASSED/, @regress_report)/scalar(@regress_report))*100);
+    print REPORT "\n------------------------------------------------------------------------------------------------\n";
+    close REPORT;
   }
 }
