@@ -122,7 +122,8 @@ if (-e $reportFile) {
     print HTML "</body>\n";
     print HTML "</html>\n";
     close HTML;
-    `cat $shaktiHome/verification/workdir/regress_report.html | mail -s \"[c-class] Smoke regress report\" -a\'Content-Type: text/html\' -a\'From: Shakti Bot <shaktibot\@gmail.com>\' lavanya.jagan\@gmail.com`;
+    print "Mailed the regression status to: @ARGV\n";
+    `cat $shaktiHome/verification/workdir/regress_report.html | mail -s \"[c-class] Smoke regress report\" -a\'Content-Type: text/html\' -a\'From: Shakti Bot <shaktibot\@gmail.com>\' @ARGV`;
 }
 else {
   print "ERROR: Nothing to report. please run regression\n";
