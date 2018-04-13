@@ -303,7 +303,9 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
    Reg#(Bit#(4))      	r_arid           <- mkReg(0);
    Reg#(Bit#(4))      	r_awid           <- mkReg(0);
    Reg#(Bit#(1))      	wr_pending       <- mkReg(0);
-   ConfigReg#(Bit#(1))      	rd_wrb      <- mkConfigReg(0);
+   Reg#(Bit#(1))      	r_chk_fifos_wr   <- mkReg(0);
+   Reg#(Bit#(1))      	r_chk_fifos_rd   <- mkReg(0);
+   ConfigReg#(Bit#(1))      	rd_wrb      <- mkConfigReg(1);
    Reg#(Bool)         	r_rready  	<- mkReg(False);       
    Reg#(Bool)         	r2_rready  	<- mkReg(False);       
 
@@ -315,7 +317,6 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
    Reg#(Bool)         	r2_arvalid 	<- mkReg(False);       
 
    Reg#(Bool)         	r1_OEn	 	<- mkReg(True);       
-   Reg#(Bool)         	upd_v[2] 	 	<- mkCReg(2,True);       
 
    Reg#(Bit#(8))  r_AD_32bit_data_byte1  <- mkReg(0);
    Reg#(Bit#(8))  r_AD_32bit_data_byte2  <- mkReg(0);
@@ -360,7 +361,6 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
            	r1_OEn <= True;
    endrule
 
-   (* mutually_exclusive = " rl_state_S0_CHK_FIFO_RD, rl_state_S0_CHK_FIFOS_WR" *)
    rule rl_state_S0_CHK_FIFO_RD(flexbus_state_rd == FlexBus_S0_CHK_FIFOS);
 	`ifdef verbose_debug $display("STATE S0 CHK FIFOS RD FIRED"); `endif
         if (f_rd_addr.notEmpty) begin
@@ -368,6 +368,21 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
             flexbus_state_rd <= FlexBus_S0_DEQ_FIFOS;
             `ifdef verbose_debug_l2 $display("READ ADDR FIFO WAS READ FIRST  r_araddr=%h \n", f_rd_addr.first.araddr); `endif
         end
+   endrule
+
+  (* preempts = "rl_check_read_fifo, rl_check_write_fifo" *) 
+   rule rl_check_read_fifo (r_chk_fifos_rd == 1'b1 && f_rd_addr.notEmpty); 
+                rd_wrb <= 1'b1;
+                r_chk_fifos_rd <= 1'b0;
+                r_chk_fifos_wr <= 1'b0;
+   endrule
+
+   rule rl_check_write_fifo(r_chk_fifos_wr == 1'b1 && f_wr_addr.notEmpty && f_wr_data.notEmpty);
+		    if (f_wr_addr.first.awaddr[31:16] != r_MBAR[31:16]) begin
+                    rd_wrb <= 1'b0;
+                    r_chk_fifos_rd <= 1'b0;
+                    r_chk_fifos_wr <= 1'b0;
+            end
    endrule
 
    rule rl_state_S0_CHK_FIFOS_WR(flexbus_state_wr == FlexBus_S0_CHK_FIFOS);
@@ -386,12 +401,12 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
 
    rule rl_state_S0_DEQ_FIFOS (flexbus_state_rd == FlexBus_S0_DEQ_FIFOS || flexbus_state_wr == FlexBus_S0_DEQ_FIFOS);
 	`ifdef verbose_debug $display("STATE S0 DEQ FIFOS FIRED"); `endif
-        if (flexbus_state_rd == FlexBus_S0_DEQ_FIFOS) begin
+        if (rd_wrb == 1'b1) begin
                 flexbus_state <= FlexBus_S0_DEQ_RD_FIFOS;
                 flexbus_state_rd <= IDLE;
                 flexbus_state_wr <= IDLE;
         end
-        else if (flexbus_state_wr == FlexBus_S0_DEQ_FIFOS)  begin
+        else if (rd_wrb == 1'b0) begin
                 flexbus_state <= FlexBus_S0_DEQ_WR_FIFOS;
                 flexbus_state_rd <= IDLE;
                 flexbus_state_wr <= IDLE;
@@ -406,7 +421,8 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
    	if ((f_wr_addr.notEmpty) )  begin
    		r1_awvalid <= f_wr_addr.notEmpty;
 		f_wr_addr.deq;
-        upd_v[1] <= True;
+        r_chk_fifos_wr <= 1'b1;
+        r_chk_fifos_rd <= 1'b1;
 		AXI4_Wr_Addr#(wd_addr, wd_user) wr_addr = f_wr_addr.first;
         	r_awaddr <= f_wr_addr.first.awaddr;
         	v_awsize = f_wr_addr.first.awsize;
@@ -439,7 +455,8 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
    	if ((f_rd_addr.notEmpty) ) begin
    		r1_arvalid <= f_rd_addr.notEmpty;
 		f_rd_addr.deq;
-        upd_v[1] <= True;
+        r_chk_fifos_wr <= 1'b1;
+        r_chk_fifos_rd <= 1'b1;
    		AXI4_Rd_Addr#(wd_addr, wd_user) rd_addr = f_rd_addr.first;
         	r_araddr <= f_rd_addr.first.araddr;
         	v_arsize = f_rd_addr.first.arsize;
@@ -538,7 +555,8 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
 	r_AD_32bit_addr_byte2  <= pack(r_awaddr[23:16]); 
 	r_AD_32bit_addr_byte3  <= pack(r_awaddr[15:8]); 
 	r_AD_32bit_addr_byte4  <= pack(r_awaddr[7:0]); 
-    `ifdef verbose_debug_l2 $display("r_wdata after ASSIGN = %h r_PS = %b r_AD_32bit_data_byte1=%h ", r_wdata, r_PS, r_AD_32bit_data_byte1); `endif
+        `ifdef verbose_debug_l2 $display("r_wdata after ASSIGN = %h r_PS = %b r_AD_32bit_data_byte1=%h ", r_wdata, r_PS, r_AD_32bit_data_byte1);
+        $display("r_awaddr after ASSIGN = %h r_PS = %b r_AD_32bit_addr_byte1=%h ", r_awaddr, r_PS, r_AD_32bit_addr_byte1); `endif
    endrule
 
    rule rl_assign_rd_data;
@@ -952,7 +970,6 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
                                 Bit#(4) awid
 								);
                   if (awvalid && f_wr_addr.notFull) begin
-                              `ifdef verbose_debug $display ("I ENQUEUED Write Address\n");`endif
 				        f_wr_addr.enq (AXI4_Wr_Addr {awaddr: awaddr,
 								   awuser: awuser,
 									 awlen:awlen,
@@ -973,7 +990,6 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
 							 Bool wlast,
 							 Bit#(4) wid);
                              if (wvalid && f_wr_data.notFull) begin 
-                              `ifdef verbose_debug $display ("I ENQUEUED Write Data\n");`endif
 				 f_wr_data.enq (AXI4_Wr_Data {wdata: wdata, wstrb: wstrb, wlast:wlast, wid: wid});
                             end
 			   endmethod
@@ -1001,7 +1017,6 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
 								Bit#(2)				 arburst,
                                 Bit#(4) arid);
                                 if (arvalid && f_rd_addr.notFull) begin
-                              `ifdef verbose_debug $display ("I ENQUEUED Read Address\n");`endif
 				 f_rd_addr.enq (AXI4_Rd_Addr {araddr: araddr,
 								   aruser: aruser,
 									 arlen : arlen,
