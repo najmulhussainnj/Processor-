@@ -39,6 +39,7 @@ import Vector      :: *;
 import FIFOF       :: *;
 import SpecialFIFOs:: *;
 import Connectable :: *;
+import ConfigReg :: *;
 `include "defined_parameters.bsv"
 
 // ----------------
@@ -164,7 +165,8 @@ instance Connectable #(FlexBus_Master_IFC ,
 	 flexbus_s.m_TBSTn   (flexbus_m.m_TBSTn);
 	 flexbus_s.m_OEn     (flexbus_m.m_OEn);
       endrule
-      (* fire_when_enabled, no_implicit_conditions *)
+      (* fire_when_enabled *)
+      //(* fire_when_enabled, no_implicit_conditions *)
       rule rl_flexbus_input_signals;
 	 flexbus_m.m_din (flexbus_s.m_din);
 	 flexbus_m.m_TAn (flexbus_s.m_TAn);
@@ -182,8 +184,9 @@ endinstance
 // ================================================================
 // Higher-level types for payloads (rather than just bits)
 
-typedef enum { FlexBus_S0_CHK_FIFOS, FlexBus_S0_DEQ_FIFOS, FlexBus_S0_DEQ_WR_FIFOS, FlexBus_S0_DEQ_RD_FIFOS, FlexBus_S1_ADDR, FlexBus_S2_WRITE, FlexBus_S3_BURST, FlexBus_S4_HOLD } FlexBus_States
-deriving (Bits, Eq, FShow);
+typedef enum { IDLE, FlexBus_S0_DEQ_WR_FIFOS, FlexBus_S0_DEQ_RD_FIFOS, FlexBus_S1_ADDR, FlexBus_S2_WRITE, FlexBus_S3_BURST, FlexBus_S4_HOLD } FlexBus_States deriving (Bits, Eq, FShow);
+typedef enum { IDLE, FlexBus_S0_CHK_FIFOS, FlexBus_S0_DEQ_FIFOS, FlexBus_WRITE_DUMMY1, FlexBus_WRITE_DUMMY2 } FlexBus_States_wr deriving (Bits, Eq, FShow);
+typedef enum { IDLE, FlexBus_S0_CHK_FIFOS, FlexBus_S0_DEQ_FIFOS} FlexBus_States_rd deriving (Bits, Eq, FShow);
 
 //FlexBus Addr. Data Payload
 
@@ -290,12 +293,17 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
    Reg#(Bit#(wd_addr))  r2_awaddr   <- mkReg(0);
    Reg#(Bit#(wd_data))  r_wdata     <- mkReg(0);
    Reg#(AXI4_Resp)      r_wrbresp	<- mkReg(AXI4_OKAY);  
+   Reg#(AXI4_Resp)      r_rresp	    <- mkReg(AXI4_OKAY);  
    Reg#(Bit#(wd_data))  r_rd_data        <- mkReg(0);
    Reg#(Bit#(TDiv#(wd_data,8))) r1_wstrb <- mkReg(0);
    Reg#(Bit#(TDiv#(wd_data,8))) r2_wstrb <- mkReg(0);
    Reg#(Bit#(wd_addr))  r_araddr         <- mkReg(0);
    Reg#(Bit#(wd_addr))  r2_araddr        <- mkReg(0);
    Reg#(Bit#(2))      	r_arsize         <- mkReg(0);
+   Reg#(Bit#(4))      	r_arid           <- mkReg(0);
+   Reg#(Bit#(4))      	r_awid           <- mkReg(0);
+   Reg#(Bit#(1))      	wr_pending       <- mkReg(0);
+   ConfigReg#(Bit#(1))      	rd_wrb      <- mkConfigReg(0);
    Reg#(Bool)         	r_rready  	<- mkReg(False);       
    Reg#(Bool)         	r2_rready  	<- mkReg(False);       
 
@@ -307,6 +315,7 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
    Reg#(Bool)         	r2_arvalid 	<- mkReg(False);       
 
    Reg#(Bool)         	r1_OEn	 	<- mkReg(True);       
+   Reg#(Bool)         	upd_v[2] 	 	<- mkCReg(2,True);       
 
    Reg#(Bit#(8))  r_AD_32bit_data_byte1  <- mkReg(0);
    Reg#(Bit#(8))  r_AD_32bit_data_byte2  <- mkReg(0);
@@ -325,7 +334,9 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
 
    Reg#(Bit#(32))  r_MBAR  <- mkReg(32'h04000000);
 
-   Reg#(FlexBus_States) flexbus_state <- mkReg(FlexBus_S0_CHK_FIFOS);
+   Reg#(FlexBus_States) flexbus_state <- mkReg(IDLE);
+   Reg#(FlexBus_States_rd) flexbus_state_rd <- mkReg(FlexBus_S0_CHK_FIFOS);
+   Reg#(FlexBus_States_wr) flexbus_state_wr <- mkReg(FlexBus_S0_CHK_FIFOS);
 
    // These FIFOs are guarded on BSV side, unguarded on AXI side
    FIFOF #(AXI4_Wr_Addr #(wd_addr, wd_user)) f_wr_addr <- mkGFIFOF (unguarded, guarded);
@@ -350,37 +361,42 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
    endrule
 
    (* mutually_exclusive = " rl_state_S0_CHK_FIFO_RD, rl_state_S0_CHK_FIFOS_WR" *)
-   rule rl_state_S0_CHK_FIFO_RD(flexbus_state == FlexBus_S0_CHK_FIFOS);
+   rule rl_state_S0_CHK_FIFO_RD(flexbus_state_rd == FlexBus_S0_CHK_FIFOS);
 	`ifdef verbose_debug $display("STATE S0 CHK FIFOS RD FIRED"); `endif
         if (f_rd_addr.notEmpty) begin
-		register_ifc.inp_side.m_ad_bus(f_rd_addr.first.araddr[31:0]);
-                flexbus_state <= FlexBus_S0_DEQ_FIFOS;
-                `ifdef verbose_debug_l2 $display("READ ADDR FIFO WAS READ FIRST  r_araddr=%h \n", f_rd_addr.first.araddr); `endif
+		    register_ifc.inp_side.m_ad_bus(f_rd_addr.first.araddr[31:0]);
+            flexbus_state_rd <= FlexBus_S0_DEQ_FIFOS;
+            `ifdef verbose_debug_l2 $display("READ ADDR FIFO WAS READ FIRST  r_araddr=%h \n", f_rd_addr.first.araddr); `endif
         end
    endrule
 
-   rule rl_state_S0_CHK_FIFOS_WR(flexbus_state == FlexBus_S0_CHK_FIFOS);
+   rule rl_state_S0_CHK_FIFOS_WR(flexbus_state_wr == FlexBus_S0_CHK_FIFOS);
 	`ifdef verbose_debug $display("STATE S0 CHK FIFOS WR FIRED"); `endif
         if (f_wr_addr.notEmpty && f_wr_data.notEmpty) begin
-		if (f_wr_addr.first.awaddr[31:16] == r_MBAR[31:16]) begin
-			f_wr_addr.deq; f_wr_data.deq;
-		end
-		else begin
-                	flexbus_state <= FlexBus_S0_DEQ_FIFOS;
-		end
-		register_ifc.inp_side.m_ad_bus(f_wr_addr.first.awaddr[31:0]);
-		register_ifc.inp_side.m_data_bus(f_wr_data.first.wdata[31:0]);
+		    if (f_wr_addr.first.awaddr[31:16] == r_MBAR[31:16]) begin
+			    f_wr_addr.deq; f_wr_data.deq;
+		    end
+		    else begin
+                flexbus_state_wr <= FlexBus_S0_DEQ_FIFOS;
+		    end
+		    register_ifc.inp_side.m_ad_bus(f_wr_addr.first.awaddr[31:0]);
+		    register_ifc.inp_side.m_data_bus(f_wr_data.first.wdata[31:0]);
         end
    endrule
 
-   rule rl_state_S0_DEQ_FIFOS (flexbus_state == FlexBus_S0_DEQ_FIFOS);
+   rule rl_state_S0_DEQ_FIFOS (flexbus_state_rd == FlexBus_S0_DEQ_FIFOS || flexbus_state_wr == FlexBus_S0_DEQ_FIFOS);
 	`ifdef verbose_debug $display("STATE S0 DEQ FIFOS FIRED"); `endif
-        if (f_rd_addr.notEmpty) begin
+        if (flexbus_state_rd == FlexBus_S0_DEQ_FIFOS) begin
                 flexbus_state <= FlexBus_S0_DEQ_RD_FIFOS;
+                flexbus_state_rd <= IDLE;
+                flexbus_state_wr <= IDLE;
         end
-        else if (f_wr_addr.notEmpty && f_wr_data.notEmpty) begin
+        else if (flexbus_state_wr == FlexBus_S0_DEQ_FIFOS)  begin
                 flexbus_state <= FlexBus_S0_DEQ_WR_FIFOS;
+                flexbus_state_rd <= IDLE;
+                flexbus_state_wr <= IDLE;
         end
+        if (flexbus_state_rd == FlexBus_S0_DEQ_FIFOS && flexbus_state_wr == FlexBus_S0_DEQ_FIFOS) wr_pending <= 1'b1;
    endrule
 
    rule rl_state_S0_DEQ_WR_FIFOS (flexbus_state == FlexBus_S0_DEQ_WR_FIFOS);
@@ -390,9 +406,11 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
    	if ((f_wr_addr.notEmpty) )  begin
    		r1_awvalid <= f_wr_addr.notEmpty;
 		f_wr_addr.deq;
+        upd_v[1] <= True;
 		AXI4_Wr_Addr#(wd_addr, wd_user) wr_addr = f_wr_addr.first;
         	r_awaddr <= f_wr_addr.first.awaddr;
         	v_awsize = f_wr_addr.first.awsize;
+            r_awid <= f_wr_addr.first.awid;
                 case (v_awsize) matches
 			{3'b000}: r_awsize <= 2'b01;
 			{3'b001}: r_awsize <= 2'b10;
@@ -414,16 +432,18 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
         end
    endrule
 
-   rule rl_deq_rd_fifo (flexbus_state == FlexBus_S0_DEQ_RD_FIFOS);
-	`ifdef verbose_debug $display("STATE S0 DEQ RD FIOS FIRED"); `endif
+   rule rl_S0_DEQ_RD_FIFOS (flexbus_state == FlexBus_S0_DEQ_RD_FIFOS);
+	`ifdef verbose_debug $display("STATE S0 DEQ RD FIFOS FIRED"); `endif
 	r_ASET <= register_ifc.op_side.m_ASET;
 	Bit#(3) v_arsize = 3'b000;
    	if ((f_rd_addr.notEmpty) ) begin
    		r1_arvalid <= f_rd_addr.notEmpty;
 		f_rd_addr.deq;
+        upd_v[1] <= True;
    		AXI4_Rd_Addr#(wd_addr, wd_user) rd_addr = f_rd_addr.first;
         	r_araddr <= f_rd_addr.first.araddr;
         	v_arsize = f_rd_addr.first.arsize;
+            r_arid <= f_rd_addr.first.arid;
                 case (v_arsize) matches
 			{3'b000}: r_arsize <= 2'b01;
 			{3'b001}: r_arsize <= 2'b10;
@@ -445,7 +465,7 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
    if (f_wr_resp.notFull) 
   	f_wr_resp.enq (AXI4_Wr_Resp {bresp:r_wrbresp,
 					  buser:0,
-					  bid:0});
+					  bid:r_awid});
    endrule
 
 
@@ -453,10 +473,10 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
    	Bool rready = f_rd_data.notFull; 
    	if (f_rd_data.notFull && r2_rready) begin 
    		f_rd_data.enq (AXI4_Rd_Data {rdata: r_rd_data,
-						  rresp: AXI4_OKAY,
+						  rresp: r_rresp,
 						  rlast: True,
 						  ruser:0,
-                                                  rid:0});
+                          rid:r_arid});
 		//AXI4_Slave_IFC.m_rready(True);
         	`ifdef verbose_debug $display("RD DATA FIFO WAS NOT FULL SO I ENQUEUED r_rd_data=%h r2_rready= %b\n", r_rd_data, r2_rready); `endif
     	end
@@ -518,8 +538,7 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
 	r_AD_32bit_addr_byte2  <= pack(r_awaddr[23:16]); 
 	r_AD_32bit_addr_byte3  <= pack(r_awaddr[15:8]); 
 	r_AD_32bit_addr_byte4  <= pack(r_awaddr[7:0]); 
-        `ifdef verbose_debug_l2 $display("r_wdata after ASSIGN = %h r_PS = %b r_AD_32bit_data_byte1=%h ", r_wdata, r_PS, r_AD_32bit_data_byte1);
-        $display("r_awaddr after ASSIGN = %h r_PS = %b r_AD_32bit_addr_byte1=%h ", r_awaddr, r_PS, r_AD_32bit_addr_byte1); `endif
+    `ifdef verbose_debug_l2 $display("r_wdata after ASSIGN = %h r_PS = %b r_AD_32bit_data_byte1=%h ", r_wdata, r_PS, r_AD_32bit_data_byte1); `endif
    endrule
 
    rule rl_assign_rd_data;
@@ -657,7 +676,11 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
 	`endif
 	if (r_ext_TAn == 1'b1) begin // premature external termination SLVERR response
 		flexbus_state <= FlexBus_S4_HOLD;
+		if (r_R_Wn == 1'b1) begin
+    		r_rresp <= AXI4_SLVERR; //SLVERR
+        end else begin
     		r_wrbresp <= AXI4_SLVERR; //SLVERR
+        end
 	end
 	else if (r_rpt_cnt == 3'b001) begin
 		if (r_R_Wn == 1'b1) begin
@@ -866,9 +889,24 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
 	r_FBCSn <= 6'h3F;
 	r_TBSTn <= 1'b1;
         if (r_hld_cnt ==  2'b00) begin
-           	flexbus_state <= FlexBus_S0_CHK_FIFOS;
-		r_rready	<= False;
+            if (wr_pending == 1'b1) begin
+                flexbus_state <= FlexBus_S0_DEQ_WR_FIFOS;
+           	    flexbus_state_wr <= IDLE;
+           	    flexbus_state_rd <= IDLE;
+                wr_pending <= 1'b0;
+            end
+            else begin
+                flexbus_state <= IDLE;
+           	    flexbus_state_wr <= FlexBus_S0_CHK_FIFOS;
+           	    flexbus_state_rd <= FlexBus_S0_CHK_FIFOS;
+            end
+                r1_arvalid  <= False;
+                r1_awvalid  <= False;
+                r1_wvalid   <= False;
+
+		        r_rready	<= False;
                 r_wrbresp	<= AXI4_OKAY;  
+                r_rresp	    <= AXI4_OKAY;  
                 r_ASET		<= 2'b00;  
                 r_rpt_cnt	<= 3'b000;  
                 r_burst_cnt	<= 2'b00;  
@@ -913,14 +951,15 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
 								Bit#(2) awburst,
                                 Bit#(4) awid
 								);
-			      if (awvalid && f_wr_addr.notFull)
-                              `ifdef verbose_debug $display ("I ENQUEUED\n");`endif
-				 f_wr_addr.enq (AXI4_Wr_Addr {awaddr: awaddr,
+                  if (awvalid && f_wr_addr.notFull) begin
+                              `ifdef verbose_debug $display ("I ENQUEUED Write Address\n");`endif
+				        f_wr_addr.enq (AXI4_Wr_Addr {awaddr: awaddr,
 								   awuser: awuser,
 									 awlen:awlen,
 									 awsize:awsize,
 									 awburst:awburst,
                                      awid:awid});
+                    end
 			   endmethod
 
 			   method Bool m_awready;
@@ -933,8 +972,10 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
 						   Bit #(TDiv #(wd_data, 8)) wstrb,
 							 Bool wlast,
 							 Bit#(4) wid);
-			      if (wvalid && f_wr_data.notFull)
+                             if (wvalid && f_wr_data.notFull) begin 
+                              `ifdef verbose_debug $display ("I ENQUEUED Write Data\n");`endif
 				 f_wr_data.enq (AXI4_Wr_Data {wdata: wdata, wstrb: wstrb, wlast:wlast, wid: wid});
+                            end
 			   endmethod
 
 			   method Bool m_wready;
@@ -959,13 +1000,15 @@ module mkAXI4_Slave_to_FlexBus_Master_Xactor
 								Bit#(8) 			 arlen,
 								Bit#(2)				 arburst,
                                 Bit#(4) arid);
-			      if (arvalid && f_rd_addr.notFull)
+                                if (arvalid && f_rd_addr.notFull) begin
+                              `ifdef verbose_debug $display ("I ENQUEUED Read Address\n");`endif
 				 f_rd_addr.enq (AXI4_Rd_Addr {araddr: araddr,
 								   aruser: aruser,
 									 arlen : arlen,
 									 arsize: arsize,
 									 arburst:arburst,
                                      arid:arid});
+                        end
 			   endmethod
 
 			   method Bool m_arready;
@@ -1102,7 +1145,8 @@ module mkFlexBus_Registers (FlexBus_Register_IFC);
 		r_ASET		<= r_cntr_reg_sel[21:20];
 		r_RDAH		<= r_cntr_reg_sel[19:18];
 		r_WRAH		<= r_cntr_reg_sel[17:16];
-		r_WS  		<= r_cntr_reg_sel[15:10];
+		//r_WS  		<= r_cntr_reg_sel[15:10];
+        r_WS        <= 6'h06;
 		r_AA     	<= r_cntr_reg_sel[8];
 		r_PS  		<= r_cntr_reg_sel[7:6];
 		r_BEM    	<= r_cntr_reg_sel[5];

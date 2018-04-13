@@ -431,12 +431,22 @@
 	`define TCMEnd			'h00040000 // 128KB
   `define VMEBase	'h40000000	
 	`define  VMEEnd  'h4FFFFFFF // 1GB
-    `define FlexBusBase 'h50000000
-    `define FlexBusEnd 'h5FFFFFFF
+    `ifdef FlexBus_verify
+        `define FlexBusBase 'h80000000
+        `define FlexBusEnd 'h8FFFFFFF
+    `else
+        `define FlexBusBase 'h50000000
+        `define FlexBusEnd 'h5FFFFFFF
+    `endif
 	`define ClintBase		'h02000000
 	`define ClintEnd		'h020BFFFF 
-	`define SDRAMMemBase	'h80000000	
-	`define SDRAMMemEnd  'h8FFFFFFF // 1GB
+    `ifdef FlexBus_verify
+	    `define SDRAMMemBase	'h50000000	
+	    `define SDRAMMemEnd  'h5FFFFFFF // 1GB
+    `else
+	    `define SDRAMMemBase	'h80000000	
+	    `define SDRAMMemEnd  'h8FFFFFFF // 1GB
+    `endif
 	`define QSPI0MemBase	'h90000000 
 	`define QSPI0MemEnd  'h9FFFFFFF // 256 MB
 	`define QSPI1MemBase	'hA0000000

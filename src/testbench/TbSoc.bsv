@@ -39,6 +39,14 @@ package TbSoc;
 		import bsvmksdram_model_wrapper::*;
 		import sdr_top::*;
 	`endif
+    `ifdef FlexBus_verify
+         import Semi_FIFOF :: *;
+         
+         import AXI4_Types   :: *;
+         import FlexBus_Types :: *;
+         import FlexBus_Slave_to_AXI4_Master_Fabric_Types :: *;
+         import Memory_AXI4 :: *;
+    `endif
    	`ifdef QSPI0 
 			import qspi::*;
          `ifdef micron
@@ -120,13 +128,6 @@ rule connect_boot;
 		`endif
 		endrule
 	`endif
-
-//	`ifdef Flexbus
-//		rule drive_flexbus_inputs;
-//           soc.flexbus_out.m_TAn(1'b1);
-//           soc.flexbus_out.m_din(32'haaaaaaaa);
-//		endrule
-//    `endif
 
 		`ifdef AXIEXP
 			mkConnection(soc.slow_ios.axiexp1_out,axiexpslave.from_slave);
@@ -490,6 +491,21 @@ rule connect_boot;
 	endrule
 
 `endif
+
+`ifdef FlexBus_verify
+ //rule drive_flexbus_inputs;
+    //soc.flexbus_out.m_TAn(1'b1);
+    //soc.flexbus_out.m_din(32'haaaaaaaa);
+ //endrule
+
+ Memory_IFC#(`SDRAMMemBase,`Addr_space) main_memory <- mkMemory("code.mem.MSB","code.mem.LSB","MainMEM");
+
+ FlexBus_Slave_to_AXI4_Master_Fabric_IFC#(32,64,0) verfn_ifc <- mkFlexBus_Slave_to_AXI4_Master_Fabric;
+
+ mkConnection(soc.flexbus_out,verfn_ifc.flexbus_side);
+
+ mkConnection(verfn_ifc.axi_side, main_memory.axi_slave);
+ `endif
 
 		
 		`ifdef UART0

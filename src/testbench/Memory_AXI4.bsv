@@ -50,7 +50,7 @@ package Memory_AXI4;
 			dmemLSB.b.put(w.wstrb[3:0],index_address,truncate(w.wdata));
 			dmemMSB.b.put(w.wstrb[7:4],index_address,truncateLSB(w.wdata));
 		   let b = AXI4_Wr_Resp {bresp: AXI4_OKAY, buser: aw.awuser, bid:aw.awid};
-			if(aw.awburst!=0) begin
+			if(aw.awlen!=0) begin
 				wr_state<=HandleBurst;
 				let new_address=burst_address_generator(aw.awlen,aw.awsize,aw.awburst,aw.awaddr);
 				aw.awaddr=new_address;
