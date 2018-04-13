@@ -80,9 +80,11 @@ ifeq ($(VME),enable)
 endif
 ifeq ($(FlexBus),enable)
   define_macros += -D FlexBus=True
-  define_macros += -D verbose_debug=True
   define_macros += -D FlexBus_verify=True
-  define_macros += -D verbose_debug_ver=True
+  ifeq ($(VERBOSE),enable)
+  	define_macros += -D verbose_debug=True
+  	define_macros += -D verbose_debug_ver=True
+  endif
 endif
 ifeq ($(BOOTROM),enable)
   define_macros += -D BOOTROM=True
